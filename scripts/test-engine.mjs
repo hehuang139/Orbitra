@@ -39,6 +39,109 @@ const inspectFrame = () =>
     return { width: surface.width, height: surface.height, checksum, range: max - min }
   })
 
+async function verifyCanvas2DRenderer(browser, url) {
+  const context = await browser.newContext()
+  await context.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
+      if (kind === 'webgl2' || kind === 'webgl' || kind === 'experimental-webgl') return null
+      return getContext.call(this, kind, ...args)
+    }
+  })
+  const softwarePage = await context.newPage()
+  const softwareErrors = []
+  softwarePage.on('pageerror', (error) => softwareErrors.push(error.message))
+  try {
+    await softwarePage.goto(`${url}/src/emulator/verify.html`)
+    await softwarePage.waitForFunction(() => !!window.emulator)
+    const cartridges = [
+      { platform: 'gba', name: 'star-orbit.gba', bytes: null },
+      { platform: 'gb', name: 'advance-test.gb', bytes: Array.from(createGameBoyTestRom()) },
+      {
+        platform: 'gbc',
+        name: 'advance-test.gbc',
+        bytes: Array.from(createGameBoyTestRom({ color: true })),
+      },
+    ]
+    const frames = []
+    for (const cartridge of cartridges) {
+      await softwarePage.evaluate(async ({ platform, name, bytes }) => {
+        window.fps = 0
+        const rom = bytes
+          ? new Uint8Array(bytes)
+          : new Uint8Array(await (await fetch('/demo/star-orbit.gba')).arrayBuffer())
+        await window.emulator.loadRom(rom, name, platform)
+      }, cartridge)
+      await softwarePage.waitForFunction(() => window.fps > 25, undefined, { timeout: 10000 })
+      const frame = await softwarePage.evaluate(async () => {
+        const canvas = document.querySelector('canvas')
+        const drawing = canvas.getContext('2d')
+        const pixels = drawing.getImageData(0, 0, canvas.width, canvas.height).data
+        let min = 255
+        let max = 0
+        for (let index = 0; index < pixels.length; index += 4) {
+          min = Math.min(min, pixels[index], pixels[index + 1], pixels[index + 2])
+          max = Math.max(max, pixels[index], pixels[index + 1], pixels[index + 2])
+        }
+        const state = await window.emulator.saveState()
+        const screenshot = await window.emulator.screenshot()
+        return {
+          backend: canvas.dataset.renderBackend,
+          fps: window.fps,
+          height: canvas.height,
+          range: max - min,
+          screenshotSize: screenshot.size,
+          stateSize: state.length,
+          width: canvas.width,
+        }
+      })
+      const expectedSize = cartridge.platform === 'gba' ? [240, 160] : [160, 144]
+      assert.deepEqual([frame.width, frame.height], expectedSize)
+      assert.equal(frame.backend, 'canvas2d')
+      assert.ok(frame.fps > 25, `${cartridge.platform} Canvas 2D FPS must remain playable`)
+      assert.ok(
+        frame.range > 20,
+        `${cartridge.platform} Canvas 2D frame must contain visible pixels`,
+      )
+      assert.ok(frame.stateSize > 1000)
+      assert.ok(frame.screenshotSize > 100)
+      frames.push({ platform: cartridge.platform, ...frame })
+    }
+
+    await softwarePage.evaluate(() => window.emulator.dispose())
+    for (let attempt = 0; attempt < 20 && softwarePage.workers().length; attempt++)
+      await softwarePage.waitForTimeout(50)
+    assert.equal(softwarePage.workers().length, 0)
+
+    // The application reuses its canvas after closing a session. A restored
+    // getContext must allow the compatibility renderer to be installed again.
+    await softwarePage.evaluate(async () => {
+      const { createEmulator } = await import('/src/emulator/index.ts')
+      window.fps = 0
+      window.emulator = createEmulator(document.querySelector('canvas'), {
+        onFps: (fps) => {
+          window.fps = fps
+        },
+      })
+      const bytes = new Uint8Array(await (await fetch('/demo/star-orbit.gba')).arrayBuffer())
+      await window.emulator.loadRom(bytes, 'star-orbit.gba', 'gba')
+    })
+    await softwarePage.waitForFunction(() => window.fps > 25, undefined, { timeout: 10000 })
+    assert.equal(
+      await softwarePage.locator('canvas').getAttribute('data-render-backend'),
+      'canvas2d',
+    )
+    await softwarePage.evaluate(() => window.emulator.dispose())
+    for (let attempt = 0; attempt < 20 && softwarePage.workers().length; attempt++)
+      await softwarePage.waitForTimeout(50)
+    assert.equal(softwarePage.workers().length, 0)
+    assert.deepEqual(softwareErrors, [])
+    return { frames, recreatedFps: await softwarePage.evaluate(() => window.fps) }
+  } finally {
+    await context.close()
+  }
+}
+
 try {
   const url = process.env.ENGINE_TEST_URL || 'http://127.0.0.1:5173'
   await page.goto(`${url}/src/emulator/verify.html`)
@@ -410,6 +513,7 @@ try {
   for (let attempt = 0; attempt < 20 && page.workers().length; attempt++)
     await page.waitForTimeout(50)
   assert.equal(page.workers().length, 0, 'audio regression core must also release all workers')
+  const canvas2d = await verifyCanvas2DRenderer(browser, url)
   const startup = await verifyStartup(browser, url)
   assert.deepEqual(errors, [], 'no browser runtime errors')
   const snapshots = {
@@ -436,6 +540,7 @@ try {
         saveData,
         snapshots,
         handhelds,
+        canvas2d,
         audioGuard,
         workersAfterDispose: page.workers().length,
       },

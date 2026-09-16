@@ -32,6 +32,7 @@ import {
   Search,
   Settings2,
   ShieldCheck,
+  ShieldAlert,
   SlidersHorizontal,
   Sparkles,
   Trash2,
@@ -193,6 +194,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [gameMenu, setGameMenu] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
+  const compatibilityRenderingWarning =
+    compatibility?.checks.some((check) => check.id === 'webgl' && check.status === 'warning') ??
+    false
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stageRef = useRef<HTMLElement>(null)
   const engineRef = useRef<Emulator | null>(null)
@@ -1124,7 +1128,7 @@ export default function App() {
             <OfflineStatus />
             <span className="topbar-divider" />
             <button
-              className={`environment-button ${compatibility ? (compatibility.ready ? 'ready' : 'warning') : 'pending'}`}
+              className={`environment-button ${compatibility ? (compatibility.ready && !compatibilityRenderingWarning ? 'ready' : 'warning') : 'pending'}`}
               onClick={() => setCompatibilityOpen((open) => !open)}
               aria-expanded={compatibilityOpen}
               aria-controls="compatibility-panel"
@@ -1133,8 +1137,10 @@ export default function App() {
               disabled={!compatibility}
             >
               {compatibility ? (
-                compatibility.ready ? (
+                compatibility.ready && !compatibilityRenderingWarning ? (
                   <ShieldCheck size={16} />
+                ) : compatibility.ready ? (
+                  <ShieldAlert size={16} />
                 ) : (
                   <CloudOff size={16} />
                 )
@@ -1165,9 +1171,11 @@ export default function App() {
               <div>
                 <strong>运行环境检查</strong>
                 <p>
-                  {compatibility.ready
-                    ? '模拟器运行所需能力已就绪。'
-                    : '有能力未满足，可能导致核心无法启动。'}
+                  {!compatibility.ready
+                    ? '有能力未满足，可能导致核心无法启动。'
+                    : compatibilityRenderingWarning
+                      ? '可以启动；部分能力将使用兼容模式。'
+                      : '模拟器运行所需能力已就绪。'}
                 </p>
               </div>
               <button

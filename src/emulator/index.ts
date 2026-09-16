@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { checkRuntimePrerequisites } from '../lib/compatibility'
 import { batteryFromState } from './battery-snapshot'
+import { installCanvas2DRenderer } from './canvas2d-renderer'
 
 /** Browser adapter for the locally bundled mGBA WebAssembly core. */
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms.ts'
@@ -130,6 +131,12 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
   let coreError: Error | null = null
   let firstFrameEnded = false
   let pausedCoreDepth = 0
+  let restoreRenderer: (() => void) | null = null
+
+  const releaseRenderer = () => {
+    restoreRenderer?.()
+    restoreRenderer = null
+  }
 
   const setStatus = (next: EmulatorStatus) => {
     if (status === next || status === 'disposed') return
@@ -243,10 +250,11 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
   const initialize = (): Promise<Core> => {
     if (initializing) return initializing
     initializing = (async () => {
-      const unavailable = checkRuntimePrerequisites().checks.find(
-        (check) => check.status === 'error',
-      )
+      const prerequisites = checkRuntimePrerequisites()
+      const unavailable = prerequisites.checks.find((check) => check.status === 'error')
       if (unavailable) throw new Error(`${unavailable.detail}。${unavailable.action || ''}`)
+      if (prerequisites.renderingBackend === 'canvas2d' && !restoreRenderer)
+        restoreRenderer = installCanvas2DRenderer(canvas)
       options.onProgress?.('正在加载 mGBA 模拟核心…')
       const base = new URL(`${import.meta.env.BASE_URL}emulator/`, window.location.href)
       const entry = new URL('mgba.js', base).href
@@ -265,6 +273,7 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
       })
       if (status === 'disposed') {
         instance.hostDispose()
+        releaseRenderer()
         throw new Error('模拟器已关闭。')
       }
       core = instance
@@ -299,6 +308,7 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
       return instance
     })().catch((error: unknown) => {
       initializing = null
+      if (!core) releaseRenderer()
       throw error
     })
     return initializing
@@ -579,6 +589,7 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
         }
         core = null
       }
+      releaseRenderer()
       status = 'disposed'
       romName = null
       platform = null

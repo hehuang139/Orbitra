@@ -85,7 +85,7 @@ The mobile layout includes a D-pad, A / B and Start / Select touch buttons, plus
 - **Progress management:** automatic states every 30 seconds and when returning to the library or hiding the page, when enabled; `.sav` import/export.
 - **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
 - **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
-- **Display:** native GBA 3:2 and GB / GBC 10:9 ratios, pixel, smooth and CRT scanline filters, and real-core screenshots.
+- **Display:** native GBA 3:2 and GB / GBC 10:9 ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
 - **Local data:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. Runtime assets are bundled without an external CDN dependency.
 - **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
 
@@ -150,7 +150,7 @@ Cross-Origin-Embedder-Policy: require-corp
 
 Vite development and preview servers already set them. The included `public/_headers` supports compatible Netlify / Cloudflare Pages deployments. Other hosts must configure the headers explicitly. Serve the core and application from the same origin; the current build assumes a site-root deployment.
 
-Plain HTTP on a LAN address and hosts without the required headers will not run the core. Default GitHub Pages hosting does not support these custom response headers and is not a direct deployment target for this version. Browsers need SharedArrayBuffer, WebAssembly threads, WebGL and IndexedDB. The production build includes a versioned PWA shell and user-controlled offline cache updates; real mobile installation still needs validation.
+Plain HTTP on a LAN address and hosts without the required headers will not run the core. Default GitHub Pages hosting does not support these custom response headers and is not a direct deployment target for this version. Browsers need SharedArrayBuffer, WebAssembly threads, Canvas 2D and IndexedDB. The application prefers WebGL 2 and automatically uses a slower Canvas 2D software renderer when WebGL 2 cannot be created. The production build includes a versioned PWA shell and user-controlled offline cache updates; real mobile installation still needs validation.
 
 ## Development and testing
 

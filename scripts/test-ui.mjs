@@ -179,7 +179,10 @@ try {
   await quotaPage.waitForFunction(() => !document.querySelector('.hero-actions button')?.disabled)
   await quotaPage.getByRole('button', { name: '环境检查', exact: true }).click()
   assert.match(
-    await quotaPage.locator('.compatibility-check.warning').innerText(),
+    await quotaPage
+      .locator('.compatibility-check.warning')
+      .filter({ hasText: '存储空间' })
+      .innerText(),
     /存储配额检查超时/,
   )
   assert.equal(
