@@ -73,7 +73,22 @@ async function verifyCanvas2DRenderer(browser, url) {
         await window.emulator.loadRom(rom, name, platform)
       }, cartridge)
       await softwarePage.waitForFunction(() => window.fps > 25, undefined, { timeout: 10000 })
-      const frame = await softwarePage.evaluate(async () => {
+      const measuredFps = await softwarePage.evaluate(() => window.fps)
+      await softwarePage.evaluate(() => window.emulator.pause())
+      const compositedPng = await softwarePage.locator('canvas').screenshot()
+      const frame = await softwarePage.evaluate(async ({ compositedBytes, fps }) => {
+        const decode = async (blob) => {
+          const bitmap = await createImageBitmap(blob)
+          const surface = new OffscreenCanvas(bitmap.width, bitmap.height)
+          const context = surface.getContext('2d')
+          context.drawImage(bitmap, 0, 0)
+          bitmap.close()
+          return {
+            width: surface.width,
+            height: surface.height,
+            pixels: context.getImageData(0, 0, surface.width, surface.height).data,
+          }
+        }
         const canvas = document.querySelector('canvas')
         const drawing = canvas.getContext('2d')
         const pixels = drawing.getImageData(0, 0, canvas.width, canvas.height).data
@@ -85,16 +100,37 @@ async function verifyCanvas2DRenderer(browser, url) {
         }
         const state = await window.emulator.saveState()
         const screenshot = await window.emulator.screenshot()
+        const coreFrame = await decode(screenshot)
+        const compositedFrame = await decode(
+          new Blob([new Uint8Array(compositedBytes)], { type: 'image/png' }),
+        )
+        let compositedDifference = 0
+        let compositedMaxDelta = 0
+        if (
+          coreFrame.width !== compositedFrame.width ||
+          coreFrame.height !== compositedFrame.height
+        ) {
+          compositedDifference = Number.POSITIVE_INFINITY
+          compositedMaxDelta = 255
+        } else {
+          for (let index = 0; index < coreFrame.pixels.length; index++) {
+            const delta = Math.abs(coreFrame.pixels[index] - compositedFrame.pixels[index])
+            if (delta) compositedDifference++
+            compositedMaxDelta = Math.max(compositedMaxDelta, delta)
+          }
+        }
         return {
           backend: canvas.dataset.renderBackend,
-          fps: window.fps,
+          compositedDifference,
+          compositedMaxDelta,
+          fps,
           height: canvas.height,
           range: max - min,
           screenshotSize: screenshot.size,
           stateSize: state.length,
           width: canvas.width,
         }
-      })
+      }, { compositedBytes: Array.from(compositedPng), fps: measuredFps })
       const expectedSize = cartridge.platform === 'gba' ? [240, 160] : [160, 144]
       assert.deepEqual([frame.width, frame.height], expectedSize)
       assert.equal(frame.backend, 'canvas2d')
@@ -105,6 +141,12 @@ async function verifyCanvas2DRenderer(browser, url) {
       )
       assert.ok(frame.stateSize > 1000)
       assert.ok(frame.screenshotSize > 100)
+      assert.equal(
+        frame.compositedDifference,
+        0,
+        `${cartridge.platform} Canvas 2D compositor output must match the core framebuffer`,
+      )
+      assert.equal(frame.compositedMaxDelta, 0)
       frames.push({ platform: cartridge.platform, ...frame })
     }
 

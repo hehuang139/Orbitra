@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { installCanvas2DRenderer } from './canvas2d-renderer.ts'
 
-test('presents the mGBA RGBA upload through Canvas 2D and restores the canvas', () => {
+test('presents the mGBA RGBX upload as opaque Canvas 2D pixels and restores the canvas', () => {
   const presented: Array<{ data: number[]; width: number; height: number; x: number; y: number }> =
     []
   const surface = {
@@ -39,7 +39,7 @@ test('presents the mGBA RGBA upload through Canvas 2D and restores the canvas', 
   assert.equal(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096)
   assert.equal(gl.getProgramParameter(gl.createProgram()!, gl.ACTIVE_UNIFORMS), 2)
 
-  const heap = new Uint8Array([99, 98, 1, 2, 3, 255, 4, 5, 6, 255, 97])
+  const heap = new Uint8Array([99, 98, 1, 2, 3, 0, 4, 5, 6, 42, 97])
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
   ;(gl.texSubImage2D as (...args: unknown[]) => void)(
     gl.TEXTURE_2D,

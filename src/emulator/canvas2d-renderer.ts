@@ -34,7 +34,7 @@ function makeObject(kind: string): SoftwareObject {
 
 /**
  * Implements the small WebGL surface used by the fixed mGBA SDL renderer.
- * The core still renders every frame; only its final RGBA texture upload is
+ * The core still renders every frame; only its final RGBX texture upload is
  * presented through Canvas 2D when the browser cannot create WebGL 2.
  */
 function createSoftwareContext(
@@ -158,6 +158,9 @@ function createSoftwareContext(
       if (!frame || frame.width !== width || frame.height !== height)
         frame = surface.createImageData(width, height)
       frame.data.set(new Uint8Array(source.buffer, byteOffset, byteLength))
+      // SDL uploads RGBX pixels. WebGL's alpha:false surface ignores the X byte,
+      // while putImageData treats it as alpha and would make valid colors transparent.
+      for (let index = 3; index < frame.data.length; index += 4) frame.data[index] = 255
       surface.putImageData(frame, x, y)
     },
 
