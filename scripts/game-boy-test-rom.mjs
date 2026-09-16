@@ -1,0 +1,180 @@
+// Minimal original ROMs used to verify the bundled mGBA GB and GBC cores.
+const NINTENDO_LOGO = [
+  0xce, 0xed, 0x66, 0x66, 0xcc, 0x0d, 0x00, 0x0b, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0c, 0x00, 0x0d,
+  0x00, 0x08, 0x11, 0x1f, 0x88, 0x89, 0x00, 0x0e, 0xdc, 0xcc, 0x6e, 0xe6, 0xdd, 0xdd, 0xd9, 0x99,
+  0xbb, 0xbb, 0x67, 0x63, 0x6e, 0x0e, 0xec, 0xcc, 0xdd, 0xdc, 0x99, 0x9f, 0xbb, 0xb9, 0x33, 0x3e,
+]
+
+const TILE_DATA_ADDRESS = 0x0200
+const PALETTE_DATA_ADDRESS = 0x0210
+
+function writeWord(code, value) {
+  code.push(value & 0xff, value >> 8)
+}
+
+function program(color) {
+  const code = [
+    0xf3, // di
+    0x31,
+    0xfe,
+    0xff, // ld sp, $fffe
+    0xf0,
+    0x44, // wait-vblank: ldh a, ($ff44)
+    0xfe,
+    0x90, // cp 144
+    0x38,
+    0xfa, // jr c, wait-vblank
+    0xaf, // xor a
+    0xe0,
+    0x40, // ldh ($ff40), a; disable LCD while writing VRAM
+    0x3e,
+    0xe4, // ld a, %11100100
+    0xe0,
+    0x47, // ldh ($ff47), a; DMG background palette
+    0x21,
+    0x00,
+    0x80, // ld hl, $8000
+    0x11,
+  ]
+  writeWord(code, TILE_DATA_ADDRESS)
+  code.push(
+    0x06,
+    0x10, // ld b, 16
+    0x1a, // copy-tile: ld a, (de)
+    0x22, // ld (hl+), a
+    0x13, // inc de
+    0x05, // dec b
+    0x20,
+    0xfa, // jr nz, copy-tile
+  )
+
+  if (color) {
+    code.push(
+      0x3e,
+      0x80, // ld a, $80; palette zero with auto-increment
+      0xe0,
+      0x68, // ldh ($ff68), a
+      0x11,
+    )
+    writeWord(code, PALETTE_DATA_ADDRESS)
+    code.push(
+      0x06,
+      0x08, // ld b, 8
+      0x1a, // copy-palette: ld a, (de)
+      0xe0,
+      0x69, // ldh ($ff69), a
+      0x13, // inc de
+      0x05, // dec b
+      0x20,
+      0xf9, // jr nz, copy-palette
+    )
+  }
+
+  code.push(
+    0x3e,
+    0x0a, // enable external cartridge RAM
+    0xea,
+    0x00,
+    0x00,
+    0xfa,
+    0x00,
+    0xa0, // preserve an existing battery save
+    0xfe,
+    0x53,
+    0x28,
+    0x19,
+    0x3e,
+    0x53,
+    0xea,
+    0x00,
+    0xa0,
+    0x3e,
+    0x4f,
+    0xea,
+    0x01,
+    0xa0,
+    0x3e,
+    0x01,
+    0xea,
+    0x02,
+    0xa0,
+    0x3e,
+    0x07,
+    0xea,
+    0x03,
+    0xa0,
+    0x3e,
+    0xf8,
+    0xea,
+    0x04,
+    0xa0,
+    0x3e,
+    0x91, // ld a, $91
+    0xe0,
+    0x40, // ldh ($ff40), a; enable LCD and background
+    0x3e,
+    0x20, // input-loop: select the directional button row
+    0xe0,
+    0x00,
+    0xf0,
+    0x00, // read joypad
+    0xe6,
+    0x01, // test Right (active low)
+    0x20,
+    0x04, // jr nz, released
+    0x3e,
+    0x1a, // pressed palette and a distinct scroll phase
+    0x18,
+    0x02, // jr apply-palette
+    0x3e,
+    0xe4, // released palette
+    0xea,
+    0x05,
+    0xa0, // apply-palette: write the observed input state to cartridge RAM
+    0xe0,
+    0x47, // ldh ($ff47), a
+    0xe0,
+    0x43, // ldh ($ff43), a; scroll change remains visible in CGB mode
+    0x18,
+    0xe7, // jr input-loop
+  )
+  return code
+}
+
+export function createGameBoyTestRom({ color = false } = {}) {
+  const rom = new Uint8Array(32 * 1024)
+  rom.set([0xc3, 0x50, 0x01, 0x00], 0x0100) // jp $0150
+  rom.set(NINTENDO_LOGO, 0x0104)
+  rom.set(new TextEncoder().encode(color ? 'ADVANCE GBC' : 'ADVANCE GB'), 0x0134)
+  rom[0x0143] = color ? 0xc0 : 0x00 // CGB-only or DMG-compatible
+  rom[0x0147] = 0x03 // MBC1 with RAM and battery
+  rom[0x0148] = 0x00 // 32 KiB
+  rom[0x0149] = 0x02 // 8 KiB cartridge RAM
+  rom[0x014a] = 0x01 // international
+  rom[0x014b] = 0x00 // no legacy licensee
+  rom.set(program(color), 0x0150)
+  rom.set(
+    [
+      0xaa, 0x00, 0x55, 0x00, 0xaa, 0x00, 0x55, 0x00, 0xaa, 0x00, 0x55, 0x00, 0xaa, 0x00, 0x55,
+      0x00,
+    ],
+    TILE_DATA_ADDRESS,
+  )
+  // White, green, dark green and black in little-endian RGB555.
+  rom.set([0xff, 0x7f, 0xe0, 0x2b, 0x40, 0x11, 0x00, 0x00], PALETTE_DATA_ADDRESS)
+
+  let headerChecksum = 0
+  for (let index = 0x0134; index <= 0x014c; index++) {
+    headerChecksum = (headerChecksum - rom[index] - 1) & 0xff
+  }
+  rom[0x014d] = headerChecksum
+
+  let globalChecksum = 0
+  for (let index = 0; index < rom.length; index++) {
+    if (index !== 0x014e && index !== 0x014f)
+      globalChecksum = (globalChecksum + rom[index]) & 0xffff
+  }
+  rom[0x014e] = globalChecksum >> 8
+  rom[0x014f] = globalChecksum & 0xff
+  return rom
+}

@@ -2,7 +2,8 @@
 
 This directory redistributes **@thenick775/mgba-wasm 2.5.1**, a WebAssembly
 build of mGBA. The emulator itself is real mGBA; the application does not
-implement or impersonate the ARM CPU in JavaScript.
+implement or impersonate the emulated CPUs in JavaScript. This build includes
+the mGBA Game Boy Advance, Game Boy, and Game Boy Color cores.
 
 - mGBA: copyright Jeffrey Pfau and the mGBA contributors.
 - WebAssembly port: Nicholas VanCise and contributors.

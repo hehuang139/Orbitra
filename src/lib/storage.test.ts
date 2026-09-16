@@ -21,6 +21,7 @@ import {
 import type { RestoreChoices, RestorePreview } from './storage.ts'
 import type { BackupData } from './backup-format.ts'
 import { BUNDLED_CORE_ID } from './core-version.ts'
+import { PLATFORM_REGISTRY, platformFromFilename } from './platforms.ts'
 
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory()
@@ -70,14 +71,80 @@ test('validates ROM file type and hardware size bounds before storing', async ()
   assert.equal((await importGame(rom('minimum.gba', 1, 192))).size, 192)
 })
 
+test('imports GB and GBC metadata with platform-specific size bounds', async () => {
+  assert.equal(platformFromFilename('Pocket.GB'), 'gb')
+  assert.equal(platformFromFilename('Color.gBc'), 'gbc')
+  assert.equal(platformFromFilename('Advance.GBA'), 'gba')
+  assert.equal(platformFromFilename('readme.txt'), undefined)
+
+  const gb = await importGame(rom('Pocket_game.GB', 2, PLATFORM_REGISTRY.gb.minRomSize))
+  const gbc = await importGame(rom('Color_game.gbc', 3, PLATFORM_REGISTRY.gbc.minRomSize))
+  assert.deepEqual(
+    [gb, gbc].map(({ title, platform, size }) => ({ title, platform, size })),
+    [
+      { title: 'Pocket game', platform: 'gb', size: 32 * 1024 },
+      { title: 'Color game', platform: 'gbc', size: 32 * 1024 },
+    ],
+  )
+  await assert.rejects(importGame(rom('small.gb', 1, 32 * 1024 - 1)), /GB.*32 KiB.*8 MiB/)
+  await assert.rejects(importGame(rom('large.gbc', 1, 8 * 1024 * 1024 + 1)), /GBC.*32 KiB.*8 MiB/)
+})
+
+test('isolates identical ROM bytes imported for different platforms', async () => {
+  const gb = await importGame(rom('Same.gb', 9, PLATFORM_REGISTRY.gb.minRomSize))
+  const gbc = await importGame(rom('Same.gbc', 9, PLATFORM_REGISTRY.gbc.minRomSize))
+  assert.notEqual(gb.id, gbc.id)
+  assert.equal((await getGames()).length, 2)
+  await setBatterySave(gb.id, new Uint8Array([1]))
+  await setBatterySave(gbc.id, new Uint8Array([2]))
+  assert.deepEqual(await getBatterySave(gb.id), new Uint8Array([1]))
+  assert.deepEqual(await getBatterySave(gbc.id), new Uint8Array([2]))
+})
+
+test('reads legacy GBA records without platform metadata and validates explicit platforms', async () => {
+  const game = await importGame(rom())
+  const { platform: _platform, ...legacy } = game
+  await corrupt('games', legacy)
+  assert.equal((await getGames())[0].platform, 'gba')
+  assert.equal((await updateGame(game.id, { title: 'Legacy game' })).platform, 'gba')
+
+  await corrupt('games', { ...game, platform: 'gb' })
+  await assert.rejects(getGames(), /游戏信息已损坏/)
+})
+
+test('rejects GB and GBC records without platform metadata', async () => {
+  for (const [filename, seed] of [
+    ['Missing.gb', 2],
+    ['Missing.gbc', 3],
+  ] as const) {
+    const game = await importGame(rom(filename, seed, 32 * 1024))
+    const { platform: _platform, ...missingPlatform } = game
+    await corrupt('games', missingPlatform)
+    await assert.rejects(getGames(), /游戏信息已损坏/)
+    await corrupt('games', game)
+  }
+})
+
 test('updates merge metadata, preserve identity, and serialize concurrent edits', async () => {
   const game = await importGame(rom())
   await Promise.all([
     updateGame(game.id, { favorite: true }),
     updateGame(game.id, { playTime: 125 }),
   ])
-  const updated = await updateGame(game.id, { id: 'different-id', lastPlayed: Date.now() })
+  const unsafeChanges: Partial<typeof game> = {
+    id: 'different-id',
+    filename: 'Different.gb',
+    platform: 'gb',
+    size: 32 * 1024,
+    addedAt: 0,
+    lastPlayed: Date.now(),
+  }
+  const updated = await updateGame(game.id, unsafeChanges)
   assert.equal(updated.id, game.id)
+  assert.equal(updated.filename, game.filename)
+  assert.equal(updated.platform, game.platform)
+  assert.equal(updated.size, game.size)
+  assert.equal(updated.addedAt, game.addedAt)
   assert.equal(updated.favorite, true)
   assert.equal(updated.playTime, 125)
   assert.equal(updated.filename, game.filename)
@@ -358,6 +425,30 @@ test('no-ROM backup restores progress to an already imported matching ROM', asyn
   assert.deepEqual(await getStates(first.game.id), first.states)
 })
 
+test('rejects a no-ROM backup that reuses a local content ID for another platform', async () => {
+  const game = await importGame(rom('Collision.gba', 4, 32 * 1024))
+  await setBatterySave(game.id, new Uint8Array([7]))
+  const fixture = await getLibrarySnapshot([game.id])
+  const validPreview = await previewRestore(fixture)
+  const spoofed = structuredClone(fixture)
+  spoofed.games[0].game = {
+    ...spoofed.games[0].game,
+    filename: 'Collision.gb',
+    platform: 'gb',
+  }
+  const before = await rawLibrary()
+
+  await assert.rejects(previewRestore(spoofed), /游戏平台.*不一致/)
+  await assert.rejects(
+    restoreLibrary(spoofed, {
+      fingerprint: validPreview.fingerprint,
+      games: { [game.id]: { metadata: true, battery: true, slots: [] } },
+    }),
+    /游戏平台.*不一致/,
+  )
+  assert.deepEqual(await rawLibrary(), before)
+})
+
 test('old and different-core states default to excluded and require explicit slot choices', async () => {
   const fixture = await backupFixture()
   fixture.games = [fixture.games[0]]
@@ -512,6 +603,37 @@ test('rechecks the library within the write transaction if another tab writes af
     (await getGames()).find((game) => game.id === first.game.id),
     first.game,
   )
+})
+
+test('rechecks platform identity within the write transaction', async () => {
+  const game = await importGame(rom('Race.gba', 5, 32 * 1024))
+  await setBatterySave(game.id, new Uint8Array([7]))
+  const fixture = await getLibrarySnapshot([game.id])
+  await setBatterySave(game.id, new Uint8Array([99]))
+  const preview = await previewRestore(fixture)
+  const original = IDBDatabase.prototype.transaction
+  let injected = false
+  IDBDatabase.prototype.transaction = function (stores, mode, options) {
+    if (!injected && mode === 'readwrite') {
+      injected = true
+      const racing = original.call(this, ['games'], 'readwrite')
+      racing.objectStore('games').put({ ...game, filename: 'Race.gb', platform: 'gb' })
+    }
+    return original.call(this, stores, mode, options)
+  }
+  try {
+    await assert.rejects(
+      restoreLibrary(fixture, {
+        fingerprint: preview.fingerprint,
+        games: { [game.id]: { metadata: false, battery: true, slots: [] } },
+      }),
+      /游戏平台.*不一致/,
+    )
+  } finally {
+    IDBDatabase.prototype.transaction = original
+  }
+  assert.equal(injected, true)
+  assert.deepEqual(await getBatterySave(game.id), new Uint8Array([99]))
 })
 
 test('snapshot metadata and battery share the same read transaction during a concurrent update', async () => {

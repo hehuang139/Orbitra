@@ -4,20 +4,32 @@ import { Zip, ZipDeflate, strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import {
   BACKUP_LIMITS,
   createBackup,
+  gameIdForRom,
   parseBackup,
   sha256,
   validateBackupData,
 } from './backup-format.ts'
 import type { BackupData } from './backup-format.ts'
+import type { GamePlatform } from './platforms.ts'
 
 const MiB = 1024 * 1024
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a1sAAAAASUVORK5CYII='
 const archive = (bytes: Uint8Array) => new File([bytes], 'advance-backup.zip')
 
-async function fixture(): Promise<BackupData> {
-  const rom = Uint8Array.from({ length: 512 }, (_, index) => index % 251)
-  const id = await sha256(rom)
+const platformFixtures: Record<GamePlatform, { filename: string; size: number; seed: number }> = {
+  gba: { filename: 'test.gba', size: 512, seed: 0 },
+  gb: { filename: 'test.gb', size: 32 * 1024, seed: 17 },
+  gbc: { filename: 'test.gbc', size: 32 * 1024, seed: 31 },
+}
+
+async function fixture(platform: GamePlatform = 'gba'): Promise<BackupData> {
+  const definition = platformFixtures[platform]
+  const rom = Uint8Array.from(
+    { length: definition.size },
+    (_, index) => (index + definition.seed) % 251,
+  )
+  const id = await gameIdForRom(platform, rom)
   return {
     formatVersion: 1,
     exportedAt: '2026-09-10T10:00:00.000Z',
@@ -27,7 +39,8 @@ async function fixture(): Promise<BackupData> {
         game: {
           id,
           title: '原创测试游戏',
-          filename: 'test.gba',
+          filename: definition.filename,
+          platform,
           size: rom.length,
           addedAt: 42,
           lastPlayed: 99,
@@ -54,8 +67,8 @@ async function fixture(): Promise<BackupData> {
   }
 }
 
-async function packed(): Promise<Uint8Array> {
-  return createBackup(await fixture(), { includeRoms: true })
+async function packed(platform: GamePlatform = 'gba'): Promise<Uint8Array> {
+  return createBackup(await fixture(platform), { includeRoms: true })
 }
 
 function mutateManifest(
@@ -117,13 +130,83 @@ test('full export round-trips metadata, ROM, battery and known/unknown state cor
   assert.equal(progress.length, 2)
 })
 
+test('GB and GBC exports round-trip platform metadata and platform-specific ROM paths', async () => {
+  for (const platform of ['gb', 'gbc'] as const) {
+    const data = await fixture(platform)
+    const bytes = await createBackup(data, { includeRoms: true })
+    const files = unzipSync(bytes)
+    const manifest = JSON.parse(strFromU8(files['manifest.json']))
+    const romPath = `games/${data.games[0].game.id}/rom.${platform}`
+    assert.ok(files[romPath])
+    assert.equal(manifest.games[0].game.platform, platform)
+    assert.equal(manifest.games[0].rom, romPath)
+    assert.equal(
+      manifest.files.find((file: any) => file.path === romPath).sha256,
+      await sha256(data.games[0].rom!),
+    )
+    assert.notEqual(manifest.games[0].game.id, await sha256(data.games[0].rom!))
+    assert.deepEqual(await parseBackup(archive(bytes)), data)
+  }
+})
+
+test('keeps legacy GBA IDs and separates identical GB and GBC ROM bytes', async () => {
+  const rom = Uint8Array.from({ length: 32 * 1024 }, (_, index) => index % 251)
+  const raw = await sha256(rom)
+  const gba = await gameIdForRom('gba', rom)
+  const gb = await gameIdForRom('gb', rom)
+  const gbc = await gameIdForRom('gbc', rom)
+  assert.equal(gba, raw)
+  assert.match(gb, /^[0-9a-f]{64}$/)
+  assert.match(gbc, /^[0-9a-f]{64}$/)
+  assert.notEqual(gb, raw)
+  assert.notEqual(gbc, raw)
+  assert.notEqual(gb, gbc)
+})
+
+test('reads legacy v1 GBA manifests without platform but does not infer newer platforms', async () => {
+  const expected = await fixture('gba')
+  const legacy = mutateManifest(await packed('gba'), (manifest) => {
+    delete manifest.games[0].game.platform
+  })
+  assert.deepEqual(await parseBackup(archive(legacy)), expected)
+
+  const ambiguous = mutateManifest(await packed('gb'), (manifest) => {
+    delete manifest.games[0].game.platform
+  })
+  await assert.rejects(parseBackup(archive(ambiguous)), /游戏信息无效/)
+})
+
+test('rejects unsupported platforms, filename mismatches and wrong platform ROM payload paths', async () => {
+  const unsupported = mutateManifest(await packed('gba'), (manifest) => {
+    manifest.games[0].game.platform = 'nes'
+  })
+  await assert.rejects(parseBackup(archive(unsupported)), /游戏信息无效/)
+
+  const wrongExtension = mutateManifest(await packed('gb'), (manifest) => {
+    manifest.games[0].game.filename = 'test.gbc'
+  })
+  await assert.rejects(parseBackup(archive(wrongExtension)), /游戏信息无效/)
+
+  const wrongPayload = mutateManifest(await packed('gb'), (manifest, files) => {
+    const original = manifest.games[0].rom
+    const replacement = original.replace(/rom\.gb$/, 'rom.gbc')
+    files[replacement] = files[original]
+    delete files[original]
+    manifest.games[0].rom = replacement
+    manifest.files.find((file: any) => file.path === original).path = replacement
+  })
+  await assert.rejects(parseBackup(archive(wrongPayload)), /文件引用.*内容标识/)
+})
+
 test('default exports omit every ROM and support metadata-only games', async () => {
   const data = await fixture()
   const result = await parseBackup(archive(await createBackup(data)))
   assert.equal(result.games[0].rom, undefined)
   assert.deepEqual(result.games[0].battery, data.games[0].battery)
   assert.equal(
-    Object.keys(unzipSync(await createBackup(data))).some((path) => path.endsWith('.gba')),
+    Object.keys(unzipSync(await createBackup(data))).some((path) =>
+      /\/rom\.(?:gba|gb|gbc)$/.test(path),
+    ),
     false,
   )
   delete data.games[0].battery
@@ -218,8 +301,24 @@ test('rejects ROM bytes belonging to another game on export and import', async (
   const data = await fixture()
   data.games[0].rom![0] ^= 1
   await assert.rejects(createBackup(data, { includeRoms: true }), /ROM 内容标识/)
-  const bytes = mutateManifest(await packed(), (manifest) => {
-    manifest.files.find((file: any) => file.path.endsWith('rom.gba')).sha256 = '0'.repeat(64)
+  const bytes = mutateManifest(await packed(), (manifest, files) => {
+    const original = manifest.games[0].game.id
+    const replacement = '0'.repeat(64)
+    manifest.games[0].game.id = replacement
+    const rename = (path: string) => path.replace(original, replacement)
+    manifest.games[0].rom = rename(manifest.games[0].rom)
+    manifest.games[0].battery = rename(manifest.games[0].battery)
+    for (const state of manifest.games[0].states) {
+      state.id = `${replacement}:${state.slot}`
+      state.gameId = replacement
+      state.path = rename(state.path)
+    }
+    for (const file of manifest.files) {
+      const originalPath = file.path
+      file.path = rename(originalPath)
+      files[file.path] = files[originalPath]
+      delete files[originalPath]
+    }
   })
   await assert.rejects(parseBackup(archive(bytes)), /ROM 内容标识/)
 })

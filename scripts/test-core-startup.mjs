@@ -38,7 +38,7 @@ export async function verifyStartup(browser, url) {
       window.heldStartupFrames = 0
       const bytes = new Uint8Array(await (await fetch('/demo/star-orbit.gba')).arrayBuffer())
       window.startupResult = null
-      window.pendingStartup = window.emulator.loadRom(bytes, 'star-orbit.gba').then(
+      window.pendingStartup = window.emulator.loadRom(bytes, 'star-orbit.gba', 'gba').then(
         () => {
           window.startupResult = 'loaded'
         },
@@ -139,7 +139,7 @@ export async function verifyStartup(browser, url) {
         window.emulator.resume()
         const rom = new Uint8Array(await (await fetch('/demo/star-orbit.gba')).arrayBuffer())
         try {
-          await window.emulator.loadRom(rom, 'must-not-replace.gba')
+          await window.emulator.loadRom(rom, 'must-not-replace.gba', 'gba')
         } catch (error) {
           switchError = error.message
         }
@@ -217,7 +217,10 @@ export async function verifyStartup(browser, url) {
         let stateError = ''
         let screenshotError = ''
         let stateStatus = ''
-        core.resumeGame = () => { resumes++; resumeGame() }
+        core.resumeGame = () => {
+          resumes++
+          resumeGame()
+        }
         try {
           core.saveState = (slot) => {
             const result = saveState(slot)
@@ -232,7 +235,8 @@ export async function verifyStartup(browser, url) {
           stateStatus = emulator.status
           core.saveState = saveState
           core.FS.readFile = (path, ...options) => {
-            if (path === '/data/screenshots/capture.png') throw new Error('Injected screenshot read failure')
+            if (path === '/data/screenshots/capture.png')
+              throw new Error('Injected screenshot read failure')
             return readFile(path, ...options)
           }
           try {
@@ -247,14 +251,26 @@ export async function verifyStartup(browser, url) {
         }
         window.fps = 0
         return {
-          stateError, screenshotError, stateStatus, screenshotStatus: emulator.status, resumes,
+          stateError,
+          screenshotError,
+          stateStatus,
+          screenshotStatus: emulator.status,
+          resumes,
           cleaned: !core.FS.analyzePath('/data/screenshots/capture.png').exists,
         }
       }, initialStatus)
       assert.match(failure.stateError, /Injected failure after native state capture/)
       assert.match(failure.screenshotError, /Injected screenshot read failure/)
-      assert.equal(failure.stateStatus, initialStatus, 'failed state capture preserves public status')
-      assert.equal(failure.screenshotStatus, initialStatus, 'failed screenshot preserves public status')
+      assert.equal(
+        failure.stateStatus,
+        initialStatus,
+        'failed state capture preserves public status',
+      )
+      assert.equal(
+        failure.screenshotStatus,
+        initialStatus,
+        'failed screenshot preserves public status',
+      )
       assert.equal(failure.cleaned, true, 'failed screenshot reads must remove the temporary PNG')
       if (initialStatus === 'running') {
         await page.waitForFunction(() => window.fps > 0, undefined, { timeout: 10000 })
@@ -262,7 +278,11 @@ export async function verifyStartup(browser, url) {
       } else {
         assert.equal(failure.resumes, 0, 'failed paused snapshots never call native resume')
       }
-      nativeFailures.push({ initialStatus, restoredStatus: failure.screenshotStatus, cleaned: failure.cleaned })
+      nativeFailures.push({
+        initialStatus,
+        restoredStatus: failure.screenshotStatus,
+        cleaned: failure.cleaned,
+      })
     }
 
     // Advance the host's monotonic clock only after the real thread is ready.
@@ -297,7 +317,7 @@ export async function verifyStartup(browser, url) {
       const bytes = new Uint8Array(await (await fetch('/demo/star-orbit.gba')).arrayBuffer())
       window.heldStartupFrames = 0
       window.startupResult = null
-      window.pendingStartup = window.emulator.loadRom(bytes, 'retry.gba').then(
+      window.pendingStartup = window.emulator.loadRom(bytes, 'retry.gba', 'gba').then(
         () => {
           window.startupResult = 'unexpected success'
         },

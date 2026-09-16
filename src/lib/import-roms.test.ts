@@ -47,11 +47,13 @@ function declaredSize(bytes: Uint8Array, index: number, size: number): Uint8Arra
   })
 }
 
-test('direct GBA files retain identity and leave hardware validation to storage', async () => {
-  const rom = new File([payload()], 'Example.GBA')
-  assert.deepEqual(await collect(rom), [rom])
+test('direct GBA, GB and GBC files retain identity and leave hardware validation to storage', async () => {
+  for (const name of ['Example.GBA', 'Pocket.GB', 'Color.GBC']) {
+    const rom = new File([payload()], name)
+    assert.deepEqual(await collect(rom), [rom])
+  }
   assert.deepEqual(await collect(new File([], 'small.gba')).then((files) => files[0].size), 0)
-  await assert.rejects(collect(new File([], 'game.7z')), /\.gba.*\.zip/)
+  await assert.rejects(collect(new File([], 'game.7z')), /\.gba.*\.gb.*\.gbc.*\.zip/)
 })
 
 test('stored and deflated ZIPs preserve original bytes and reduce nested names to basenames', async () => {
@@ -69,6 +71,26 @@ test('stored and deflated ZIPs preserve original bytes and reduce nested names t
     assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), payload(7))
     assert.deepEqual(new Uint8Array(await files[1].arrayBuffer()), payload(8))
   }
+})
+
+test('extracts mixed GBA, GB and GBC archives with original platform extensions', async () => {
+  const files = await collect(
+    archive(
+      zipSync({
+        'advance/game.GBA': payload(1),
+        'classic/game.gb': payload(2, 32 * 1024),
+        'color/game.GBC': payload(3, 32 * 1024),
+      }),
+    ),
+  )
+  assert.deepEqual(
+    files.map((file) => file.name),
+    ['game.GBA', 'game.gb', 'game.GBC'],
+  )
+  assert.deepEqual(
+    files.map((file) => file.size),
+    [1024, 32 * 1024, 32 * 1024],
+  )
 })
 
 test('same basenames from distinct folders remain distinct ROMs', async () => {
@@ -206,6 +228,10 @@ test('checks both declared and actual output sizes, even when attacker forges ZI
   await assert.rejects(collect(archive(declaredSize(bytes, 0, 2048))), /完整性校验失败/)
   const bomb = zipSync({ 'bomb.gba': payload(0, 32 * MiB + 1) })
   await assert.rejects(collect(archive(declaredSize(bomb, 0, 32 * MiB))), /实际解压大小.*32 MiB/)
+
+  const gb = zipSync({ 'game.gb': payload(1, 32 * 1024) })
+  await assert.rejects(collect(archive(declaredSize(gb, 0, 32 * 1024 - 1))), /GB.*32 KiB.*8 MiB/)
+  await assert.rejects(collect(archive(declaredSize(gb, 0, 8 * MiB + 1))), /GB.*32 KiB.*8 MiB/)
 })
 
 test('rejects ZIP64 and split archives with actionable explanations', async () => {

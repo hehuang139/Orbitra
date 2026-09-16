@@ -1,16 +1,22 @@
 import { Inflate } from 'fflate'
+import {
+  PLATFORM_REGISTRY,
+  platformFromFilename,
+  ROM_FILE_EXTENSIONS,
+  type GamePlatform,
+} from './platforms.ts'
 
 const MiB = 1024 * 1024
 const MAX_ARCHIVE_SIZE = 64 * MiB
-const MAX_ROM_SIZE = 32 * MiB
 const MAX_TOTAL_SIZE = 128 * MiB
 const MAX_ROM_COUNT = 32
-const MIN_ROM_SIZE = 192
 const ZIP_ERROR = 'ZIP 文件已损坏或格式不完整，请重新压缩后导入。'
-const ZIP64_ERROR = '暂不支持 ZIP64 压缩包，请解压后导入 .gba 文件，或使用普通 ZIP 重新压缩。'
+const ROM_TYPES = ROM_FILE_EXTENSIONS.join('、')
+const ZIP64_ERROR = '暂不支持 ZIP64 压缩包，请解压后导入游戏 ROM，或使用普通 ZIP 重新压缩。'
 
 interface RomEntry {
   name: string
+  platform: GamePlatform
   flags: number
   method: number
   checksum: number
@@ -29,6 +35,12 @@ function crc32(bytes: Uint8Array, previous: number): number {
   let crc = previous
   for (const byte of bytes) crc = crcTable[(crc ^ byte) & 255] ^ (crc >>> 8)
   return crc
+}
+
+function formatSize(size: number): string {
+  if (size >= MiB && size % MiB === 0) return `${size / MiB} MiB`
+  if (size >= 1024 && size % 1024 === 0) return `${size / 1024} KiB`
+  return `${size} 字节`
 }
 
 function decodeName(bytes: Uint8Array, flags: number): string {
@@ -83,7 +95,7 @@ function readDirectory(bytes: Uint8Array): { entries: RomEntry[]; directoryOffse
     view.getUint16(end + 6, true) !== 0 ||
     view.getUint16(end + 8, true) !== count
   ) {
-    throw new Error('暂不支持分卷 ZIP，请合并压缩包后导入，或直接导入 .gba 文件。')
+    throw new Error('暂不支持分卷 ZIP，请合并压缩包后导入，或直接导入游戏 ROM。')
   }
   const directoryEnd = directoryOffset + directorySize
   if (directoryEnd !== end) throw new Error(ZIP_ERROR)
@@ -103,16 +115,17 @@ function readDirectory(bytes: Uint8Array): { entries: RomEntry[]; directoryOffse
     const path = decodeName(rawName, flags).replaceAll('\\', '/')
     const parts = path.split('/')
     const name = parts.at(-1) ?? ''
+    const platform = platformFromFilename(name)
     // Never inflate documents, nested archives, directories, or macOS resource forks.
     if (
-      /\.gba$/i.test(name) &&
+      platform &&
       !name.startsWith('._') &&
       !parts.some((part) => part.toLowerCase() === '__macosx')
     ) {
-      if (flags & 0x2041) throw new Error(`「${name}」已加密，请先用密码解压，再导入 .gba 文件。`)
+      if (flags & 0x2041) throw new Error(`「${name}」已加密，请先用密码解压，再导入游戏 ROM。`)
       const method = view.getUint16(cursor + 10, true)
       if (method !== 0 && method !== 8)
-        throw new Error(`「${name}」使用了暂不支持的 ZIP 压缩方式，请解压后导入 .gba 文件。`)
+        throw new Error(`「${name}」使用了暂不支持的 ZIP 压缩方式，请解压后导入游戏 ROM。`)
       const checksum = view.getUint32(cursor + 16, true)
       const compressedSize = view.getUint32(cursor + 20, true)
       const size = view.getUint32(cursor + 24, true)
@@ -121,22 +134,35 @@ function readDirectory(bytes: Uint8Array): { entries: RomEntry[]; directoryOffse
         throw new Error(ZIP64_ERROR)
       checkExtra(bytes, cursor + 46 + nameLength, extraLength)
       if (view.getUint16(cursor + 34, true) !== 0)
-        throw new Error('暂不支持分卷 ZIP，请解压后导入 .gba 文件。')
-      if (size < MIN_ROM_SIZE || size > MAX_ROM_SIZE)
-        throw new Error(`「${name}」大小无效，每个 GBA ROM 须为 192 字节至 32 MiB。`)
+        throw new Error('暂不支持分卷 ZIP，请解压后导入游戏 ROM。')
+      const { label, minRomSize, maxRomSize } = PLATFORM_REGISTRY[platform]
+      if (size < minRomSize || size > maxRomSize)
+        throw new Error(
+          `「${name}」大小无效，每个 ${label} ROM 须为 ${formatSize(minRomSize)}至 ${formatSize(maxRomSize)}。`,
+        )
       if (entries.length >= MAX_ROM_COUNT)
         throw new Error('一个 ZIP 最多导入 32 个游戏，请拆分压缩包后重试。')
       totalSize += size
       if (totalSize > MAX_TOTAL_SIZE)
         throw new Error('ZIP 内游戏解压后的总大小不能超过 128 MiB，请拆分压缩包后重试。')
-      entries.push({ name, flags, method, checksum, compressedSize, size, offset, rawName })
+      entries.push({
+        name,
+        platform,
+        flags,
+        method,
+        checksum,
+        compressedSize,
+        size,
+        offset,
+        rawName,
+      })
     }
     cursor = next
   }
   if (cursor !== directoryEnd) throw new Error(ZIP_ERROR)
   if (!entries.length)
     throw new Error(
-      'ZIP 中没有找到 .gba 游戏文件，请选择包含 GBA ROM 的压缩包；不支持压缩包内再嵌套 ZIP。',
+      `ZIP 中没有找到 ${ROM_TYPES} 游戏文件，请选择包含游戏 ROM 的压缩包；不支持压缩包内再嵌套 ZIP。`,
     )
   return { entries, directoryOffset }
 }
@@ -147,7 +173,7 @@ async function extractEntry(
   directoryOffset: number,
 ): Promise<File> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  const { offset, name, flags, compressedSize, size } = entry
+  const { offset, name, platform, flags, compressedSize, size } = entry
   if (offset + 30 > directoryOffset || view.getUint32(offset, true) !== 0x04034b50)
     throw new Error(ZIP_ERROR)
   const nameLength = view.getUint16(offset + 26, true)
@@ -175,9 +201,12 @@ async function extractEntry(
   let written = 0
   let crc = -1
   const output = new Uint8Array(size)
+  const maxSize = PLATFORM_REGISTRY[platform].maxRomSize
   const accept = (chunk: Uint8Array) => {
-    if (written + chunk.length > size || written + chunk.length > MAX_ROM_SIZE) {
-      throw new Error(`「${name}」实际解压大小超出声明或 32 MiB 限制，请检查压缩包后重试。`)
+    if (written + chunk.length > size || written + chunk.length > maxSize) {
+      throw new Error(
+        `「${name}」实际解压大小超出声明或 ${maxSize / MiB} MiB 限制，请检查压缩包后重试。`,
+      )
     }
     crc = crc32(chunk, crc)
     output.set(chunk, written)
@@ -208,13 +237,13 @@ async function extractEntry(
 
 /** Expand one selected file without storing it; callers import each yielded ROM normally. */
 export async function* extractRomFiles(file: File): AsyncGenerator<File> {
-  if (/\.gba$/i.test(file.name)) {
+  if (platformFromFilename(file.name)) {
     yield file
     return
   }
-  if (!/\.zip$/i.test(file.name)) throw new Error('请选择 .gba 游戏文件或 .zip 压缩包。')
+  if (!/\.zip$/i.test(file.name)) throw new Error(`请选择 ${ROM_TYPES} 游戏文件或 .zip 压缩包。`)
   if (file.size > MAX_ARCHIVE_SIZE)
-    throw new Error('ZIP 压缩包不能超过 64 MiB，请拆分压缩包或直接导入 .gba 文件。')
+    throw new Error('ZIP 压缩包不能超过 64 MiB，请拆分压缩包或直接导入游戏 ROM。')
   let bytes: Uint8Array
   try {
     bytes = new Uint8Array(await file.arrayBuffer())

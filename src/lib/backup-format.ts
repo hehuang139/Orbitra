@@ -1,5 +1,12 @@
 import { Inflate, zip } from 'fflate'
 import type { Game, SaveState } from './types.ts'
+import {
+  isGamePlatform,
+  PLATFORM_REGISTRY,
+  platformFromFilename,
+  ROM_FILE_EXTENSIONS,
+} from './platforms.ts'
+import type { GamePlatform } from './platforms.ts'
 
 const MiB = 1024 * 1024
 /** Conservative in-memory limits; real low-memory devices still need release validation. */
@@ -61,6 +68,7 @@ const FORMAT_ERROR = '备份清单或游戏信息无效，请重新导出备份�
 const WORKING_SET_ERROR = '关联 ROM 与存档超过 64 MiB，请减少所选游戏后分批备份。'
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('utf-8', { fatal: true })
+const ROM_PAYLOAD_NAMES = new Set(ROM_FILE_EXTENSIONS.map((extension) => `rom${extension}`))
 
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -105,26 +113,44 @@ function checkHeader(value: Record<string, unknown>): void {
     throw new Error(`备份清单无效；每个备份须包含 1 至 ${BACKUP_LIMITS.games} 个游戏。`)
 }
 
-function checkGame(value: unknown): asserts value is Game {
+function normalizeGame(value: unknown, allowLegacy = false): Game {
+  const raw = object(value) ? value : null
+  const filenamePlatform = raw ? platformFromFilename(String(raw.filename ?? '')) : undefined
+  const platform =
+    raw?.platform === undefined && allowLegacy && filenamePlatform === 'gba' ? 'gba' : raw?.platform
   if (
-    !object(value) ||
-    typeof value.id !== 'string' ||
-    !HASH.test(value.id) ||
-    !text(value.title, 512) ||
-    !safeName(value.filename) ||
-    !/\.gba$/i.test(value.filename) ||
-    !Number.isInteger(value.size) ||
-    Number(value.size) < 192 ||
-    Number(value.size) > BACKUP_LIMITS.romBytes ||
-    !finite(value.addedAt) ||
-    (value.lastPlayed !== null && !finite(value.lastPlayed)) ||
-    !finite(value.playTime) ||
-    typeof value.favorite !== 'boolean' ||
-    (value.skipAutoState !== undefined && typeof value.skipAutoState !== 'boolean') ||
-    (value.color !== undefined &&
-      (!text(value.color, 64) || !/^#[0-9a-f]{3,8}$/i.test(value.color)))
+    !raw ||
+    typeof raw.id !== 'string' ||
+    !HASH.test(raw.id) ||
+    !text(raw.title, 512) ||
+    !safeName(raw.filename) ||
+    !isGamePlatform(platform) ||
+    filenamePlatform !== platform ||
+    !Number.isInteger(raw.size) ||
+    Number(raw.size) < PLATFORM_REGISTRY[platform].minRomSize ||
+    Number(raw.size) > PLATFORM_REGISTRY[platform].maxRomSize ||
+    !finite(raw.addedAt) ||
+    (raw.lastPlayed !== null && !finite(raw.lastPlayed)) ||
+    !finite(raw.playTime) ||
+    typeof raw.favorite !== 'boolean' ||
+    (raw.skipAutoState !== undefined && typeof raw.skipAutoState !== 'boolean') ||
+    (raw.color !== undefined && (!text(raw.color, 64) || !/^#[0-9a-f]{3,8}$/i.test(raw.color)))
   )
     throw new Error(FORMAT_ERROR)
+  return { ...(raw as unknown as Game), platform }
+}
+
+function checkGame(value: unknown): asserts value is Game {
+  normalizeGame(value)
+}
+
+function romPayloadPath(game: Game): string {
+  return `games/${game.id}/rom${PLATFORM_REGISTRY[game.platform].extensions[0]}`
+}
+
+function isRomPayloadPath(path: string): boolean {
+  const name = path.slice(path.lastIndexOf('/') + 1)
+  return ROM_PAYLOAD_NAMES.has(name)
 }
 
 function checkState(value: unknown, gameId: string): asserts value is SaveState {
@@ -197,10 +223,32 @@ export function validateBackupData(data: BackupData): void {
 }
 
 export async function sha256(bytes: Uint8Array): Promise<string> {
+  return hex(await sha256Bytes(bytes))
+}
+
+async function sha256Bytes(bytes: Uint8Array): Promise<Uint8Array> {
   if (!globalThis.crypto?.subtle)
-    throw new Error('浏览器无法校验备份，请使用 HTTPS 或 localhost 打开应用。')
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+    throw new Error('浏览器无法执行 SHA-256 校验，请使用 HTTPS 或 localhost 打开应用。')
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Preserve historical GBA IDs while separating otherwise identical GB/GBC ROMs.
+ * The second digest is versioned so this identity scheme remains stable as more
+ * platforms are added.
+ */
+export async function gameIdForRom(platform: GamePlatform, bytes: Uint8Array): Promise<string> {
+  const contentDigest = await sha256Bytes(bytes)
+  if (platform === 'gba') return hex(contentDigest)
+  const domain = encoder.encode(`advance-game-id:v1\0${platform}\0`)
+  const identity = new Uint8Array(domain.length + contentDigest.length)
+  identity.set(domain)
+  identity.set(contentDigest, domain.length)
+  return hex(await sha256Bytes(identity))
 }
 
 function stateMetadata(state: Omit<SaveState, 'data'>): Omit<SaveState, 'data'> {
@@ -219,6 +267,7 @@ function gameMetadata(game: Game): Game {
     id: game.id,
     title: game.title,
     filename: game.filename,
+    platform: game.platform,
     size: game.size,
     addedAt: game.addedAt,
     lastPlayed: game.lastPlayed,
@@ -247,7 +296,7 @@ function manifestSkeleton(data: BackupData): Manifest {
     const prefix = `games/${entry.game.id}/`
     manifest.games.push({
       game: gameMetadata(entry.game),
-      ...(entry.rom === undefined ? {} : { rom: add(`${prefix}rom.gba`, entry.rom) }),
+      ...(entry.rom === undefined ? {} : { rom: add(romPayloadPath(entry.game), entry.rom) }),
       ...(entry.battery === undefined
         ? {}
         : { battery: add(`${prefix}battery.sav`, entry.battery) }),
@@ -303,7 +352,8 @@ export async function createBackup(
     options.onProgress?.(`正在校验并打包游戏 ${index + 1}/${selected.games.length}…`)
     const prefix = `games/${entry.game.id}/`
     if (entry.rom) {
-      if ((await add(`${prefix}rom.gba`, entry.rom)) !== entry.game.id)
+      await add(romPayloadPath(entry.game), entry.rom)
+      if ((await gameIdForRom(entry.game.platform, entry.rom)) !== entry.game.id)
         throw new Error('备份 ROM 内容标识与游戏不一致，备份未生成。')
     }
     if (entry.battery) await add(`${prefix}battery.sav`, entry.battery)
@@ -402,9 +452,13 @@ function directory(bytes: Uint8Array): ZipEntry[] {
     } catch {
       throw new Error(ZIP_ERROR)
     }
+    const payload = /^games\/[0-9a-f]{64}\/([^/]+)$/.exec(path)?.[1]
     if (
       path !== 'manifest.json' &&
-      !/^games\/[0-9a-f]{64}\/(rom\.gba|battery\.sav|state-[0-5]\.bin)$/.test(path)
+      (!payload ||
+        (!ROM_PAYLOAD_NAMES.has(payload) &&
+          payload !== 'battery.sav' &&
+          !/^state-[0-5]\.bin$/.test(payload)))
     )
       throw new Error('备份包含非法路径、路径穿越或未声明的文件名。')
     if (paths.has(path)) throw new Error('备份 ZIP 包含重复文件条目。')
@@ -434,7 +488,7 @@ function directory(bytes: Uint8Array): ZipEntry[] {
     const max =
       path === 'manifest.json'
         ? BACKUP_LIMITS.manifestBytes
-        : path.endsWith('rom.gba')
+        : isRomPayloadPath(path)
           ? BACKUP_LIMITS.romBytes
           : path.endsWith('battery.sav')
             ? BACKUP_LIMITS.batteryBytes
@@ -572,22 +626,23 @@ function parseManifest(bytes: Uint8Array, entries: ZipEntry[]): Manifest {
   }
   for (const entry of value.games as unknown[]) {
     if (!object(entry)) throw new Error(FORMAT_ERROR)
-    checkGame(entry.game)
-    if (ids.has(entry.game.id)) throw new Error('备份包含重复的游戏内容标识。')
-    ids.add(entry.game.id)
-    const prefix = `games/${entry.game.id}/`
+    const game = normalizeGame(entry.game, true)
+    entry.game = game
+    if (ids.has(game.id)) throw new Error('备份包含重复的游戏内容标识。')
+    ids.add(game.id)
+    const prefix = `games/${game.id}/`
     if (entry.rom !== undefined) {
-      reference(entry.rom, `${prefix}rom.gba`)
-      const file = declared.get(`${prefix}rom.gba`)!
-      if (file.size !== entry.game.size || file.sha256 !== entry.game.id)
-        throw new Error('备份 ROM 内容标识或大小与游戏不一致。')
+      const expected = romPayloadPath(game)
+      reference(entry.rom, expected)
+      const file = declared.get(expected)!
+      if (file.size !== game.size) throw new Error('备份 ROM 大小与游戏信息不一致。')
     }
     if (entry.battery !== undefined) reference(entry.battery, `${prefix}battery.sav`)
     if (!Array.isArray(entry.states) || entry.states.length > 6)
       throw new Error('备份即时存档槽位无效。')
     const slots = new Set<number>()
     for (const state of entry.states) {
-      checkState(state, entry.game.id)
+      checkState(state, game.id)
       if (slots.has(state.slot)) throw new Error('备份包含重复的即时存档槽位。')
       slots.add(state.slot)
       reference(
@@ -601,10 +656,7 @@ function parseManifest(bytes: Uint8Array, entries: ZipEntry[]): Manifest {
   const workingSetBytes =
     bytes.length +
     manifest.games.reduce((total, entry) => total + entry.game.size, 0) +
-    manifest.files.reduce(
-      (total, file) => total + (file.path.endsWith('/rom.gba') ? 0 : file.size),
-      0,
-    )
+    manifest.files.reduce((total, file) => total + (isRomPayloadPath(file.path) ? 0 : file.size), 0)
   if (workingSetBytes > BACKUP_LIMITS.totalBytes) throw new Error(WORKING_SET_ERROR)
   return manifest
 }
@@ -656,6 +708,10 @@ export async function parseBackup(
         data: contents.get(state.path)!,
       })),
     })),
+  }
+  for (const entry of result.games) {
+    if (entry.rom && (await gameIdForRom(entry.game.platform, entry.rom)) !== entry.game.id)
+      throw new Error('备份 ROM 内容标识与游戏不一致。')
   }
   validateBackupData(result)
   options.onProgress?.('备份校验完成，可以预览；尚未写入游戏库。')
