@@ -1,0 +1,121 @@
+.account-panel {
+  display: grid;
+  gap: 18px;
+}
+.account-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-footer > div {
+  min-width: 0;
+}
+.sidebar-footer small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-footer .avatar,
+.sidebar-footer .online-dot {
+  flex: none;
+}
+.account-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #2b342e;
+}
+.account-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #849087;
+  padding: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.account-tabs button[aria-selected='true'] {
+  color: #b9f6d2;
+  border-bottom-color: #91dfb3;
+}
+.account-form {
+  display: grid;
+  gap: 14px;
+}
+.account-form label {
+  display: grid;
+  gap: 7px;
+  color: #a7b1aa;
+  font-size: 13px;
+}
+.account-form input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #344139;
+  border-radius: 5px;
+  background: #111713;
+  color: #f2f6f3;
+  padding: 9px 11px;
+  font: inherit;
+}
+.account-form input:focus {
+  outline: 2px solid #75c997;
+  outline-offset: 2px;
+}
+.account-form small,
+.account-sync-status small {
+  color: #849087;
+}
+.account-submit {
+  width: 100%;
+  justify-content: center;
+}
+.account-feedback,
+.account-sync-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #a7b1aa;
+  font-size: 13px;
+}
+.account-feedback.is-error,
+.account-sync-status.is-error {
+  color: #f1a5a5;
+}
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #456352;
+  border-radius: 50%;
+  background: #203429;
+  color: #b9f6d2;
+  font-weight: 700;
+}
+.account-identity div,
+.account-sync-status div {
+  display: grid;
+  gap: 3px;
+}
+.account-identity strong,
+.account-sync-status strong {
+  color: #edf5ef;
+}
+.account-identity span {
+  color: #849087;
+  font-size: 12px;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.account-spinner {
+  animation: spin 0.9s linear infinite;
+}

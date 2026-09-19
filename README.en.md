@@ -86,7 +86,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 - **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
 - **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
 - **Display:** platform-native aspect ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
-- **Local data:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. Runtime assets are bundled without an external CDN dependency.
+- **Local data and account sync:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. Optional self-hosted accounts sync ROMs and saves so a fresh browser can restore them. Runtime assets are bundled without an external CDN dependency.
 - **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
 
 ## Quick start
@@ -129,7 +129,7 @@ Touch settings offer standard / compact layouts, 80%–130% button size and 40%�
 
 Single `.gba` files must be between 192 bytes and 32 MiB; `.gb` and `.gbc` files between 32 KiB and 8 MiB; `.nes` files between 16 KiB + 16 bytes and 8 MiB with an iNES header; and `.sfc` / `.smc` files between 32 KiB and 16 MiB. ZIP files may be up to 64 MiB, contain up to 32 games and expand to at most 128 MiB of ROM data. Stored and Deflate compression are supported; encrypted, ZIP64, split and nested ZIP archives are not. Imports verify platform-specific sizes and CRC values and ignore documentation and macOS metadata.
 
-Battery saves (`.sav`) contain a game's own saved progress. Save states capture the full emulation state and require the matching game, platform and compatible core version. Clearing site data, ending an incognito session or browser storage eviction can delete local files, so export important saves. Force-closing the browser can lose progress since the last automatic save.
+Battery saves (`.sav`) contain a game's own saved progress. Save states capture the full emulation state and require the matching game, platform and compatible core version. Clearing site data, ending an incognito session or browser storage eviction can delete unsynced local files. Sign in or export important saves so they can be restored in a new browser. Force-closing the browser can lose progress since the last automatic save or sync.
 
 The adapter waits for the current game's first completed frame before allowing save operations. Battery export reads live cartridge save data from a native state snapshot, avoiding stale SRAM when the core has not yet flushed its virtual filesystem. This change does not upgrade the bundled mGBA core or change public `.sav` / save-state formats.
 
@@ -137,10 +137,12 @@ The adapter waits for the current game's first completed frame before allowing s
 
 ```sh
 pnpm build
-pnpm preview
+pnpm start
 ```
 
-The output is in `dist/`; local preview runs at [http://localhost:4173](http://localhost:4173).
+The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `PORT` and `ADVANCE_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database.
+
+`pnpm dev` and `pnpm preview` also enable the account API for development. Static-only hosting keeps IndexedDB persistence but cannot provide sign-in or cross-browser restore. Account snapshots are capped at 72 MiB and contain imported ROMs and saves; deploy behind HTTPS. Server-side snapshots are not end-to-end encrypted.
 
 **The threaded WASM core requires HTTPS or localhost and cross-origin isolation.** Serve these response headers:
 
@@ -157,6 +159,7 @@ Plain HTTP on a LAN address and hosts without the required headers will not run 
 
 ```sh
 pnpm test
+pnpm test:account-server
 pnpm build
 pnpm exec playwright install chromium
 
@@ -183,7 +186,7 @@ The [contributing guide](CONTRIBUTING.md) describes the project structure and te
 
 Gamepad and touch customization and keyboard focus improvements are implemented. Remaining work includes physical-device and screen-reader verification, broader browser / low-end-device evidence, UI localization and more redistributable homebrew tests. Backup and restore software is implemented; its remaining device and memory validation is tracked in the [v1.2 roadmap](docs/roadmaps/v1.2.md). See the [full roadmap](ROADMAP.md) for scope and acceptance goals and the [changelog](CHANGELOG.md) for release history. The v1.1 validation work remains open where devices or manual evidence are missing; unchecked items are not release-date commitments.
 
-FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play, cheats and cloud sync are not supported. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
+FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play and cheats are not supported. Self-hosted account snapshot sync is available; concurrent multi-device editing and hosted third-party sync are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
 
 ## Acknowledgments and license
 

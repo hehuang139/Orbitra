@@ -37,6 +37,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserRound,
   Volume2,
   VolumeX,
   X,
@@ -61,6 +62,8 @@ import { TouchControls } from './components/TouchControls'
 import { TouchSettings } from './components/TouchSettings'
 import { BackupManager } from './components/BackupManager'
 import { OfflineStatus } from './components/OfflineStatus'
+import { AccountPanel } from './components/AccountPanel'
+import { useAccountSync } from './hooks/useAccountSync'
 import { createBackup } from './lib/backup-format'
 import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
@@ -68,7 +71,7 @@ import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
 
 type Page = 'library' | 'recent' | 'favorites' | 'states'
-type Modal = 'settings' | 'controls' | 'help' | 'states' | 'backup' | null
+type Modal = 'settings' | 'controls' | 'help' | 'states' | 'backup' | 'account' | null
 type PlatformFilter = 'all' | GamePlatform
 const pages: Record<Page, string> = {
   library: '游戏库',
@@ -250,6 +253,7 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), error ? 7000 : 3500)
   }, [])
   const refresh = useCallback(async () => setGames(await db.getGames()), [])
+  const account = useAccountSync({ onLibraryChanged: refresh })
   const trackWrite = useCallback(<T,>(promise: Promise<T>): Promise<T> => {
     pendingWrites.current.add(promise)
     void promise.finally(() => pendingWrites.current.delete(promise)).catch(() => {})
@@ -1070,6 +1074,21 @@ export default function App() {
         </nav>
         <div className="nav-group-title second">偏好设置</div>
         <nav aria-label="偏好设置">
+          <button
+            className="nav-item"
+            onClick={() => {
+              setModal('account')
+              setSidebarOpen(false)
+            }}
+          >
+            <UserRound size={18} />
+            <span className="account-nav-label" title={account.user?.username}>
+              {account.user ? account.user.username : '登录与同步'}
+            </span>
+            {account.phase === 'syncing' ? (
+              <LoaderCircle size={14} className="account-spinner" aria-label="正在同步" />
+            ) : null}
+          </button>
           <button className="nav-item" disabled={busy || !ready} onClick={() => void openBackup()}>
             <HardDrive size={18} />
             <span>备份与恢复</span>
@@ -1100,15 +1119,15 @@ export default function App() {
             <div className="local-note-icon">
               <ShieldCheck size={19} />
             </div>
-            <strong>只属于你的游戏时光</strong>
+            <strong>{account.user ? '账号同步已开启' : '只属于你的游戏时光'}</strong>
             <p>
-              游戏与存档保存在此设备，
+              {account.user ? '游戏与存档已保存到账号，' : '游戏与存档保存在此设备，'}
               <br />
-              无需账号，随时开始。
+              {account.user ? '换个浏览器也能继续。' : '登录后可跨浏览器恢复。'}
             </p>
             <span>
               <span className="status-dot" />
-              本地运行 · 隐私优先
+              {account.user ? `已登录 · ${account.user.username}` : '本地运行 · 隐私优先'}
             </span>
           </div>
           <button className="help-link" onClick={() => setModal('help')}>
@@ -1117,10 +1136,12 @@ export default function App() {
             <span className="version">v1.0</span>
           </button>
           <div className="sidebar-footer">
-            <span className="avatar">P</span>
+            <span className="avatar">
+              {account.user?.username.slice(0, 1).toUpperCase() ?? 'P'}
+            </span>
             <div>
-              <strong>Player One</strong>
-              <small>今天也要玩得开心</small>
+              <strong>{account.user?.username ?? 'Player One'}</strong>
+              <small>{account.user ? account.message : '今天也要玩得开心'}</small>
             </div>
             <span className="online-dot" />
           </div>
@@ -1895,7 +1916,7 @@ export default function App() {
             </span>
             <span>
               <CloudOff size={13} />
-              本地游戏，本地存档，无需账号
+              {account.user ? '本地运行，账号同步已开启' : '本地游戏，本地存档，可选账号同步'}
             </span>
           </footer>
         </main>
@@ -1932,9 +1953,11 @@ export default function App() {
                         ? '你的模拟器，你来定义'
                         : modal === 'backup'
                           ? '备份与恢复'
-                          : modal === 'states'
-                            ? '给冒险留个书签'
-                            : '准备好，开始冒险'}
+                          : modal === 'account'
+                            ? '账号与游戏同步'
+                            : modal === 'states'
+                              ? '给冒险留个书签'
+                              : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -1984,6 +2007,8 @@ export default function App() {
                   setBusy(value)
                 }}
               />
+            ) : modal === 'account' ? (
+              <AccountPanel account={account} />
             ) : modal === 'controls' ? (
               <>
                 <p className="modal-description">

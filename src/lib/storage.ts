@@ -14,6 +14,12 @@ const DATABASE_NAME = 'advance-gba'
 const DATABASE_VERSION = 1
 const STORES = { games: 'games', roms: 'roms', states: 'states', batteries: 'batteries' } as const
 
+function announceLibraryChange(kind: 'content' | 'metadata'): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('advance-library-changed', { detail: kind }))
+  }
+}
+
 function storageError(error: unknown): Error {
   if (error instanceof Error && /[\u4e00-\u9fff]/.test(error.message)) return error
   const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : ''
@@ -250,7 +256,7 @@ export async function importGame(file: File): Promise<Game> {
   if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
   assertRomContent(platform, bytes)
   const id = await gameIdForRom(platform, bytes)
-  return transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
+  const game = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const existing = await requestResult(tx.objectStore(STORES.games).get(id))
     const game =
       existing === undefined
@@ -275,6 +281,8 @@ export async function importGame(file: File): Promise<Game> {
     if (existing === undefined) await requestResult(tx.objectStore(STORES.games).add(game))
     return game
   })
+  announceLibraryChange('content')
+  return game
 }
 
 type GameChanges = Partial<
@@ -282,7 +290,7 @@ type GameChanges = Partial<
 >
 
 export async function updateGame(id: string, changes: GameChanges): Promise<Game> {
-  return transaction([STORES.games], 'readwrite', async (tx) => {
+  const game = await transaction([STORES.games], 'readwrite', async (tx) => {
     const current = await requireGame(tx, id)
     const updated = gameRecord({
       ...current,
@@ -296,6 +304,8 @@ export async function updateGame(id: string, changes: GameChanges): Promise<Game
     await requestResult(tx.objectStore(STORES.games).put(updated))
     return updated
   })
+  announceLibraryChange('metadata')
+  return game
 }
 
 export async function getRom(id: string): Promise<Uint8Array | undefined> {
@@ -310,7 +320,7 @@ export async function getRom(id: string): Promise<Uint8Array | undefined> {
 }
 
 export async function deleteGame(id: string): Promise<void> {
-  return transaction(Object.values(STORES), 'readwrite', async (tx) => {
+  await transaction(Object.values(STORES), 'readwrite', async (tx) => {
     const stateKeys = await requestResult(
       tx.objectStore(STORES.states).index('gameId').getAllKeys(id),
     )
@@ -321,6 +331,7 @@ export async function deleteGame(id: string): Promise<void> {
       ...stateKeys.map((key) => requestResult(tx.objectStore(STORES.states).delete(key))),
     ])
   })
+  announceLibraryChange('content')
 }
 
 export async function getStates(gameId: string): Promise<SaveState[]> {
@@ -345,7 +356,7 @@ export async function saveState(
   screenshot?: string,
 ): Promise<SaveState> {
   const id = stateId(gameId, slot)
-  return transaction([STORES.games, STORES.states], 'readwrite', async (tx) => {
+  const state = await transaction([STORES.games, STORES.states], 'readwrite', async (tx) => {
     const game = await requireGame(tx, gameId)
     const state = stateRecord({
       id,
@@ -361,13 +372,16 @@ export async function saveState(
       await requestResult(tx.objectStore(STORES.games).put({ ...game, skipAutoState: false }))
     return state
   })
+  announceLibraryChange('content')
+  return state
 }
 
 export async function deleteState(gameId: string, slot: number): Promise<void> {
   const id = stateId(gameId, slot)
-  return transaction([STORES.states], 'readwrite', async (tx) => {
+  await transaction([STORES.states], 'readwrite', async (tx) => {
     await requestResult(tx.objectStore(STORES.states).delete(id))
   })
+  announceLibraryChange('content')
 }
 
 export async function getBatterySave(gameId: string): Promise<Uint8Array | undefined> {
@@ -394,10 +408,11 @@ export async function getStorageSummary(
 
 export async function setBatterySave(gameId: string, data: Uint8Array): Promise<void> {
   const bytes = copyBytes(data, '电池存档为空或格式无效，请选择有效的 .sav 文件。')
-  return transaction([STORES.games, STORES.batteries], 'readwrite', async (tx) => {
+  await transaction([STORES.games, STORES.batteries], 'readwrite', async (tx) => {
     await requireGame(tx, gameId)
     await requestResult(tx.objectStore(STORES.batteries).put({ gameId, data: bytes }))
   })
+  announceLibraryChange('content')
 }
 
 export interface RestoreGameChoice {
@@ -741,7 +756,7 @@ export async function restoreLibrary(data: BackupData, choices: RestoreChoices):
     writes.push({ entry, choice })
   }
   if (!writes.length) return
-  return transaction(Object.values(STORES), 'readwrite', async (tx) => {
+  await transaction(Object.values(STORES), 'readwrite', async (tx) => {
     const current = await readLibrary(tx, ids)
     assertMatchingRestorePlatforms(prepared.games, current)
     if (!sameLibrary(records, current))
@@ -767,4 +782,5 @@ export async function restoreLibrary(data: BackupData, choices: RestoreChoices):
       }
     }
   })
+  announceLibraryChange('content')
 }
