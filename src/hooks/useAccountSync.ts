@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  deleteCloudLibraryItem,
+  downloadCloudLibraryItem,
   downloadCloudSnapshot,
   getAccountSession,
+  getCloudLibraryIndex,
   loginAccount,
   logoutAccount,
   registerAccount,
-  uploadCloudSnapshot,
+  uploadCloudLibraryItem,
 } from '../lib/account-api.ts'
-import type { AccountUser } from '../lib/account-api.ts'
+import type { AccountUser, CloudLibraryItem } from '../lib/account-api.ts'
 import { createBackup, parseBackup } from '../lib/backup-format.ts'
-import type { BackupData, BackupGame } from '../lib/backup-format.ts'
 import * as db from '../lib/storage.ts'
-import type { RestoreChoices, RestorePreview } from '../lib/storage.ts'
+import type { LibraryChange, RestoreChoices, RestorePreview } from '../lib/storage.ts'
 
 export type AccountPhase = 'checking' | 'signed-out' | 'idle' | 'syncing' | 'error'
 
@@ -53,41 +55,6 @@ function selectedCount(choices: RestoreChoices): number {
   )
 }
 
-function equalBytes(left?: Uint8Array, right?: Uint8Array): boolean {
-  return left === undefined
-    ? right === undefined
-    : right !== undefined &&
-        left.byteLength === right.byteLength &&
-        left.every((byte, index) => byte === right[index])
-}
-
-function sameGame(left: BackupGame, right: BackupGame): boolean {
-  if (
-    JSON.stringify(left.game) !== JSON.stringify(right.game) ||
-    !equalBytes(left.rom, right.rom) ||
-    !equalBytes(left.battery, right.battery) ||
-    left.states.length !== right.states.length
-  )
-    return false
-  const rightStates = new Map(right.states.map((state) => [state.slot, state]))
-  return left.states.every((state) => {
-    const other = rightStates.get(state.slot)
-    if (!other || !equalBytes(state.data, other.data)) return false
-    const { data: _leftData, ...leftMetadata } = state
-    const { data: _rightData, ...rightMetadata } = other
-    return JSON.stringify(leftMetadata) === JSON.stringify(rightMetadata)
-  })
-}
-
-function sameBackupContent(left: BackupData, right: BackupData): boolean {
-  if (left.games.length !== right.games.length) return false
-  const rightGames = new Map(right.games.map((game) => [game.game.id, game]))
-  return left.games.every((game) => {
-    const other = rightGames.get(game.game.id)
-    return other !== undefined && sameGame(game, other)
-  })
-}
-
 export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): AccountSyncController {
   const [user, setUser] = useState<AccountUser | null>(null)
   const [phase, setPhase] = useState<AccountPhase>('checking')
@@ -96,73 +63,174 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
   const [revision, setRevision] = useState(0)
   const userRef = useRef<AccountUser | null>(null)
   const revisionRef = useRef(0)
+  const libraryItems = useRef(new Map<string, CloudLibraryItem>())
+  const dirtyGameIds = useRef(new Set<string>())
+  const fullUpload = useRef(false)
   const syncing = useRef(false)
   const pending = useRef(false)
+  const pendingPull = useRef(false)
+  const pendingForceAll = useRef(false)
   const restoring = useRef(false)
-  const runSyncRef = useRef<(pullRemote: boolean, alwaysUpload?: boolean) => Promise<void>>(
+  const runSyncRef = useRef<(pullRemote: boolean, forceAll?: boolean) => Promise<void>>(
     async () => {},
   )
   const contentTimer = useRef<number | undefined>(undefined)
   const metadataTimer = useRef<number | undefined>(undefined)
 
   const runSync = useCallback(
-    async (pullRemote: boolean, alwaysUpload = true) => {
+    async (pullRemote: boolean, forceAll = false) => {
       if (!userRef.current) return
       if (syncing.current) {
         pending.current = true
+        pendingPull.current ||= pullRemote
+        pendingForceAll.current ||= forceAll
         return
       }
       syncing.current = true
       setPhase('syncing')
-      setMessage(pullRemote ? '正在合并账号中的游戏与存档…' : '正在保存游戏与存档到账号…')
+      setMessage(pullRemote ? '正在检查账号游戏库…' : '正在保存游戏与存档到账号…')
       try {
-        let remoteData: BackupData | undefined
+        let restored = false
         if (pullRemote) {
-          const remote = await downloadCloudSnapshot(alwaysUpload ? undefined : revisionRef.current)
-          if (remote === undefined) {
-            setPhase('idle')
-            return
-          }
-          if (remote) {
-            remoteData = await parseBackup(
-              new Blob([new Uint8Array(remote.bytes)], { type: 'application/zip' }),
+          const index = await getCloudLibraryIndex(
+            revisionRef.current > 0 && !forceAll ? revisionRef.current : undefined,
+          )
+          if (index) {
+            const previousItems = libraryItems.current
+            const remoteItems = new Map(index.items.map((item) => [item.gameId, item]))
+            const localIds = new Set((await db.getGames()).map((game) => game.id))
+
+            // A version-zero item library may still have a legacy all-in-one snapshot.
+            if (index.revision === 0 && index.items.length === 0) {
+              const legacy = await downloadCloudSnapshot()
+              if (legacy) {
+                const data = await parseBackup(
+                  new Blob([new Uint8Array(legacy.bytes)], { type: 'application/zip' }),
+                )
+                const preview = await db.previewRestore(data)
+                const choices = defaultRestoreChoices(preview)
+                if (selectedCount(choices)) {
+                  restoring.current = true
+                  try {
+                    await db.restoreLibrary(data, choices)
+                  } finally {
+                    restoring.current = false
+                  }
+                  restored = true
+                  for (const entry of data.games) localIds.add(entry.game.id)
+                }
+              }
+            }
+
+            const removedIds = [...previousItems.keys()].filter(
+              (id) => !remoteItems.has(id) && localIds.has(id) && !dirtyGameIds.current.has(id),
             )
-            const preview = await db.previewRestore(remoteData)
-            const choices = defaultRestoreChoices(preview)
-            if (selectedCount(choices)) {
+            for (const id of removedIds) {
               restoring.current = true
               try {
-                await db.restoreLibrary(remoteData, choices)
-                await db.repairImportedTitles()
-                await onLibraryChanged()
+                await db.deleteGame(id)
               } finally {
                 restoring.current = false
               }
+              localIds.delete(id)
+              restored = true
             }
-            revisionRef.current = remote.revision
-            setRevision(remote.revision)
-            setLastSyncedAt(remote.updatedAt)
-          } else if (!alwaysUpload) {
+
+            let completed = 0
+            const downloads = index.items.filter((item) => {
+              const previous = previousItems.get(item.gameId)
+              return (
+                !localIds.has(item.gameId) ||
+                (previous !== undefined &&
+                  previous.sha256 !== item.sha256 &&
+                  !dirtyGameIds.current.has(item.gameId))
+              )
+            })
+            for (const item of downloads) {
+              completed += 1
+              setMessage(`正在恢复账号游戏 ${completed}/${downloads.length}…`)
+              const remote = await downloadCloudLibraryItem(item.gameId)
+              const data = await parseBackup(
+                new Blob([new Uint8Array(remote.bytes)], { type: 'application/zip' }),
+              )
+              if (data.games.length !== 1 || data.games[0].game.id !== item.gameId) {
+                throw new Error('账号中的游戏分片与内容标识不匹配。')
+              }
+              const preview = await db.previewRestore(data)
+              const choices = defaultRestoreChoices(preview)
+              if (selectedCount(choices)) {
+                restoring.current = true
+                try {
+                  await db.restoreLibrary(data, choices)
+                } finally {
+                  restoring.current = false
+                }
+                restored = true
+              }
+              localIds.add(item.gameId)
+            }
+
+            libraryItems.current = remoteItems
+            revisionRef.current = index.revision
+            setRevision(index.revision)
+            if (index.updatedAt) setLastSyncedAt(index.updatedAt)
+            if (restored) {
+              await db.repairImportedTitles()
+              await onLibraryChanged()
+            }
+          } else if (!forceAll && dirtyGameIds.current.size === 0 && !fullUpload.current) {
+            const games = await db.getGames()
             setPhase('idle')
+            setMessage(`已同步 ${games.length} 个游戏及其存档`)
             return
           }
         }
 
         const games = await db.getGames()
-        const data = await db.getLibrarySnapshot(
-          games.map((game) => game.id),
-          true,
-        )
-        if (!alwaysUpload && remoteData && sameBackupContent(data, remoteData)) {
-          setPhase('idle')
-          setMessage(`已同步 ${games.length} 个游戏及其存档`)
-          return
+        const gameIds = new Set(games.map((game) => game.id))
+        const uploadIds = new Set<string>()
+        if (forceAll || fullUpload.current) {
+          for (const game of games) uploadIds.add(game.id)
+        } else {
+          for (const game of games) {
+            if (!libraryItems.current.has(game.id)) uploadIds.add(game.id)
+          }
         }
-        const bytes = await createBackup(data, { includeRoms: true })
-        const receipt = await uploadCloudSnapshot(bytes)
-        revisionRef.current = receipt.revision
-        setRevision(receipt.revision)
-        setLastSyncedAt(receipt.updatedAt)
+        for (const id of dirtyGameIds.current) {
+          if (gameIds.has(id)) uploadIds.add(id)
+        }
+
+        for (const id of [...dirtyGameIds.current]) {
+          if (gameIds.has(id)) continue
+          const receipt = await deleteCloudLibraryItem(id)
+          libraryItems.current.delete(id)
+          dirtyGameIds.current.delete(id)
+          revisionRef.current = receipt.revision
+          setRevision(receipt.revision)
+          if (receipt.updatedAt) setLastSyncedAt(receipt.updatedAt)
+        }
+
+        let completed = 0
+        for (const id of uploadIds) {
+          completed += 1
+          setMessage(`正在上传账号游戏 ${completed}/${uploadIds.size}…`)
+          const data = await db.getLibrarySnapshot([id], true)
+          const bytes = await createBackup(data, { includeRoms: true })
+          const receipt = await uploadCloudLibraryItem(id, bytes)
+          libraryItems.current.set(id, {
+            gameId: id,
+            revision: receipt.revision,
+            updatedAt: receipt.updatedAt,
+            size: receipt.size,
+            sha256: receipt.sha256,
+          })
+          dirtyGameIds.current.delete(id)
+          revisionRef.current = receipt.revision
+          setRevision(receipt.revision)
+          setLastSyncedAt(receipt.updatedAt)
+        }
+        if (forceAll || fullUpload.current) fullUpload.current = false
+
         setPhase('idle')
         setMessage(`已同步 ${games.length} 个游戏及其存档`)
       } catch (cause) {
@@ -171,8 +239,12 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
       } finally {
         syncing.current = false
         if (pending.current && userRef.current) {
+          const pull = pendingPull.current
+          const force = pendingForceAll.current
           pending.current = false
-          void runSyncRef.current(false)
+          pendingPull.current = false
+          pendingForceAll.current = false
+          void runSyncRef.current(pull, force)
         }
       }
     },
@@ -214,22 +286,25 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
     }
     const schedule = (event: Event) => {
       if (!userRef.current || restoring.current) return
-      const kind = (event as CustomEvent<'content' | 'metadata'>).detail
-      const timer = kind === 'metadata' ? metadataTimer : contentTimer
+      const detail = (event as CustomEvent<LibraryChange | LibraryChange['kind']>).detail
+      const change: LibraryChange = typeof detail === 'string' ? { kind: detail } : detail
+      if (change.gameId) dirtyGameIds.current.add(change.gameId)
+      else fullUpload.current = true
+      const timer = change.kind === 'metadata' ? metadataTimer : contentTimer
       if (timer.current !== undefined) return
       timer.current = window.setTimeout(
         () => {
           timer.current = undefined
           void runSync(false)
         },
-        kind === 'metadata' ? 10000 : 1500,
+        change.kind === 'metadata' ? 10000 : 1500,
       )
     }
     const online = () => {
       flushScheduled(true)
     }
     const pullLatest = () => {
-      if (userRef.current && document.visibilityState === 'visible') void runSync(true, false)
+      if (userRef.current && document.visibilityState === 'visible') void runSync(true)
     }
     const visibilityChange = () => {
       if (document.visibilityState === 'hidden') flushScheduled(false)
@@ -283,6 +358,9 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
     async signOut() {
       await logoutAccount()
       userRef.current = null
+      libraryItems.current.clear()
+      dirtyGameIds.current.clear()
+      fullUpload.current = false
       setUser(null)
       setPhase('signed-out')
       setMessage('已退出账号。本地游戏仍保留在此浏览器。')
@@ -290,6 +368,6 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
       setRevision(0)
       setLastSyncedAt(null)
     },
-    syncNow: () => runSync(true),
+    syncNow: () => runSync(true, true),
   }
 }

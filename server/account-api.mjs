@@ -8,6 +8,8 @@ const scrypt = promisify(scryptCallback)
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MAX_JSON_BYTES = 8 * 1024
 const MAX_SNAPSHOT_BYTES = 72 * 1024 * 1024
+const MAX_LIBRARY_ITEMS = 2000
+const MAX_LIBRARY_BYTES = 2 * 1024 * 1024 * 1024
 const COOKIE_NAME = 'advance_session'
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const RATE_LIMIT_ATTEMPTS = 10
@@ -147,6 +149,23 @@ export function createAccountApi(options = {}) {
       sha256 TEXT NOT NULL,
       data BLOB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS library_revisions (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      revision INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS library_items (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      game_id TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      size INTEGER NOT NULL,
+      sha256 TEXT NOT NULL,
+      data BLOB NOT NULL,
+      PRIMARY KEY (user_id, game_id)
+    );
+    CREATE INDEX IF NOT EXISTS library_items_user_revision
+      ON library_items(user_id, revision);
   `)
 
   const findUser = database.prepare(
@@ -179,6 +198,41 @@ export function createAccountApi(options = {}) {
       data = excluded.data
     RETURNING revision, updated_at, size, sha256
   `)
+  const findLibraryRevision = database.prepare(
+    'SELECT revision, updated_at FROM library_revisions WHERE user_id = ?',
+  )
+  const bumpLibraryRevision = database.prepare(`
+    INSERT INTO library_revisions (user_id, revision, updated_at)
+    VALUES (?, 1, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      revision = library_revisions.revision + 1,
+      updated_at = excluded.updated_at
+    RETURNING revision, updated_at
+  `)
+  const listLibraryItems = database.prepare(`
+    SELECT game_id, revision, updated_at, size, sha256
+    FROM library_items WHERE user_id = ? ORDER BY game_id
+  `)
+  const findLibraryItem = database.prepare(`
+    SELECT revision, updated_at, size, sha256, data
+    FROM library_items WHERE user_id = ? AND game_id = ?
+  `)
+  const libraryUsage = database.prepare(
+    'SELECT COUNT(*) AS count, COALESCE(SUM(size), 0) AS size FROM library_items WHERE user_id = ?',
+  )
+  const saveLibraryItem = database.prepare(`
+    INSERT INTO library_items (user_id, game_id, revision, updated_at, size, sha256, data)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, game_id) DO UPDATE SET
+      revision = excluded.revision,
+      updated_at = excluded.updated_at,
+      size = excluded.size,
+      sha256 = excluded.sha256,
+      data = excluded.data
+  `)
+  const deleteLibraryItem = database.prepare(
+    'DELETE FROM library_items WHERE user_id = ? AND game_id = ?',
+  )
 
   const userResponse = (row) => ({
     id: Number(row.id),
@@ -361,6 +415,151 @@ export function createAccountApi(options = {}) {
             size: Number(saved.size),
             sha256: saved.sha256,
           })
+          return
+        }
+      }
+
+      if (pathname === '/api/library' || pathname.startsWith('/api/library/')) {
+        const user = currentUser(req)
+        if (!user) {
+          error(res, 401, '请先登录后再同步。')
+          return
+        }
+        if (pathname === '/api/library' && req.method === 'GET') {
+          const current = findLibraryRevision.get(user.id)
+          const revision = Number(current?.revision || 0)
+          const updatedAt = Number(current?.updated_at || 0)
+          const etag = `"advance-library-${revision}"`
+          if (req.headers['if-none-match'] === etag) {
+            res.writeHead(304, { 'Cache-Control': 'no-store', ETag: etag })
+            res.end()
+            return
+          }
+          json(
+            res,
+            200,
+            {
+              revision,
+              updatedAt,
+              items: listLibraryItems.all(user.id).map((item) => ({
+                gameId: item.game_id,
+                revision: Number(item.revision),
+                updatedAt: Number(item.updated_at),
+                size: Number(item.size),
+                sha256: item.sha256,
+              })),
+            },
+            { ETag: etag },
+          )
+          return
+        }
+
+        const match = /^\/api\/library\/([0-9a-f]{64})$/.exec(pathname)
+        if (!match) {
+          error(res, 404, '同步游戏不存在。')
+          return
+        }
+        const gameId = match[1]
+        if (req.method === 'GET') {
+          const item = findLibraryItem.get(user.id, gameId)
+          if (!item) {
+            error(res, 404, '同步游戏不存在。')
+            return
+          }
+          const body = Buffer.from(item.data)
+          res.writeHead(200, {
+            'Content-Type': 'application/zip',
+            'Content-Length': body.length,
+            'Cache-Control': 'no-store',
+            ETag: `"${item.sha256}"`,
+            'X-Advance-Revision': String(item.revision),
+            'X-Advance-Updated-At': String(item.updated_at),
+          })
+          res.end(body)
+          return
+        }
+        if (req.method === 'PUT') {
+          assertSameOrigin(req)
+          if (!String(req.headers['content-type'] || '').startsWith('application/zip')) {
+            error(res, 415, '同步数据必须为 ZIP 备份。')
+            return
+          }
+          const body = await readBody(req, MAX_SNAPSHOT_BYTES)
+          if (body.length < 22 || body[0] !== 0x50 || body[1] !== 0x4b) {
+            error(res, 400, '同步备份格式无效。')
+            return
+          }
+          const sha256 = createHash('sha256').update(body).digest('hex')
+          const existing = findLibraryItem.get(user.id, gameId)
+          if (existing?.sha256 === sha256) {
+            const current = findLibraryRevision.get(user.id)
+            json(res, 200, {
+              revision: Number(current?.revision || existing.revision),
+              updatedAt: Number(existing.updated_at),
+              size: Number(existing.size),
+              sha256: existing.sha256,
+            })
+            return
+          }
+          const usage = libraryUsage.get(user.id)
+          const nextCount = Number(usage.count) + (existing ? 0 : 1)
+          const nextSize = Number(usage.size) - Number(existing?.size || 0) + body.length
+          if (nextCount > MAX_LIBRARY_ITEMS) {
+            error(res, 413, `账号游戏库最多保存 ${MAX_LIBRARY_ITEMS} 个游戏。`)
+            return
+          }
+          if (nextSize > MAX_LIBRARY_BYTES) {
+            error(res, 413, '账号游戏库总容量不能超过 2 GiB。')
+            return
+          }
+          const updatedAt = Date.now()
+          database.exec('BEGIN IMMEDIATE')
+          try {
+            const next = bumpLibraryRevision.get(user.id, updatedAt)
+            saveLibraryItem.run(
+              user.id,
+              gameId,
+              next.revision,
+              updatedAt,
+              body.length,
+              sha256,
+              body,
+            )
+            database.exec('COMMIT')
+            json(res, 200, {
+              revision: Number(next.revision),
+              updatedAt,
+              size: body.length,
+              sha256,
+            })
+          } catch (cause) {
+            database.exec('ROLLBACK')
+            throw cause
+          }
+          return
+        }
+        if (req.method === 'DELETE') {
+          assertSameOrigin(req)
+          const existing = findLibraryItem.get(user.id, gameId)
+          const current = findLibraryRevision.get(user.id)
+          if (!existing) {
+            json(res, 200, {
+              revision: Number(current?.revision || 0),
+              updatedAt: Number(current?.updated_at || 0),
+            })
+            return
+          }
+          const updatedAt = Date.now()
+          database.exec('BEGIN IMMEDIATE')
+          try {
+            const next = bumpLibraryRevision.get(user.id, updatedAt)
+            deleteLibraryItem.run(user.id, gameId)
+            database.exec('COMMIT')
+            json(res, 200, { revision: Number(next.revision), updatedAt })
+          } catch (cause) {
+            database.exec('ROLLBACK')
+            throw cause
+          }
           return
         }
       }

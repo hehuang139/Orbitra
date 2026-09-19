@@ -80,6 +80,47 @@ test('account session preserves a snapshot across logout and login', async () =>
   assert.equal(unchanged.status, 304)
   assert.equal(unchanged.headers.get('etag'), '"advance-1"')
 
+  const gameId = 'a'.repeat(64)
+  const itemUploaded = await request(`/api/library/${gameId}`, {
+    method: 'PUT',
+    headers: { Cookie: firstCookie, 'Content-Type': 'application/zip' },
+    body: snapshot,
+  })
+  assert.equal(itemUploaded.status, 200)
+  const itemReceipt = await itemUploaded.json()
+  assert.equal(itemReceipt.revision, 1)
+  assert.equal(itemReceipt.size, snapshot.length)
+
+  const library = await request('/api/library', { headers: { Cookie: firstCookie } })
+  assert.equal(library.status, 200)
+  const libraryBody = await library.json()
+  assert.equal(libraryBody.revision, 1)
+  assert.deepEqual(
+    libraryBody.items.map((item) => item.gameId),
+    [gameId],
+  )
+
+  const currentLibrary = await request('/api/library', {
+    headers: { Cookie: firstCookie, 'If-None-Match': '"advance-library-1"' },
+  })
+  assert.equal(currentLibrary.status, 304)
+
+  const itemDownloaded = await request(`/api/library/${gameId}`, {
+    headers: { Cookie: firstCookie },
+  })
+  assert.equal(itemDownloaded.status, 200)
+  assert.deepEqual(Buffer.from(await itemDownloaded.arrayBuffer()), snapshot)
+
+  const itemDeleted = await request(`/api/library/${gameId}`, {
+    method: 'DELETE',
+    headers: { Cookie: firstCookie, 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+  assert.equal(itemDeleted.status, 200)
+  assert.equal((await itemDeleted.json()).revision, 2)
+  const emptyLibrary = await request('/api/library', { headers: { Cookie: firstCookie } })
+  assert.deepEqual((await emptyLibrary.json()).items, [])
+
   const loggedOut = await request('/api/auth/logout', {
     method: 'POST',
     headers: { Cookie: firstCookie, 'Content-Type': 'application/json' },
@@ -124,6 +165,8 @@ test('mutating endpoints reject cross-origin requests', async () => {
 })
 
 test('sync requires an authenticated session', async () => {
-  const response = await request('/api/sync')
-  assert.equal(response.status, 401)
+  for (const pathname of ['/api/sync', '/api/library', `/api/library/${'a'.repeat(64)}`]) {
+    const response = await request(pathname)
+    assert.equal(response.status, 401)
+  }
 })

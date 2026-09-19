@@ -12,13 +12,17 @@ const browser = await chromium.launch({
 const url = process.env.UI_TEST_URL || 'http://127.0.0.1:5173'
 const username = `sync-${Date.now().toString(36)}`
 const password = 'account-test-password'
-const title = 'Synced Orbit'
+const importedCount = 20
+const titles = Array.from(
+  { length: importedCount },
+  (_, index) => `Synced Orbit ${String(index + 1).padStart(2, '0')}`,
+)
 const errors = []
 
 async function openPage() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
-  page.setDefaultTimeout(30000)
+  page.setDefaultTimeout(60000)
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(url)
   await page.waitForFunction(() => !document.querySelector('.hero-actions button')?.disabled)
@@ -55,33 +59,54 @@ try {
     .waitFor()
   await second.page.getByRole('button', { name: '关闭对话框' }).click()
 
-  const rom = Buffer.from(await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)))
-  Buffer.from('SYNC').copy(rom, 0xac)
-  let checksum = 0x19
-  for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += rom[offset]
-  rom[0xbd] = -checksum & 255
+  const source = await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url))
+  const files = titles.map((title, index) => {
+    const rom = Buffer.from(source)
+    Buffer.from(`SYNC${String(index).padStart(4, '0')}`).copy(rom, 0xac)
+    let checksum = 0x19
+    for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += rom[offset]
+    rom[0xbd] = -checksum & 255
+    return { name: `${title}.gba`, mimeType: 'application/octet-stream', buffer: rom }
+  })
+  await first.page.locator('input[type=file][accept*=".gba"]').setInputFiles(files)
   await first.page
-    .locator('input[type=file][accept*=".gba"]')
-    .setInputFiles({ name: `${title}.gba`, mimeType: 'application/octet-stream', buffer: rom })
-  await first.page.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
+    .getByText(`已导入 ${importedCount} 个游戏，准备开始吧`, { exact: true })
+    .waitFor()
   await openAccount(first.page)
   await first.page
     .locator('.account-panel')
-    .getByText(/已同步 2 个游戏及其存档/)
+    .getByText(new RegExp(`已同步 ${importedCount + 1} 个游戏及其存档`))
     .waitFor()
-  await second.page.locator('.game-title', { hasText: title }).waitFor()
+  await second.page.waitForFunction(
+    (expected) => document.querySelectorAll('.game-card').length === expected,
+    importedCount + 1,
+  )
+  await second.page.locator('.game-title', { hasText: titles.at(-1) }).waitFor()
+  assert.equal(await second.page.locator('.game-card').count(), importedCount + 1)
+  await first.page.getByRole('button', { name: '关闭对话框' }).click()
+  await first.page.getByRole('button', { name: `${titles[0]} 的更多操作` }).click()
+  await first.page.getByRole('button', { name: '删除游戏及存档' }).click()
+  await first.page.getByRole('button', { name: '确认删除' }).click()
+  await first.page.waitForFunction(
+    (expected) => document.querySelectorAll('.game-card').length === expected,
+    importedCount,
+  )
+  await second.page.waitForFunction(
+    (expected) => document.querySelectorAll('.game-card').length === expected,
+    importedCount,
+  )
   await first.context.close()
 
   await openAccount(second.page)
   await second.page.getByRole('button', { name: '退出登录' }).click()
   await second.page.getByText('已退出账号。本地游戏仍保留在此浏览器。').waitFor()
   await second.page.getByRole('button', { name: '关闭对话框' }).click()
-  await second.page.locator('.game-title', { hasText: title }).waitFor()
+  await second.page.locator('.game-title', { hasText: titles.at(-1) }).waitFor()
   await second.context.close()
 
   assert.deepEqual(errors, [], 'account flow should not produce uncaught browser errors')
   console.log(
-    'Account sync flow passed: register, automatic upload, live cross-browser restore, logout retention.',
+    `Account sync flow passed: ${importedCount} automatic item uploads, live cross-browser restore/delete, logout retention.`,
   )
 } finally {
   await browser.close()

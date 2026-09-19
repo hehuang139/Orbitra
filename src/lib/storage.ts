@@ -14,9 +14,16 @@ const DATABASE_NAME = 'advance-gba'
 const DATABASE_VERSION = 1
 const STORES = { games: 'games', roms: 'roms', states: 'states', batteries: 'batteries' } as const
 
-function announceLibraryChange(kind: 'content' | 'metadata'): void {
+export interface LibraryChange {
+  kind: 'content' | 'metadata'
+  gameId?: string
+}
+
+function announceLibraryChange(kind: LibraryChange['kind'], gameId?: string): void {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('advance-library-changed', { detail: kind }))
+    window.dispatchEvent(
+      new CustomEvent<LibraryChange>('advance-library-changed', { detail: { kind, gameId } }),
+    )
   }
 }
 
@@ -312,7 +319,7 @@ export async function getGames(): Promise<Game[]> {
 export async function repairImportedTitles(): Promise<number> {
   const repaired = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const games = (await requestResult(tx.objectStore(STORES.games).getAll())).map(gameRecord)
-    let count = 0
+    const ids: string[] = []
     for (const game of games) {
       if (game.platform !== 'snes' || game.title !== titleFromFilename(game.filename)) continue
       const record = await requestResult(tx.objectStore(STORES.roms).get(game.id))
@@ -322,12 +329,12 @@ export async function repairImportedTitles(): Promise<number> {
       const title = snesTitle(bytes)
       if (!title || title === game.title) continue
       await requestResult(tx.objectStore(STORES.games).put({ ...game, title }))
-      count += 1
+      ids.push(game.id)
     }
-    return count
+    return ids
   })
-  if (repaired) announceLibraryChange('metadata')
-  return repaired
+  for (const id of repaired) announceLibraryChange('metadata', id)
+  return repaired.length
 }
 
 export async function importGame(file: File): Promise<Game> {
@@ -373,7 +380,7 @@ export async function importGame(file: File): Promise<Game> {
       await requestResult(tx.objectStore(STORES.games).put(game))
     return game
   })
-  announceLibraryChange('content')
+  announceLibraryChange('content', game.id)
   return game
 }
 
@@ -396,7 +403,7 @@ export async function updateGame(id: string, changes: GameChanges): Promise<Game
     await requestResult(tx.objectStore(STORES.games).put(updated))
     return updated
   })
-  announceLibraryChange('metadata')
+  announceLibraryChange('metadata', id)
   return game
 }
 
@@ -423,7 +430,7 @@ export async function deleteGame(id: string): Promise<void> {
       ...stateKeys.map((key) => requestResult(tx.objectStore(STORES.states).delete(key))),
     ])
   })
-  announceLibraryChange('content')
+  announceLibraryChange('content', id)
 }
 
 export async function getStates(gameId: string): Promise<SaveState[]> {
@@ -464,7 +471,7 @@ export async function saveState(
       await requestResult(tx.objectStore(STORES.games).put({ ...game, skipAutoState: false }))
     return state
   })
-  announceLibraryChange('content')
+  announceLibraryChange('content', gameId)
   return state
 }
 
@@ -473,7 +480,7 @@ export async function deleteState(gameId: string, slot: number): Promise<void> {
   await transaction([STORES.states], 'readwrite', async (tx) => {
     await requestResult(tx.objectStore(STORES.states).delete(id))
   })
-  announceLibraryChange('content')
+  announceLibraryChange('content', gameId)
 }
 
 export async function getBatterySave(gameId: string): Promise<Uint8Array | undefined> {
@@ -504,7 +511,7 @@ export async function setBatterySave(gameId: string, data: Uint8Array): Promise<
     await requireGame(tx, gameId)
     await requestResult(tx.objectStore(STORES.batteries).put({ gameId, data: bytes }))
   })
-  announceLibraryChange('content')
+  announceLibraryChange('content', gameId)
 }
 
 export interface RestoreGameChoice {
