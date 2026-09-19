@@ -6,7 +6,7 @@ import {
   type GamePlatform,
 } from './platforms.ts'
 import type { Game, SaveState } from './types.ts'
-import { BUNDLED_CORE_ID } from './core-version.ts'
+import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { BACKUP_LIMITS, gameIdForRom, sha256, validateBackupData } from './backup-format.ts'
 import type { BackupData, BackupGame } from './backup-format.ts'
 
@@ -146,6 +146,18 @@ function assertRomSize(platform: GamePlatform, size: number): void {
   }
 }
 
+function assertRomContent(platform: GamePlatform, bytes: Uint8Array): void {
+  if (
+    platform === 'nes' &&
+    (bytes[0] !== 0x4e || bytes[1] !== 0x45 || bytes[2] !== 0x53 || bytes[3] !== 0x1a)
+  ) {
+    throw new Error('无法识别 FC / NES ROM：缺少有效的 iNES 或 NES 2.0 文件头。')
+  }
+  if (platform === 'snes' && bytes.byteLength % 0x8000 !== 0 && bytes.byteLength % 0x8000 !== 512) {
+    throw new Error('无法识别 SFC / SNES ROM：文件大小不符合卡带映像或 512 字节头格式。')
+  }
+}
+
 function gameRecord(value: unknown): Game {
   if (!value || typeof value !== 'object') throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   const game = value as Game
@@ -236,6 +248,7 @@ export async function importGame(file: File): Promise<Game> {
     throw new Error('无法读取游戏文件，请重新选择后重试。')
   }
   if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
+  assertRomContent(platform, bytes)
   const id = await gameIdForRom(platform, bytes)
   return transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const existing = await requestResult(tx.objectStore(STORES.games).get(id))
@@ -245,7 +258,7 @@ export async function importGame(file: File): Promise<Game> {
             id,
             title:
               file.name
-                .replace(/\.(?:gba|gbc?)$/i, '')
+                .replace(/\.[^.]+$/i, '')
                 .replace(/[_]+/g, ' ')
                 .trim() || '未命名游戏',
             filename: file.name,
@@ -332,17 +345,17 @@ export async function saveState(
   screenshot?: string,
 ): Promise<SaveState> {
   const id = stateId(gameId, slot)
-  const state = stateRecord({
-    id,
-    gameId,
-    slot,
-    data,
-    screenshot,
-    createdAt: Date.now(),
-    coreVersion: BUNDLED_CORE_ID,
-  })
   return transaction([STORES.games, STORES.states], 'readwrite', async (tx) => {
     const game = await requireGame(tx, gameId)
+    const state = stateRecord({
+      id,
+      gameId,
+      slot,
+      data,
+      screenshot,
+      createdAt: Date.now(),
+      coreVersion: coreIdForPlatform(game.platform),
+    })
     await requestResult(tx.objectStore(STORES.states).put(state))
     if (slot === 0 && game.skipAutoState)
       await requestResult(tx.objectStore(STORES.games).put({ ...game, skipAutoState: false }))
@@ -646,7 +659,7 @@ export async function previewRestore(data: BackupData): Promise<RestorePreview> 
       createdAt: state.createdAt,
       coreVersion: state.coreVersion,
       conflict: current.states.some((item) => item.slot === state.slot),
-      incompatible: state.coreVersion !== BUNDLED_CORE_ID,
+      incompatible: state.coreVersion !== coreIdForPlatform(entry.game.platform),
     }))
     totalBytes +=
       (entry.rom?.byteLength ?? 0) +

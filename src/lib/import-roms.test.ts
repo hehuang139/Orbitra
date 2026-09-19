@@ -47,13 +47,23 @@ function declaredSize(bytes: Uint8Array, index: number, size: number): Uint8Arra
   })
 }
 
-test('direct GBA, GB and GBC files retain identity and leave hardware validation to storage', async () => {
-  for (const name of ['Example.GBA', 'Pocket.GB', 'Color.GBC']) {
+test('direct supported ROM files retain identity and leave hardware validation to storage', async () => {
+  for (const name of [
+    'Example.GBA',
+    'Pocket.GB',
+    'Color.GBC',
+    'Console.NES',
+    'Super.SFC',
+    'Header.SMC',
+  ]) {
     const rom = new File([payload()], name)
     assert.deepEqual(await collect(rom), [rom])
   }
   assert.deepEqual(await collect(new File([], 'small.gba')).then((files) => files[0].size), 0)
-  await assert.rejects(collect(new File([], 'game.7z')), /\.gba.*\.gb.*\.gbc.*\.zip/)
+  await assert.rejects(
+    collect(new File([], 'game.7z')),
+    /\.gba.*\.gb.*\.gbc.*\.nes.*\.sfc.*\.smc.*\.zip/,
+  )
 })
 
 test('stored and deflated ZIPs preserve original bytes and reduce nested names to basenames', async () => {
@@ -73,23 +83,26 @@ test('stored and deflated ZIPs preserve original bytes and reduce nested names t
   }
 })
 
-test('extracts mixed GBA, GB and GBC archives with original platform extensions', async () => {
+test('extracts mixed-platform archives with original platform extensions', async () => {
   const files = await collect(
     archive(
       zipSync({
         'advance/game.GBA': payload(1),
         'classic/game.gb': payload(2, 32 * 1024),
         'color/game.GBC': payload(3, 32 * 1024),
+        'console/game.nes': payload(4, 16 * 1024 + 16),
+        'super/game.SFC': payload(5, 32 * 1024),
+        'header/game.smc': payload(6, 32 * 1024 + 512),
       }),
     ),
   )
   assert.deepEqual(
     files.map((file) => file.name),
-    ['game.GBA', 'game.gb', 'game.GBC'],
+    ['game.GBA', 'game.gb', 'game.GBC', 'game.nes', 'game.SFC', 'game.smc'],
   )
   assert.deepEqual(
     files.map((file) => file.size),
-    [1024, 32 * 1024, 32 * 1024],
+    [1024, 32 * 1024, 32 * 1024, 16 * 1024 + 16, 32 * 1024, 32 * 1024 + 512],
   )
 })
 

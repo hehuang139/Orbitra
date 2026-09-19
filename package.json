@@ -2,7 +2,7 @@
   "name": "advance-gba",
   "private": true,
   "version": "1.0.0",
-  "description": "Advance — a modern browser-based GBA, GB and GBC emulator with mGBA WebAssembly, ZIP import, save states, rewind, gamepad and touch controls.",
+  "description": "Advance — a browser-based GBA, GB, GBC, FC/NES and SFC/SNES emulator with local cores, ZIP import, save states, gamepad and touch controls.",
   "license": "MIT",
   "author": "hehuang139",
   "repository": {

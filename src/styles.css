@@ -2065,6 +2065,25 @@ main {
   image-rendering: pixelated;
   object-fit: contain;
 }
+.retro-host {
+  width: min(100%, 600px);
+  aspect-ratio: var(--screen-aspect, 4 / 3);
+  flex: 0 1 600px;
+}
+.retro-host .ejs_menu_bar,
+.retro-host .ejs_context_menu,
+.retro-host .ejs_virtualGamepad_parent,
+.retro-host .ejs_popup_container {
+  display: none !important;
+}
+.canvas-wrap > canvas.retro-focus-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
 .player-panel.platform-gb .canvas-wrap canvas,
 .player-panel.platform-gbc .canvas-wrap canvas {
   width: min(100%, 480px);

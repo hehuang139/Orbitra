@@ -83,6 +83,8 @@ const buttonNames: Record<EmulatorButton, string> = {
   Right: '右',
   A: 'A 按钮',
   B: 'B 按钮',
+  X: 'X 按钮',
+  Y: 'Y 按钮',
   L: 'L 肩键',
   R: 'R 肩键',
   Start: '开始',
@@ -570,7 +572,7 @@ export default function App() {
         setActive(currentGame)
         setPage('library')
         setModal(null)
-        setProgress('正在启动 mGBA 内核…')
+        setProgress(`正在启动 ${PLATFORM_REGISTRY[currentGame.platform].label} 模拟核心…`)
         setLaunchError('')
         await engine.loadRom(bytes, currentGame.filename, currentGame.platform)
         activeRef.current = currentGame
@@ -665,7 +667,21 @@ export default function App() {
           ([key, code]) => key !== mapping && code === event.code,
         )
         if (existing) {
-          notify(`此按键已用于「${buttonNames[existing[0] as EmulatorButton]}」`)
+          const existingButton = existing[0] as EmulatorButton
+          const platform = activeRef.current?.platform ?? 'gba'
+          if (platformSupportsButton(platform, existingButton)) {
+            notify(`此按键已用于「${buttonNames[existingButton]}」`)
+            return
+          }
+          setSettings((value) => ({
+            ...value,
+            bindings: {
+              ...value.bindings,
+              [existingButton]: value.bindings[mapping],
+              [mapping]: event.code,
+            },
+          }))
+          setMapping(null)
           return
         }
         setSettings((value) => ({
@@ -860,7 +876,7 @@ export default function App() {
       if (!game) return
       const bytes = (await engineRef.current?.exportSave()) || (await db.getBatterySave(game.id))
       if (!bytes?.length) throw new Error('此游戏尚未生成游戏内存档。你可以先创建即时存档。')
-      download(bytes, game.filename.replace(/\.(?:gba|gbc?)$/i, '.sav'))
+      download(bytes, game.filename.replace(/\.[^.]+$/i, '.sav'))
       notify('游戏内存档已导出')
     })
   const importBattery = (file?: File) =>
@@ -878,8 +894,8 @@ export default function App() {
   const importSnapshot = (file?: File) =>
     run(async () => {
       if (!file || !activeRef.current) return
-      if (!/\.ss[0-9]?$|\.state$/i.test(file.name) || file.size < 1 || file.size > 16777216)
-        throw new Error('请选择 mGBA 即时存档（.state / .ss0，最大 16 MB）')
+      if (!/\.ss[0-9]?$|\.state$/i.test(file.name) || file.size < 1 || file.size > 32 * 1024 * 1024)
+        throw new Error('请选择当前核心生成的即时存档（.state / .ss0，最大 32 MiB）')
       await engineRef.current?.loadState(new Uint8Array(await file.arrayBuffer()))
       notify('即时存档已恢复')
       setModal(null)
@@ -1026,7 +1042,7 @@ export default function App() {
           </span>
         </a>
         <div className="workspace-label">
-          你的掌机游戏空间 <span>BETA</span>
+          你的经典游戏空间 <span>BETA</span>
         </div>
         <div className="nav-group-title">工作台</div>
         <nav aria-label="主导航">
@@ -1775,7 +1791,7 @@ export default function App() {
                 </div>
                 <div className="core-status">
                   <span className="status-dot" />
-                  <span>mGBA 引擎</span>
+                  <span>{engineRef.current?.version ?? '多核心引擎'}</span>
                   <span>WASM</span>
                 </div>
               </aside>
@@ -2201,14 +2217,13 @@ export default function App() {
                   </button>
                 </div>
                 <p className="small-note">
-                  .sav 是游戏内的电池存档；导入后会重启游戏。即时存档请使用当前游戏生成的 mGBA
-                  存档。
+                  .sav 是游戏内存档；导入后会重启游戏。即时存档须由当前游戏和同一模拟核心生成。
                 </p>
               </>
             ) : (
               <>
                 <p className="modal-description">
-                  Advance 是一个在浏览器中运行的掌机游戏空间。导入你的 .gba、.gb、.gbc 或 .zip
+                  Advance 是一个在浏览器中运行的经典游戏空间。导入 {romFormatLabel} 或 .ZIP
                   游戏，或先体验内置的原创游戏 Star Orbit。
                 </p>
                 <div className="help-steps">
@@ -2216,17 +2231,17 @@ export default function App() {
                     <span>01</span>
                     <strong>带上你的游戏</strong>
                     <p>
-                      点击「导入游戏」，或拖入 .gba / .gb / .gbc / .zip 文件。ZIP
-                      中的游戏会自动识别平台并解压，包括子文件夹。GBA ROM 最大 32 MiB，GB / GBC 最大
-                      8 MiB；ZIP 最大 64 MiB，每包最多 32 个游戏、解压合计 128 MiB。
+                      点击「导入游戏」，或拖入 {romFormatLabel} / .ZIP 文件。ZIP
+                      中的游戏会自动识别平台并解压，包括子文件夹。各平台按独立大小限制校验；ZIP 最大
+                      64 MiB，每包最多 32 个游戏、解压合计 128 MiB。
                     </p>
                   </div>
                   <div>
                     <span>02</span>
                     <strong>用熟悉的方式玩</strong>
                     <p>
-                      点击游戏画面后，方向键移动，X / Z 对应 A / B，A / S 对应肩键，Enter 开始，右
-                      Shift 选择。按 Esc 离开游戏焦点。
+                      点击游戏画面后，方向键移动，X / Z 对应 A / B，C / V 对应 X / Y，A / S
+                      对应肩键，Enter 开始，右 Shift 选择。按 Esc 离开游戏焦点。
                     </p>
                   </div>
                   <div>
@@ -2262,7 +2277,7 @@ export default function App() {
                   </div>
                 </div>
                 <p className="small-note">
-                  基于 mGBA WebAssembly 内核 · 商业游戏需自行提供合法获得的
+                  基于 mGBA、FCEUmm 与 Snes9x WebAssembly 内核 · 商业游戏需自行提供合法获得的
                   ROM。暂不支持联机、作弊码与密码压缩包。
                 </p>
               </>
@@ -2275,7 +2290,7 @@ export default function App() {
           <div>
             <Upload size={40} />
             <h2>放下游戏，开启冒险。</h2>
-            <p>支持 .gba / .gb / .gbc / .zip · 自动识别平台并解压游戏</p>
+            <p>支持 {romFormatLabel} / .ZIP · 自动识别平台并解压游戏</p>
           </div>
         </div>
       )}

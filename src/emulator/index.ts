@@ -2,6 +2,7 @@
 import { checkRuntimePrerequisites } from '../lib/compatibility'
 import { batteryFromState } from './battery-snapshot'
 import { installCanvas2DRenderer } from './canvas2d-renderer'
+import { createRetroEmulator } from './retro'
 
 /** Browser adapter for the locally bundled mGBA WebAssembly core. */
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms.ts'
@@ -113,7 +114,10 @@ function sameBytes(a: Uint8Array | null, b: Uint8Array): boolean {
   return !!a && a.length === b.length && a.every((value, index) => value === b[index])
 }
 
-export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptions = {}): Emulator {
+export function createMgbaEmulator(
+  canvas: HTMLCanvasElement,
+  options: EmulatorOptions = {},
+): Emulator {
   let status: EmulatorStatus = 'idle'
   let romName: string | null = null
   let platform: GamePlatform | null = null
@@ -593,6 +597,133 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
       status = 'disposed'
       romName = null
       platform = null
+      options.onStatus?.('disposed')
+    },
+  }
+  return emulator
+}
+
+/** Platform-neutral session that owns exactly one native core at a time. */
+export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptions = {}): Emulator {
+  let backend: Emulator | null = null
+  let status: EmulatorStatus = 'idle'
+  let disposed = false
+  let generation = 0
+  let volume = 0.65
+  let speed: 1 | 2 | 4 = 1
+
+  const requireBackend = (): Emulator => {
+    if (disposed) throw new Error('模拟器已关闭，请重新打开游戏。')
+    if (!backend) throw new Error('请先载入一个游戏。')
+    return backend
+  }
+  const scopedOptions = (ticket: number): EmulatorOptions => ({
+    onStatus: (next) => {
+      if (ticket !== generation || disposed) return
+      status = next
+      options.onStatus?.(next)
+    },
+    onError: (error) => {
+      if (ticket === generation && !disposed) options.onError?.(error)
+    },
+    onProgress: (message) => {
+      if (ticket === generation && !disposed) options.onProgress?.(message)
+    },
+    onFps: (fps) => {
+      if (ticket === generation && !disposed) options.onFps?.(fps)
+    },
+    onSaveChange: (bytes) => {
+      if (ticket === generation && !disposed) options.onSaveChange?.(bytes)
+    },
+  })
+
+  const emulator: Emulator = {
+    get status() {
+      return status
+    },
+    get romName() {
+      return backend?.romName ?? null
+    },
+    get platform() {
+      return backend?.platform ?? null
+    },
+    get version() {
+      return backend?.version ?? 'Advance 多核心运行时'
+    },
+    async loadRom(data, name, platform) {
+      if (disposed) throw new Error('模拟器已关闭，请重新打开游戏。')
+      const definition = PLATFORM_REGISTRY[platform]
+      const currentDefinition = backend?.platform ? PLATFORM_REGISTRY[backend.platform] : null
+      if (backend && currentDefinition?.core === definition.core) {
+        await backend.loadRom(data, name, platform)
+        return
+      }
+      const ticket = ++generation
+      backend?.dispose()
+      status = 'loading'
+      options.onStatus?.('loading')
+      backend =
+        definition.core === 'mgba'
+          ? createMgbaEmulator(canvas, scopedOptions(ticket))
+          : createRetroEmulator(canvas, scopedOptions(ticket))
+      backend.setVolume(volume)
+      backend.setSpeed(speed)
+      await backend.loadRom(data, name, platform)
+    },
+    start() {
+      backend?.start()
+    },
+    resume() {
+      backend?.resume()
+    },
+    pause() {
+      backend?.pause()
+    },
+    reset() {
+      requireBackend().reset()
+    },
+    setVolume(value) {
+      volume = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
+      backend?.setVolume(volume)
+    },
+    setSpeed(value) {
+      speed = value === 2 || value === 4 ? value : 1
+      backend?.setSpeed(speed)
+    },
+    keyDown(button) {
+      backend?.keyDown(button)
+    },
+    keyUp(button) {
+      backend?.keyUp(button)
+    },
+    releaseAllKeys() {
+      backend?.releaseAllKeys()
+    },
+    saveState() {
+      return requireBackend().saveState()
+    },
+    loadState(bytes) {
+      return requireBackend().loadState(bytes)
+    },
+    exportSave() {
+      return requireBackend().exportSave()
+    },
+    importSave(bytes) {
+      return requireBackend().importSave(bytes)
+    },
+    setRewind(enabled) {
+      backend?.setRewind(enabled)
+    },
+    screenshot() {
+      return requireBackend().screenshot()
+    },
+    dispose() {
+      if (disposed) return
+      disposed = true
+      generation++
+      backend?.dispose()
+      backend = null
+      status = 'disposed'
       options.onStatus?.('disposed')
     },
   }

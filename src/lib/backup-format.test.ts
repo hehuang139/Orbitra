@@ -21,6 +21,8 @@ const platformFixtures: Record<GamePlatform, { filename: string; size: number; s
   gba: { filename: 'test.gba', size: 512, seed: 0 },
   gb: { filename: 'test.gb', size: 32 * 1024, seed: 17 },
   gbc: { filename: 'test.gbc', size: 32 * 1024, seed: 31 },
+  nes: { filename: 'test.nes', size: 16 * 1024 + 16, seed: 43 },
+  snes: { filename: 'test.sfc', size: 32 * 1024, seed: 59 },
 }
 
 async function fixture(platform: GamePlatform = 'gba'): Promise<BackupData> {

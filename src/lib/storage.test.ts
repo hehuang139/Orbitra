@@ -20,7 +20,7 @@ import {
 } from './storage.ts'
 import type { RestoreChoices, RestorePreview } from './storage.ts'
 import type { BackupData } from './backup-format.ts'
-import { BUNDLED_CORE_ID } from './core-version.ts'
+import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { PLATFORM_REGISTRY, platformFromFilename } from './platforms.ts'
 
 beforeEach(() => {
@@ -29,6 +29,12 @@ beforeEach(() => {
 
 function rom(name = 'Test_game.gba', seed = 1, size = 1024): File {
   return new File([new Uint8Array(size).fill(seed)], name)
+}
+
+function nesRom(name = 'Console.nes'): File {
+  const bytes = new Uint8Array(PLATFORM_REGISTRY.nes.minRomSize)
+  bytes.set([0x4e, 0x45, 0x53, 0x1a, 1])
+  return new File([bytes], name)
 }
 
 async function corrupt(store: string, record: object): Promise<void> {
@@ -88,6 +94,33 @@ test('imports GB and GBC metadata with platform-specific size bounds', async () 
   )
   await assert.rejects(importGame(rom('small.gb', 1, 32 * 1024 - 1)), /GB.*32 KiB.*8 MiB/)
   await assert.rejects(importGame(rom('large.gbc', 1, 8 * 1024 * 1024 + 1)), /GBC.*32 KiB.*8 MiB/)
+})
+
+test('imports FC and SFC metadata, validates headers and records platform core IDs', async () => {
+  assert.equal(platformFromFilename('Mario.NES'), 'nes')
+  assert.equal(platformFromFilename('Zelda.SFC'), 'snes')
+  assert.equal(platformFromFilename('Header.SMC'), 'snes')
+  await assert.rejects(
+    importGame(rom('invalid.nes', 1, PLATFORM_REGISTRY.nes.minRomSize)),
+    /iNES|NES 2\.0/,
+  )
+  const nes = await importGame(nesRom())
+  const snes = await importGame(rom('Super.sfc', 4, PLATFORM_REGISTRY.snes.minRomSize))
+  assert.deepEqual(
+    [nes, snes].map(({ title, platform }) => ({ title, platform })),
+    [
+      { title: 'Console', platform: 'nes' },
+      { title: 'Super', platform: 'snes' },
+    ],
+  )
+  assert.equal(
+    (await saveState(nes.id, 1, new Uint8Array([1]))).coreVersion,
+    coreIdForPlatform('nes'),
+  )
+  assert.equal(
+    (await saveState(snes.id, 1, new Uint8Array([2]))).coreVersion,
+    coreIdForPlatform('snes'),
+  )
 })
 
 test('isolates identical ROM bytes imported for different platforms', async () => {
