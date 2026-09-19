@@ -67,11 +67,19 @@ export async function logoutAccount(): Promise<void> {
   await jsonRequest('/api/auth/logout', { method: 'POST', body: '{}' })
 }
 
-export async function downloadCloudSnapshot(): Promise<CloudSnapshot | null> {
+/** `undefined` means the caller's known revision is still current; `null` means no snapshot exists. */
+export async function downloadCloudSnapshot(
+  knownRevision?: number,
+): Promise<CloudSnapshot | null | undefined> {
   const response = await fetch('/api/sync', {
     credentials: 'same-origin',
     cache: 'no-store',
+    headers:
+      knownRevision && Number.isSafeInteger(knownRevision)
+        ? { 'If-None-Match': `"advance-${knownRevision}"` }
+        : undefined,
   })
+  if (response.status === 304) return undefined
   if (response.status === 204) return null
   if (!response.ok) throw await apiError(response)
   return {

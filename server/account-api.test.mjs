@@ -74,6 +74,12 @@ test('account session preserves a snapshot across logout and login', async () =>
   assert.equal(downloaded.headers.get('x-advance-revision'), '1')
   assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), snapshot)
 
+  const unchanged = await request('/api/sync', {
+    headers: { Cookie: firstCookie, 'If-None-Match': '"advance-1"' },
+  })
+  assert.equal(unchanged.status, 304)
+  assert.equal(unchanged.headers.get('etag'), '"advance-1"')
+
   const loggedOut = await request('/api/auth/logout', {
     method: 'POST',
     headers: { Cookie: firstCookie, 'Content-Type': 'application/json' },

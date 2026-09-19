@@ -164,6 +164,71 @@ function assertRomContent(platform: GamePlatform, bytes: Uint8Array): void {
   }
 }
 
+function titleFromFilename(filename: string): string {
+  return (
+    filename
+      .replace(/\.[^.]+$/i, '')
+      .replace(/[_]+/g, ' ')
+      .trim() || '未命名游戏'
+  )
+}
+
+function decodeSnesTitle(bytes: Uint8Array): string | undefined {
+  let end = bytes.length
+  while (end && [0x00, 0x20, 0xff].includes(bytes[end - 1])) end -= 1
+  if (end < 2) return undefined
+  const value = bytes.subarray(0, end)
+  if (value.some((byte) => byte < 0x20 || byte === 0x7f)) return undefined
+  try {
+    const title = new TextDecoder('shift_jis')
+      .decode(value)
+      .replace(/\u3000/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!title || title.includes('\ufffd') || !/[\p{L}\p{N}]/u.test(title)) return undefined
+    return title
+  } catch {
+    return undefined
+  }
+}
+
+function snesTitle(bytes: Uint8Array): string | undefined {
+  const base = bytes.byteLength % 0x8000 === 512 ? 512 : 0
+  const candidates = [
+    { offset: base + 0x7fc0, modes: [0x20, 0x22, 0x30, 0x32] },
+    { offset: base + 0xffc0, modes: [0x21, 0x25, 0x31, 0x35] },
+    { offset: base + 0x40ffc0, modes: [0x25, 0x35] },
+  ]
+  let best: { score: number; title: string } | undefined
+  for (const candidate of candidates) {
+    const { offset } = candidate
+    if (offset + 0x40 > bytes.byteLength) continue
+    const title = decodeSnesTitle(bytes.subarray(offset, offset + 21))
+    if (!title) continue
+    const mapMode = bytes[offset + 0x15] & 0x3f
+    const complement = bytes[offset + 0x1c] | (bytes[offset + 0x1d] << 8)
+    const checksum = bytes[offset + 0x1e] | (bytes[offset + 0x1f] << 8)
+    const resetVector = bytes[offset + 0x3c] | (bytes[offset + 0x3d] << 8)
+    const validChecksum =
+      (checksum !== 0 || complement !== 0) &&
+      (checksum !== 0xffff || complement !== 0xffff) &&
+      ((checksum + complement) & 0xffff) === 0xffff
+    const score =
+      2 +
+      (candidate.modes.includes(mapMode) ? 4 : 0) +
+      (validChecksum ? 4 : 0) +
+      (resetVector >= 0x8000 ? 2 : 0)
+    if (score >= 8 && (!best || score > best.score)) best = { score, title }
+  }
+  return best?.title
+}
+
+function importedTitle(platform: GamePlatform, filename: string, bytes: Uint8Array): string {
+  return platform === 'snes'
+    ? (snesTitle(bytes) ?? titleFromFilename(filename))
+    : titleFromFilename(filename)
+}
+
 function gameRecord(value: unknown): Game {
   if (!value || typeof value !== 'object') throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   const game = value as Game
@@ -243,6 +308,28 @@ export async function getGames(): Promise<Game[]> {
   })
 }
 
+/** Upgrade filename-derived SFC titles when a valid internal ROM title is available. */
+export async function repairImportedTitles(): Promise<number> {
+  const repaired = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
+    const games = (await requestResult(tx.objectStore(STORES.games).getAll())).map(gameRecord)
+    let count = 0
+    for (const game of games) {
+      if (game.platform !== 'snes' || game.title !== titleFromFilename(game.filename)) continue
+      const record = await requestResult(tx.objectStore(STORES.roms).get(game.id))
+      if (record === undefined) continue
+      const bytes = copyBytes(record.data, '游戏 ROM 数据已损坏，请重新导入游戏。')
+      if (bytes.byteLength !== game.size) continue
+      const title = snesTitle(bytes)
+      if (!title || title === game.title) continue
+      await requestResult(tx.objectStore(STORES.games).put({ ...game, title }))
+      count += 1
+    }
+    return count
+  })
+  if (repaired) announceLibraryChange('metadata')
+  return repaired
+}
+
 export async function importGame(file: File): Promise<Game> {
   const platform = platformFromFilename(file.name)
   if (!platform) throw new Error(`请选择 ${ROM_FILE_EXTENSIONS.join('、')} 格式的游戏文件。`)
@@ -256,17 +343,15 @@ export async function importGame(file: File): Promise<Game> {
   if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
   assertRomContent(platform, bytes)
   const id = await gameIdForRom(platform, bytes)
+  const fallbackTitle = titleFromFilename(file.name)
+  const suggestedTitle = importedTitle(platform, file.name, bytes)
   const game = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const existing = await requestResult(tx.objectStore(STORES.games).get(id))
     const game =
       existing === undefined
         ? ({
             id,
-            title:
-              file.name
-                .replace(/\.[^.]+$/i, '')
-                .replace(/[_]+/g, ' ')
-                .trim() || '未命名游戏',
+            title: suggestedTitle,
             filename: file.name,
             platform,
             size: bytes.byteLength,
@@ -275,10 +360,17 @@ export async function importGame(file: File): Promise<Game> {
             playTime: 0,
             favorite: false,
           } satisfies Game)
-        : gameRecord(existing)
+        : (() => {
+            const current = gameRecord(existing)
+            return current.title === fallbackTitle && current.title !== suggestedTitle
+              ? { ...current, title: suggestedTitle }
+              : current
+          })()
     // Reimporting deduplicates metadata while repairing any missing ROM bytes.
     await requestResult(tx.objectStore(STORES.roms).put({ id, data: bytes }))
     if (existing === undefined) await requestResult(tx.objectStore(STORES.games).add(game))
+    else if (game.title !== gameRecord(existing).title)
+      await requestResult(tx.objectStore(STORES.games).put(game))
     return game
   })
   announceLibraryChange('content')

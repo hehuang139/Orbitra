@@ -44,6 +44,17 @@ try {
     .waitFor()
   await first.page.getByRole('button', { name: '关闭对话框' }).click()
 
+  const second = await openPage()
+  await openAccount(second.page)
+  await second.page.getByLabel('用户名').fill(username)
+  await second.page.getByLabel('密码', { exact: true }).fill(password)
+  await second.page.getByRole('button', { name: '登录并恢复' }).click()
+  await second.page
+    .locator('.account-panel')
+    .getByText(/已同步 1 个游戏及其存档/)
+    .waitFor()
+  await second.page.getByRole('button', { name: '关闭对话框' }).click()
+
   const rom = Buffer.from(await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)))
   Buffer.from('SYNC').copy(rom, 0xac)
   let checksum = 0x19
@@ -54,25 +65,12 @@ try {
     .setInputFiles({ name: `${title}.gba`, mimeType: 'application/octet-stream', buffer: rom })
   await first.page.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
   await openAccount(first.page)
-  await first.page.getByRole('button', { name: '立即同步' }).click()
   await first.page
     .locator('.account-panel')
     .getByText(/已同步 2 个游戏及其存档/)
     .waitFor()
-  await first.context.close()
-
-  const second = await openPage()
-  assert.equal(await second.page.getByText(title, { exact: true }).count(), 0)
-  await openAccount(second.page)
-  await second.page.getByLabel('用户名').fill(username)
-  await second.page.getByLabel('密码', { exact: true }).fill(password)
-  await second.page.getByRole('button', { name: '登录并恢复' }).click()
-  await second.page
-    .locator('.account-panel')
-    .getByText(/已同步 2 个游戏及其存档/)
-    .waitFor()
-  await second.page.getByRole('button', { name: '关闭对话框' }).click()
   await second.page.locator('.game-title', { hasText: title }).waitFor()
+  await first.context.close()
 
   await openAccount(second.page)
   await second.page.getByRole('button', { name: '退出登录' }).click()
@@ -83,7 +81,7 @@ try {
 
   assert.deepEqual(errors, [], 'account flow should not produce uncaught browser errors')
   console.log(
-    'Account sync flow passed: register, upload, clean-browser restore, logout retention.',
+    'Account sync flow passed: register, automatic upload, live cross-browser restore, logout retention.',
   )
 } finally {
   await browser.close()

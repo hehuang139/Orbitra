@@ -294,6 +294,7 @@ export default function App() {
     let cancelled = false
     async function init() {
       try {
+        await db.repairImportedTitles()
         let list = await db.getGames()
         if (!list.some(isDemo)) {
           const response = await fetch('/demo/star-orbit.gba')

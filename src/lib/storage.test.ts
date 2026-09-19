@@ -15,6 +15,7 @@ import {
   updateGame,
   getLibrarySnapshot,
   previewRestore,
+  repairImportedTitles,
   restoreLibrary,
   getStorageSummary,
 } from './storage.ts'
@@ -34,6 +35,27 @@ function rom(name = 'Test_game.gba', seed = 1, size = 1024): File {
 function nesRom(name = 'Console.nes'): File {
   const bytes = new Uint8Array(PLATFORM_REGISTRY.nes.minRomSize)
   bytes.set([0x4e, 0x45, 0x53, 0x1a, 1])
+  return new File([bytes], name)
+}
+
+function snesRom(
+  name = '123456.sfc',
+  title = 'ADVANCE SNES TEST',
+  options: { copierHeader?: boolean; hiRom?: boolean } = {},
+): File {
+  const base = options.copierHeader ? 512 : 0
+  const size = options.hiRom ? 64 * 1024 : 32 * 1024
+  const bytes = new Uint8Array(base + size).fill(0xff)
+  const header = base + (options.hiRom ? 0xffc0 : 0x7fc0)
+  bytes.fill(0x20, header, header + 21)
+  bytes.set(new TextEncoder().encode(title).subarray(0, 21), header)
+  bytes[header + 0x15] = options.hiRom ? 0x21 : 0x20
+  bytes[header + 0x1c] = 0xcb
+  bytes[header + 0x1d] = 0xed
+  bytes[header + 0x1e] = 0x34
+  bytes[header + 0x1f] = 0x12
+  bytes[header + 0x3c] = 0x00
+  bytes[header + 0x3d] = 0x80
   return new File([bytes], name)
 }
 
@@ -121,6 +143,27 @@ test('imports FC and SFC metadata, validates headers and records platform core I
     (await saveState(snes.id, 1, new Uint8Array([2]))).coreVersion,
     coreIdForPlatform('snes'),
   )
+})
+
+test('uses validated SFC internal titles and repairs older filename-derived metadata', async () => {
+  const loRom = await importGame(snesRom())
+  const hiRom = await importGame(snesRom('987654.sfc', 'HIROM ADVENTURE', { hiRom: true }))
+  const copierHeader = await importGame(
+    snesRom('000001.smc', 'HEADERED SFC GAME', { copierHeader: true }),
+  )
+  assert.deepEqual(
+    [loRom, hiRom, copierHeader].map((game) => game.title),
+    ['ADVANCE SNES TEST', 'HIROM ADVENTURE', 'HEADERED SFC GAME'],
+  )
+
+  await corrupt('games', { ...loRom, title: '123456' })
+  assert.equal(await repairImportedTitles(), 1)
+  assert.equal((await getGames()).find((game) => game.id === loRom.id)?.title, 'ADVANCE SNES TEST')
+  assert.equal(await repairImportedTitles(), 0)
+
+  await updateGame(loRom.id, { title: '我的自定义标题' })
+  assert.equal(await repairImportedTitles(), 0)
+  assert.equal((await importGame(snesRom())).title, '我的自定义标题')
 })
 
 test('isolates identical ROM bytes imported for different platforms', async () => {

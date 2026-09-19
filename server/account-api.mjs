@@ -323,12 +323,18 @@ export function createAccountApi(options = {}) {
             res.end()
             return
           }
+          const etag = `"advance-${snapshot.revision}"`
+          if (req.headers['if-none-match'] === etag) {
+            res.writeHead(304, { 'Cache-Control': 'no-store', ETag: etag })
+            res.end()
+            return
+          }
           const body = Buffer.from(snapshot.data)
           res.writeHead(200, {
             'Content-Type': 'application/zip',
             'Content-Length': body.length,
             'Cache-Control': 'no-store',
-            ETag: `"advance-${snapshot.revision}-${snapshot.sha256}"`,
+            ETag: etag,
             'X-Advance-Revision': String(snapshot.revision),
             'X-Advance-Updated-At': String(snapshot.updated_at),
           })

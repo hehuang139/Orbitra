@@ -9,6 +9,7 @@ import {
 } from '../lib/account-api.ts'
 import type { AccountUser } from '../lib/account-api.ts'
 import { createBackup, parseBackup } from '../lib/backup-format.ts'
+import type { BackupData, BackupGame } from '../lib/backup-format.ts'
 import * as db from '../lib/storage.ts'
 import type { RestoreChoices, RestorePreview } from '../lib/storage.ts'
 
@@ -52,6 +53,41 @@ function selectedCount(choices: RestoreChoices): number {
   )
 }
 
+function equalBytes(left?: Uint8Array, right?: Uint8Array): boolean {
+  return left === undefined
+    ? right === undefined
+    : right !== undefined &&
+        left.byteLength === right.byteLength &&
+        left.every((byte, index) => byte === right[index])
+}
+
+function sameGame(left: BackupGame, right: BackupGame): boolean {
+  if (
+    JSON.stringify(left.game) !== JSON.stringify(right.game) ||
+    !equalBytes(left.rom, right.rom) ||
+    !equalBytes(left.battery, right.battery) ||
+    left.states.length !== right.states.length
+  )
+    return false
+  const rightStates = new Map(right.states.map((state) => [state.slot, state]))
+  return left.states.every((state) => {
+    const other = rightStates.get(state.slot)
+    if (!other || !equalBytes(state.data, other.data)) return false
+    const { data: _leftData, ...leftMetadata } = state
+    const { data: _rightData, ...rightMetadata } = other
+    return JSON.stringify(leftMetadata) === JSON.stringify(rightMetadata)
+  })
+}
+
+function sameBackupContent(left: BackupData, right: BackupData): boolean {
+  if (left.games.length !== right.games.length) return false
+  const rightGames = new Map(right.games.map((game) => [game.game.id, game]))
+  return left.games.every((game) => {
+    const other = rightGames.get(game.game.id)
+    return other !== undefined && sameGame(game, other)
+  })
+}
+
 export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): AccountSyncController {
   const [user, setUser] = useState<AccountUser | null>(null)
   const [phase, setPhase] = useState<AccountPhase>('checking')
@@ -59,14 +95,18 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
   const [revision, setRevision] = useState(0)
   const userRef = useRef<AccountUser | null>(null)
+  const revisionRef = useRef(0)
   const syncing = useRef(false)
   const pending = useRef(false)
-  const runSyncRef = useRef<(pullRemote: boolean) => Promise<void>>(async () => {})
+  const restoring = useRef(false)
+  const runSyncRef = useRef<(pullRemote: boolean, alwaysUpload?: boolean) => Promise<void>>(
+    async () => {},
+  )
   const contentTimer = useRef<number | undefined>(undefined)
   const metadataTimer = useRef<number | undefined>(undefined)
 
   const runSync = useCallback(
-    async (pullRemote: boolean) => {
+    async (pullRemote: boolean, alwaysUpload = true) => {
       if (!userRef.current) return
       if (syncing.current) {
         pending.current = true
@@ -76,20 +116,35 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
       setPhase('syncing')
       setMessage(pullRemote ? '正在合并账号中的游戏与存档…' : '正在保存游戏与存档到账号…')
       try {
+        let remoteData: BackupData | undefined
         if (pullRemote) {
-          const remote = await downloadCloudSnapshot()
+          const remote = await downloadCloudSnapshot(alwaysUpload ? undefined : revisionRef.current)
+          if (remote === undefined) {
+            setPhase('idle')
+            return
+          }
           if (remote) {
-            const data = await parseBackup(
+            remoteData = await parseBackup(
               new Blob([new Uint8Array(remote.bytes)], { type: 'application/zip' }),
             )
-            const preview = await db.previewRestore(data)
+            const preview = await db.previewRestore(remoteData)
             const choices = defaultRestoreChoices(preview)
             if (selectedCount(choices)) {
-              await db.restoreLibrary(data, choices)
-              await onLibraryChanged()
+              restoring.current = true
+              try {
+                await db.restoreLibrary(remoteData, choices)
+                await db.repairImportedTitles()
+                await onLibraryChanged()
+              } finally {
+                restoring.current = false
+              }
             }
+            revisionRef.current = remote.revision
             setRevision(remote.revision)
             setLastSyncedAt(remote.updatedAt)
+          } else if (!alwaysUpload) {
+            setPhase('idle')
+            return
           }
         }
 
@@ -98,8 +153,14 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
           games.map((game) => game.id),
           true,
         )
+        if (!alwaysUpload && remoteData && sameBackupContent(data, remoteData)) {
+          setPhase('idle')
+          setMessage(`已同步 ${games.length} 个游戏及其存档`)
+          return
+        }
         const bytes = await createBackup(data, { includeRoms: true })
         const receipt = await uploadCloudSnapshot(bytes)
+        revisionRef.current = receipt.revision
         setRevision(receipt.revision)
         setLastSyncedAt(receipt.updatedAt)
         setPhase('idle')
@@ -144,8 +205,15 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
   }, [runSync])
 
   useEffect(() => {
+    const flushScheduled = (pullRemote = false) => {
+      window.clearTimeout(contentTimer.current)
+      window.clearTimeout(metadataTimer.current)
+      contentTimer.current = undefined
+      metadataTimer.current = undefined
+      if (userRef.current) void runSync(pullRemote)
+    }
     const schedule = (event: Event) => {
-      if (!userRef.current) return
+      if (!userRef.current || restoring.current) return
       const kind = (event as CustomEvent<'content' | 'metadata'>).detail
       const timer = kind === 'metadata' ? metadataTimer : contentTimer
       if (timer.current !== undefined) return
@@ -154,17 +222,30 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
           timer.current = undefined
           void runSync(false)
         },
-        kind === 'metadata' ? 30000 : 5000,
+        kind === 'metadata' ? 10000 : 1500,
       )
     }
     const online = () => {
-      if (userRef.current) void runSync(true)
+      flushScheduled(true)
     }
+    const pullLatest = () => {
+      if (userRef.current && document.visibilityState === 'visible') void runSync(true, false)
+    }
+    const visibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushScheduled(false)
+      else pullLatest()
+    }
+    const poll = window.setInterval(pullLatest, 3000)
     window.addEventListener('advance-library-changed', schedule)
     window.addEventListener('online', online)
+    window.addEventListener('focus', pullLatest)
+    document.addEventListener('visibilitychange', visibilityChange)
     return () => {
+      window.clearInterval(poll)
       window.removeEventListener('advance-library-changed', schedule)
       window.removeEventListener('online', online)
+      window.removeEventListener('focus', pullLatest)
+      document.removeEventListener('visibilitychange', visibilityChange)
       window.clearTimeout(contentTimer.current)
       window.clearTimeout(metadataTimer.current)
     }
@@ -205,6 +286,7 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
       setUser(null)
       setPhase('signed-out')
       setMessage('已退出账号。本地游戏仍保留在此浏览器。')
+      revisionRef.current = 0
       setRevision(0)
       setLastSyncedAt(null)
     },

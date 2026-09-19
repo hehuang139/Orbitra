@@ -135,7 +135,7 @@ try {
       buffer: Buffer.from(createNesTestRom()),
     },
     {
-      name: 'Super.sfc',
+      name: '123456.sfc',
       mimeType: 'application/octet-stream',
       buffer: Buffer.from(createSnesTestRom()),
     },
@@ -161,7 +161,9 @@ try {
   })
 
   await page.locator('.platform-filter button[data-platform="snes"]').click()
-  await page.getByRole('button', { name: '开始 Super', exact: true }).click()
+  await page.getByRole('button', { name: 'ADVANCE SNES TEST', exact: true }).waitFor()
+  assert.equal(await page.getByText('123456', { exact: true }).count(), 0)
+  await page.getByRole('button', { name: '开始 ADVANCE SNES TEST', exact: true }).click()
   await waitForPlayer()
   assert.equal(await page.locator('.player-heading .pill').innerText(), 'SUPER FAMICOM / SNES')
   assert.equal(await page.locator('.advance-touch-action .advance-touch-key').count(), 4)
@@ -211,6 +213,7 @@ try {
         checks: [
           'GB/GBC direct import',
           'FC/SFC direct import and real core startup',
+          'SFC internal title extraction for numeric filenames',
           'FC/SFC save states',
           'SFC X/Y/L/R controls',
           'platform badges and filters',
