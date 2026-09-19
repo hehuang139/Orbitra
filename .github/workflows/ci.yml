@@ -51,7 +51,9 @@ jobs:
         run: pnpm verify:core
 
       - name: Run unit tests
-        run: pnpm test
+        run: |
+          pnpm test
+          pnpm test:library-server
 
       - name: Build production bundle
         run: pnpm build
@@ -77,7 +79,12 @@ jobs:
           mkdir -p .artifacts
           pnpm exec vite --host 127.0.0.1 --port 5173 --strictPort > .artifacts/vite.log 2>&1 &
           vite_pid=$!
-          trap 'kill "$vite_pid" 2>/dev/null || true' EXIT
+          ADVANCE_LIBRARY_HOST=127.0.0.1 \
+          ADVANCE_LIBRARY_PORT=4174 \
+          ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://127.0.0.1:5173 \
+            pnpm start:library > .artifacts/online-library.log 2>&1 &
+          library_pid=$!
+          trap 'kill "$vite_pid" "$library_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
             if curl --fail --silent "$UI_TEST_URL" > /dev/null; then
               break
@@ -88,17 +95,27 @@ jobs:
             fi
             sleep 1
           done
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4174/api/health > /dev/null; then
+              break
+            fi
+            if ! kill -0 "$library_pid" 2>/dev/null || [ "$attempt" -eq 30 ]; then
+              cat .artifacts/online-library.log
+              exit 1
+            fi
+            sleep 1
+          done
           # Each suite uses only the original Star Orbit ROM or generated variants.
           # All suites run even when an earlier suite fails, preserving their logs.
           result=0
-          for suite in engine platforms ui zip saves keyboard gamepad touch startup backup; do
+          for suite in engine platforms ui zip saves keyboard gamepad touch startup backup library-sync; do
             # A blocked native call can also block Playwright cleanup. Bound
             # each suite so its failure still leaves time for the other logs.
             timeout --kill-after=10s 180s pnpm "test:$suite" 2>&1 | tee ".artifacts/test-$suite.log" || result=1
           done
           pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort > .artifacts/vite-preview.log 2>&1 &
           preview_pid=$!
-          trap 'kill "$vite_pid" "$preview_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$vite_pid" "$preview_pid" "$library_pid" 2>/dev/null || true' EXIT
           for attempt in {1..30}; do
             if curl --fail --silent http://127.0.0.1:4173 > /dev/null; then break; fi
             if ! kill -0 "$preview_pid" 2>/dev/null || [ "$attempt" -eq 30 ]; then
