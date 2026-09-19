@@ -68,7 +68,7 @@ try {
     rom[0xbd] = -checksum & 255
     return { name: `${title}.gba`, mimeType: 'application/octet-stream', buffer: rom }
   })
-  await first.page.locator('input[type=file][accept*=".gba"]').setInputFiles(files)
+  await first.page.getByLabel('选择游戏文件', { exact: true }).setInputFiles(files)
   await first.page
     .getByText(`已导入 ${importedCount} 个游戏，准备开始吧`, { exact: true })
     .waitFor()
@@ -108,18 +108,42 @@ try {
   await second.page.getByRole('button', { name: `开始 ${titles.at(-1)}` }).click()
   await second.page.getByText('正在游玩', { exact: true }).waitFor()
   assert.equal(await romCount(second.page), 2, 'playing should cache only the requested cloud ROM')
+  await second.page.getByRole('button', { name: '批量管理' }).click()
+  assert.equal(
+    await second.page.getByRole('button', { name: 'Star Orbit · 星际漫游 无法选择' }).isDisabled(),
+    true,
+    'the bundled demo must not be selectable',
+  )
+  assert.equal(
+    await second.page.getByRole('button', { name: `${titles.at(-1)} 无法选择` }).isDisabled(),
+    true,
+    'the running game must not be selectable',
+  )
+  await second.page.getByRole('button', { name: '完成' }).click()
   await first.page.getByRole('button', { name: '关闭对话框' }).click()
-  await first.page.getByRole('button', { name: `${titles[0]} 的更多操作` }).click()
-  await first.page.getByRole('button', { name: '删除游戏及存档' }).click()
-  await first.page.getByRole('button', { name: '确认删除' }).click()
+  await first.page.getByRole('button', { name: '批量管理' }).click()
+  assert.equal(
+    await first.page.getByRole('button', { name: 'Star Orbit · 星际漫游 无法选择' }).isDisabled(),
+    true,
+    'the bundled demo must not be selectable in batch mode',
+  )
+  await first.page.getByRole('button', { name: `选择 ${titles[0]}` }).click()
+  await first.page.getByRole('button', { name: `选择 ${titles[1]}` }).click()
+  await first.page.getByText('已选择 2 个游戏', { exact: true }).waitFor()
+  await first.page.getByRole('button', { name: '删除所选' }).click()
+  await first.page.getByRole('heading', { name: '删除选中的 2 个游戏？' }).waitFor()
+  await first.page.getByRole('button', { name: '删除 2 个游戏' }).click()
+  await first.page.getByText('已删除 2 个游戏及其存档', { exact: true }).waitFor()
   await first.page.waitForFunction(
     (expected) => document.querySelectorAll('.game-card').length === expected,
-    importedCount,
+    importedCount - 1,
   )
   await second.page.waitForFunction(
     (expected) => document.querySelectorAll('.game-card').length === expected,
-    importedCount,
+    importedCount - 1,
   )
+  assert.equal(await first.page.locator('.game-title', { hasText: titles[0] }).count(), 0)
+  assert.equal(await second.page.locator('.game-title', { hasText: titles[1] }).count(), 0)
   await first.context.close()
 
   await openAccount(second.page)
@@ -131,7 +155,7 @@ try {
 
   assert.deepEqual(errors, [], 'account flow should not produce uncaught browser errors')
   console.log(
-    `Account sync flow passed: ${importedCount} automatic item uploads, live cross-browser restore/delete, logout retention.`,
+    `Account sync flow passed: ${importedCount} automatic item uploads, protected batch selection, live cross-browser batch delete, logout retention.`,
   )
 } finally {
   await browser.close()

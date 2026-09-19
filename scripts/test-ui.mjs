@@ -38,6 +38,19 @@ try {
     true,
     'desktop must not overflow',
   )
+  await page.getByRole('button', { name: '批量管理' }).click()
+  assert.equal(
+    await page.getByRole('button', { name: 'Star Orbit · 星际漫游 无法选择' }).isDisabled(),
+    true,
+    'the bundled demo must stay protected in batch mode',
+  )
+  await screenshot('desktop-batch-management')
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'batch management must not overflow',
+  )
+  await page.getByRole('button', { name: '完成' }).click()
 
   await page.getByRole('button', { name: '环境检查', exact: true }).click()
   assert.equal(await page.locator('.compatibility-check').count(), 6)
@@ -225,6 +238,7 @@ try {
         passed: true,
         checks: [
           'initial library',
+          'protected batch management',
           'favorites',
           'search',
           'real ROM launch',

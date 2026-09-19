@@ -20,6 +20,7 @@ import {
   Keyboard,
   LayoutGrid,
   List,
+  ListChecks,
   LoaderCircle,
   Menu,
   MoreHorizontal,
@@ -199,6 +200,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [gameMenu, setGameMenu] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(() => new Set())
+  const [batchDeleteTargets, setBatchDeleteTargets] = useState<Game[] | null>(null)
   const compatibilityRenderingWarning =
     compatibility?.checks.some((check) => check.id === 'webgl' && check.status === 'warning') ??
     false
@@ -235,7 +239,9 @@ export default function App() {
     engineRef.current?.setRewind(false)
     engineRef.current?.setSpeed(settingsRef.current.speed)
   }, [input])
-  const inputEnabled = Boolean(active && status === 'running' && !busy && !modal && !deleteTarget)
+  const inputEnabled = Boolean(
+    active && status === 'running' && !busy && !modal && !deleteTarget && !batchDeleteTargets,
+  )
   const gamepads = useGamepads({
     enabled: inputEnabled,
     onPress: (button) => {
@@ -347,8 +353,8 @@ export default function App() {
   }, [makeEngine])
 
   useEffect(() => {
-    if (modal !== 'backup' && !deleteTarget) maintenanceRef.current = false
-  }, [modal, deleteTarget])
+    if (modal !== 'backup' && !deleteTarget && !batchDeleteTargets) maintenanceRef.current = false
+  }, [modal, deleteTarget, batchDeleteTargets])
 
   useEffect(() => {
     if (active || busy || !returnFocusPending.current) return
@@ -487,7 +493,7 @@ export default function App() {
   }, [page, games, states, notify])
 
   useEffect(() => {
-    if (!modal && !deleteTarget) return
+    if (!modal && !deleteTarget && !batchDeleteTargets) return
     releaseInputs()
     const previous =
       modal === 'backup' ? backupTrigger.current : (document.activeElement as HTMLElement | null)
@@ -502,6 +508,7 @@ export default function App() {
       ) {
         setModal(null)
         setDeleteTarget(null)
+        setBatchDeleteTargets(null)
       }
       if (event.key !== 'Tab') return
       if (operationRef.current) {
@@ -543,7 +550,7 @@ export default function App() {
       document.removeEventListener('keydown', trap)
       if (previous?.isConnected) previous.focus()
     }
-  }, [modal, deleteTarget, releaseInputs])
+  }, [modal, deleteTarget, batchDeleteTargets, releaseInputs])
 
   const playGame = useCallback(
     (game: Game, requestedState?: SaveState) =>
@@ -699,6 +706,7 @@ export default function App() {
       if (
         modal ||
         deleteTarget ||
+        batchDeleteTargets ||
         !activeRef.current ||
         (event.target instanceof HTMLElement &&
           (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) ||
@@ -875,6 +883,32 @@ export default function App() {
       await refresh()
       notify('游戏及其存档已删除')
     })
+  const deleteSelectedGames = () =>
+    run(async () => {
+      if (!batchDeleteTargets?.length) return
+      const targets = batchDeleteTargets.filter(
+        (game) => !isDemo(game) && activeRef.current?.id !== game.id,
+      )
+      const results = await Promise.allSettled(targets.map((game) => db.deleteGame(game.id)))
+      const failedIds = new Set(
+        targets.filter((_, index) => results[index].status === 'rejected').map((game) => game.id),
+      )
+      const deletedCount = targets.length - failedIds.size
+      setBatchDeleteTargets(null)
+      setGameMenu(null)
+      await refresh()
+      if (failedIds.size) {
+        setSelectedGameIds(failedIds)
+        throw new Error(
+          deletedCount
+            ? `已删除 ${deletedCount} 个游戏，另有 ${failedIds.size} 个删除失败，请重试。`
+            : `${failedIds.size} 个游戏删除失败，请重试。`,
+        )
+      }
+      setSelectedGameIds(new Set())
+      setSelectionMode(false)
+      notify(`已删除 ${deletedCount} 个游戏及其存档`)
+    })
   const exportBattery = () =>
     run(async () => {
       const game = activeRef.current
@@ -930,6 +964,48 @@ export default function App() {
         ),
     [pageGames, platformFilter, search, sort],
   )
+  const selectableVisibleGames = useMemo(
+    () => visibleGames.filter((game) => !isDemo(game) && active?.id !== game.id),
+    [visibleGames, active],
+  )
+  const allVisibleSelected =
+    selectableVisibleGames.length > 0 &&
+    selectableVisibleGames.every((game) => selectedGameIds.has(game.id))
+  const toggleGameSelection = (game: Game) => {
+    if (isDemo(game) || activeRef.current?.id === game.id) return
+    setSelectedGameIds((current) => {
+      const next = new Set(current)
+      if (next.has(game.id)) next.delete(game.id)
+      else next.add(game.id)
+      return next
+    })
+  }
+  const toggleVisibleSelection = () =>
+    setSelectedGameIds((current) => {
+      const next = new Set(current)
+      for (const game of selectableVisibleGames) {
+        if (allVisibleSelected) next.delete(game.id)
+        else next.add(game.id)
+      }
+      return next
+    })
+
+  useEffect(() => {
+    if (page === 'library') return
+    setSelectionMode(false)
+    setSelectedGameIds(new Set())
+    setBatchDeleteTargets(null)
+  }, [page])
+
+  useEffect(() => {
+    const availableIds = new Set(
+      games.filter((game) => !isDemo(game) && active?.id !== game.id).map((game) => game.id),
+    )
+    setSelectedGameIds((current) => {
+      const next = new Set(Array.from(current).filter((id) => availableIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [games, active])
   const selectedPlatform = platformFilter === 'all' ? undefined : PLATFORM_REGISTRY[platformFilter]
   const emptyStateCopy = search
     ? {
@@ -1045,7 +1121,7 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
       <aside
         className={`sidebar ${sidebarOpen ? 'open' : ''}`}
-        inert={Boolean(modal || deleteTarget)}
+        inert={Boolean(modal || deleteTarget || batchDeleteTargets)}
       >
         <a
           href="#"
@@ -1164,7 +1240,7 @@ export default function App() {
           </div>
         </div>
       </aside>
-      <div className="main-shell" inert={Boolean(modal || deleteTarget)}>
+      <div className="main-shell" inert={Boolean(modal || deleteTarget || batchDeleteTargets)}>
         <header className="topbar">
           <div className="breadcrumb">
             <IconButton
@@ -1494,21 +1570,37 @@ export default function App() {
                     <h2>{page === 'library' ? '我的游戏' : pages[page]}</h2>
                     <span className="count-badge">{visibleGames.length}</span>
                   </div>
-                  <div className="view-toggle">
-                    <IconButton
-                      label="网格视图"
-                      className={layout === 'grid' ? 'selected' : ''}
-                      onClick={() => setLayout('grid')}
-                    >
-                      <LayoutGrid size={16} />
-                    </IconButton>
-                    <IconButton
-                      label="列表视图"
-                      className={layout === 'list' ? 'selected' : ''}
-                      onClick={() => setLayout('list')}
-                    >
-                      <List size={17} />
-                    </IconButton>
+                  <div className="section-actions">
+                    {page === 'library' && (
+                      <button
+                        className={`button secondary batch-manage-button ${selectionMode ? 'active' : ''}`}
+                        aria-pressed={selectionMode}
+                        onClick={() => {
+                          setSelectionMode((value) => !value)
+                          setSelectedGameIds(new Set())
+                          setGameMenu(null)
+                        }}
+                      >
+                        <ListChecks size={15} />
+                        {selectionMode ? '完成' : '批量管理'}
+                      </button>
+                    )}
+                    <div className="view-toggle">
+                      <IconButton
+                        label="网格视图"
+                        className={layout === 'grid' ? 'selected' : ''}
+                        onClick={() => setLayout('grid')}
+                      >
+                        <LayoutGrid size={16} />
+                      </IconButton>
+                      <IconButton
+                        label="列表视图"
+                        className={layout === 'list' ? 'selected' : ''}
+                        onClick={() => setLayout('list')}
+                      >
+                        <List size={17} />
+                      </IconButton>
+                    </div>
                   </div>
                 </div>
                 <div className="library-tools">
@@ -1562,6 +1654,38 @@ export default function App() {
                     <ChevronDown size={13} />
                   </div>
                 </div>
+                {selectionMode && page === 'library' && (
+                  <div className="batch-toolbar" role="toolbar" aria-label="批量管理游戏">
+                    <span className="batch-selection-count">
+                      已选择 <strong>{selectedGameIds.size}</strong> 个游戏
+                    </span>
+                    <button
+                      className="button secondary"
+                      disabled={!selectableVisibleGames.length}
+                      onClick={toggleVisibleSelection}
+                    >
+                      <Check size={15} />
+                      {allVisibleSelected ? '取消选择当前结果' : '选择当前结果'}
+                    </button>
+                    <button
+                      className="button ghost"
+                      disabled={!selectedGameIds.size}
+                      onClick={() => setSelectedGameIds(new Set())}
+                    >
+                      清除选择
+                    </button>
+                    <button
+                      className="button danger"
+                      disabled={!selectedGameIds.size || busy}
+                      onClick={() =>
+                        setBatchDeleteTargets(games.filter((game) => selectedGameIds.has(game.id)))
+                      }
+                    >
+                      <Trash2 size={15} />
+                      删除所选
+                    </button>
+                  </div>
+                )}
                 {!ready ? (
                   <div className="empty-state">
                     <LoaderCircle className="spin" />
@@ -1569,128 +1693,163 @@ export default function App() {
                   </div>
                 ) : (
                   <div className={`games-${layout}`}>
-                    {visibleGames.map((game) => (
-                      <article
-                        key={game.id}
-                        className={`game-card ${active?.id === game.id ? 'playing' : ''}`}
-                      >
-                        <button
-                          className="game-cover"
-                          data-platform={game.platform}
-                          aria-label={`开始 ${displayTitle(game)}`}
-                          onClick={() => void playGame(game)}
-                          disabled={busy}
-                          style={{ '--cover-color': game.color || '#7286b0' } as CSSProperties}
+                    {visibleGames.map((game) => {
+                      const selectable = !isDemo(game) && active?.id !== game.id
+                      const selected = selectedGameIds.has(game.id)
+                      return (
+                        <article
+                          key={game.id}
+                          className={`game-card ${active?.id === game.id ? 'playing' : ''} ${selectionMode ? 'selection-mode' : ''} ${selected ? 'selected' : ''} ${selectionMode && !selectable ? 'selection-disabled' : ''}`}
                         >
-                          {isDemo(game) ? (
-                            <>
-                              <SpaceArt id={`cover-${game.id.slice(0, 8)}`} />
-                              <div className="cover-wordmark">
-                                <span>AN ORIGINAL ADVENTURE</span>
-                                <strong>
-                                  STAR
-                                  <br />
-                                  ORBIT<span>✦</span>
-                                </strong>
+                          <button
+                            className="game-cover"
+                            data-platform={game.platform}
+                            aria-label={
+                              selectionMode
+                                ? selectable
+                                  ? `${selected ? '取消选择' : '选择'} ${displayTitle(game)}`
+                                  : `${displayTitle(game)} 无法选择`
+                                : `开始 ${displayTitle(game)}`
+                            }
+                            aria-pressed={selectionMode && selectable ? selected : undefined}
+                            onClick={() =>
+                              selectionMode ? toggleGameSelection(game) : void playGame(game)
+                            }
+                            disabled={busy || (selectionMode && !selectable)}
+                            style={{ '--cover-color': game.color || '#7286b0' } as CSSProperties}
+                          >
+                            {isDemo(game) ? (
+                              <>
+                                <SpaceArt id={`cover-${game.id.slice(0, 8)}`} />
+                                <div className="cover-wordmark">
+                                  <span>AN ORIGINAL ADVENTURE</span>
+                                  <strong>
+                                    STAR
+                                    <br />
+                                    ORBIT<span>✦</span>
+                                  </strong>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="generic-cover">
+                                <div className="cartridge">
+                                  <Gamepad2 size={34} />
+                                  <span>{PLATFORM_REGISTRY[game.platform].name.toUpperCase()}</span>
+                                </div>
+                                <span className="generic-title">{game.title}</span>
                               </div>
-                            </>
-                          ) : (
-                            <div className="generic-cover">
-                              <div className="cartridge">
-                                <Gamepad2 size={34} />
-                                <span>{PLATFORM_REGISTRY[game.platform].name.toUpperCase()}</span>
-                              </div>
-                              <span className="generic-title">{game.title}</span>
-                            </div>
-                          )}
-                          <span className="cover-platform" data-platform={game.platform}>
-                            {PLATFORM_REGISTRY[game.platform].label}
-                          </span>
-                          {isDemo(game) && <span className="demo-badge">原创试玩</span>}
-                          <span className="cover-play">
-                            <Play size={22} fill="currentColor" />
-                          </span>
-                          {active?.id === game.id && (
-                            <span className="now-playing">
-                              <span />
-                              正在游玩
+                            )}
+                            <span className="cover-platform" data-platform={game.platform}>
+                              {PLATFORM_REGISTRY[game.platform].label}
                             </span>
-                          )}
-                        </button>
-                        <div className="game-info">
-                          <div className="game-name-row">
-                            <button
-                              className="game-title"
-                              onClick={() => void playGame(game)}
-                              disabled={busy}
-                            >
-                              {displayTitle(game)}
-                            </button>
-                            <div className="game-menu-wrap">
-                              <IconButton
-                                label={`${game.title} 的更多操作`}
-                                onClick={() => setGameMenu(gameMenu === game.id ? null : game.id)}
+                            {isDemo(game) && <span className="demo-badge">原创试玩</span>}
+                            <span className="cover-play">
+                              <Play size={22} fill="currentColor" />
+                            </span>
+                            {active?.id === game.id && (
+                              <span className="now-playing">
+                                <span />
+                                正在游玩
+                              </span>
+                            )}
+                            {selectionMode && (
+                              <span
+                                className={`selection-mark ${selected ? 'checked' : ''} ${!selectable ? 'disabled' : ''}`}
+                                aria-hidden="true"
                               >
-                                <MoreHorizontal size={18} />
-                              </IconButton>
-                              {gameMenu === game.id && (
-                                <>
-                                  <button
-                                    className="menu-dismiss"
-                                    aria-label="关闭游戏菜单"
-                                    onClick={() => setGameMenu(null)}
-                                  />
-                                  <div className="game-menu">
-                                    <button onClick={() => void favorite(game)}>
-                                      <Heart size={14} />
-                                      {game.favorite ? '取消收藏' : '添加到收藏'}
-                                    </button>
-                                    <button
-                                      className="danger-text"
-                                      disabled={active?.id === game.id || isDemo(game)}
-                                      onClick={() => setDeleteTarget(game)}
-                                    >
-                                      <Trash2 size={14} />
-                                      删除游戏及存档
-                                    </button>
-                                  </div>
-                                </>
+                                {selected && <Check size={15} strokeWidth={3} />}
+                              </span>
+                            )}
+                          </button>
+                          <div className="game-info">
+                            <div className="game-name-row">
+                              <button
+                                className="game-title"
+                                aria-pressed={selectionMode && selectable ? selected : undefined}
+                                onClick={() =>
+                                  selectionMode ? toggleGameSelection(game) : void playGame(game)
+                                }
+                                disabled={busy || (selectionMode && !selectable)}
+                              >
+                                {displayTitle(game)}
+                              </button>
+                              {!selectionMode && (
+                                <div className="game-menu-wrap">
+                                  <IconButton
+                                    label={`${game.title} 的更多操作`}
+                                    onClick={() =>
+                                      setGameMenu(gameMenu === game.id ? null : game.id)
+                                    }
+                                  >
+                                    <MoreHorizontal size={18} />
+                                  </IconButton>
+                                  {gameMenu === game.id && (
+                                    <>
+                                      <button
+                                        className="menu-dismiss"
+                                        aria-label="关闭游戏菜单"
+                                        onClick={() => setGameMenu(null)}
+                                      />
+                                      <div className="game-menu">
+                                        <button onClick={() => void favorite(game)}>
+                                          <Heart size={14} />
+                                          {game.favorite ? '取消收藏' : '添加到收藏'}
+                                        </button>
+                                        <button
+                                          className="danger-text"
+                                          disabled={active?.id === game.id || isDemo(game)}
+                                          onClick={() => setDeleteTarget(game)}
+                                        >
+                                          <Trash2 size={14} />
+                                          删除游戏及存档
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="game-meta">
+                              <span>
+                                {isDemo(game) ? '太空探索' : formatSize(game.size)}
+                                <i />{' '}
+                                {game.lastPlayed ? formatTime(game.playTime) : '等待你的首次冒险'}
+                              </span>
+                              {!selectionMode && (
+                                <button
+                                  className={`favorite-button ${game.favorite ? 'is-favorite' : ''}`}
+                                  aria-label={
+                                    game.favorite ? '取消收藏' : `收藏 ${displayTitle(game)}`
+                                  }
+                                  onClick={() => void favorite(game)}
+                                >
+                                  <Heart size={14} fill={game.favorite ? 'currentColor' : 'none'} />
+                                </button>
                               )}
                             </div>
                           </div>
-                          <div className="game-meta">
-                            <span>
-                              {isDemo(game) ? '太空探索' : formatSize(game.size)}
-                              <i />{' '}
-                              {game.lastPlayed ? formatTime(game.playTime) : '等待你的首次冒险'}
-                            </span>
-                            <button
-                              className={`favorite-button ${game.favorite ? 'is-favorite' : ''}`}
-                              aria-label={game.favorite ? '取消收藏' : `收藏 ${displayTitle(game)}`}
-                              onClick={() => void favorite(game)}
-                            >
-                              <Heart size={14} fill={game.favorite ? 'currentColor' : 'none'} />
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                    {page === 'library' && !search && platformFilter === 'all' && (
-                      <button
-                        className="import-card"
-                        disabled={busy}
-                        onClick={() => inputRef.current?.click()}
-                      >
-                        <span className="import-circle">
-                          <Plus size={25} strokeWidth={1.5} />
-                        </span>
-                        <strong>下一场冒险，由你选择</strong>
-                        <p>使用上方按钮导入文件或文件夹，也可拖放到这里</p>
-                        <span className="file-tag">
-                          {romFormatLabel} / ZIP<span>自动解压</span>
-                        </span>
-                      </button>
-                    )}
+                        </article>
+                      )
+                    })}
+                    {page === 'library' &&
+                      !selectionMode &&
+                      !search &&
+                      platformFilter === 'all' && (
+                        <button
+                          className="import-card"
+                          disabled={busy}
+                          onClick={() => inputRef.current?.click()}
+                        >
+                          <span className="import-circle">
+                            <Plus size={25} strokeWidth={1.5} />
+                          </span>
+                          <strong>下一场冒险，由你选择</strong>
+                          <p>使用上方按钮导入文件或文件夹，也可拖放到这里</p>
+                          <span className="file-tag">
+                            {romFormatLabel} / ZIP<span>自动解压</span>
+                          </span>
+                        </button>
+                      )}
                     {visibleGames.length === 0 &&
                       (page !== 'library' || search || platformFilter !== 'all') && (
                         <div className="empty-state">
@@ -1949,7 +2108,7 @@ export default function App() {
         </main>
       </div>
 
-      {(modal || deleteTarget) && (
+      {(modal || deleteTarget || batchDeleteTargets) && (
         <div
           className="modal-backdrop"
           onMouseDown={(event) => {
@@ -1957,6 +2116,7 @@ export default function App() {
               setModal(null)
               setMapping(null)
               setDeleteTarget(null)
+              setBatchDeleteTargets(null)
             }
           }}
         >
@@ -1964,7 +2124,7 @@ export default function App() {
             className={`modal ${modal === 'states' || modal === 'backup' ? 'wide-modal' : ''}`}
             ref={modalRef}
             tabIndex={-1}
-            role={deleteTarget ? 'alertdialog' : 'dialog'}
+            role={deleteTarget || batchDeleteTargets ? 'alertdialog' : 'dialog'}
             aria-modal="true"
             aria-labelledby="modal-title"
           >
@@ -1972,19 +2132,21 @@ export default function App() {
               <div>
                 <span className="eyebrow">MAKE IT YOURS</span>
                 <h2 id="modal-title">
-                  {deleteTarget
-                    ? '删除这个游戏？'
-                    : modal === 'controls'
-                      ? '找到你的顺手操作'
-                      : modal === 'settings'
-                        ? '你的模拟器，你来定义'
-                        : modal === 'backup'
-                          ? '备份与恢复'
-                          : modal === 'account'
-                            ? '账号与游戏同步'
-                            : modal === 'states'
-                              ? '给冒险留个书签'
-                              : '准备好，开始冒险'}
+                  {batchDeleteTargets
+                    ? `删除选中的 ${batchDeleteTargets.length} 个游戏？`
+                    : deleteTarget
+                      ? '删除这个游戏？'
+                      : modal === 'controls'
+                        ? '找到你的顺手操作'
+                        : modal === 'settings'
+                          ? '你的模拟器，你来定义'
+                          : modal === 'backup'
+                            ? '备份与恢复'
+                            : modal === 'account'
+                              ? '账号与游戏同步'
+                              : modal === 'states'
+                                ? '给冒险留个书签'
+                                : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -1994,12 +2156,37 @@ export default function App() {
                   setModal(null)
                   setMapping(null)
                   setDeleteTarget(null)
+                  setBatchDeleteTargets(null)
                 }}
               >
                 <X size={20} />
               </IconButton>
             </div>
-            {deleteTarget ? (
+            {batchDeleteTargets ? (
+              <>
+                <p className="modal-description">
+                  将永久删除选中的 {batchDeleteTargets.length} 个游戏、ROM
+                  及其所有存档，并把删除结果同步到当前账号的其他浏览器。此操作无法撤销。
+                </p>
+                <div className="modal-actions">
+                  <button
+                    className="button secondary"
+                    disabled={busy}
+                    onClick={() => setBatchDeleteTargets(null)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="button danger"
+                    disabled={busy}
+                    onClick={() => void deleteSelectedGames()}
+                  >
+                    <Trash2 size={16} />
+                    删除 {batchDeleteTargets.length} 个游戏
+                  </button>
+                </div>
+              </>
+            ) : deleteTarget ? (
               <>
                 <p className="modal-description">
                   将删除「{displayTitle(deleteTarget)}
