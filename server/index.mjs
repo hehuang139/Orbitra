@@ -1,5 +1,6 @@
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createAccountApi } from './account-api.mjs'
@@ -7,6 +8,9 @@ import { createAccountApi } from './account-api.mjs'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = path.join(root, 'dist')
 const port = Number(process.env.PORT || 4173)
+const host = process.env.HOST || '0.0.0.0'
+const tlsCertificatePath = process.env.TLS_CERT_PATH
+const tlsKeyPath = process.env.TLS_KEY_PATH
 const api = createAccountApi()
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -57,11 +61,23 @@ if (!existsSync(path.join(dist, 'index.html'))) {
   process.exit(1)
 }
 
-const server = createServer((req, res) => {
+if (Boolean(tlsCertificatePath) !== Boolean(tlsKeyPath)) {
+  console.error('TLS_CERT_PATH 与 TLS_KEY_PATH 必须同时配置。')
+  process.exit(1)
+}
+
+const handler = (req, res) => {
   if (req.url?.startsWith('/api/')) void api(req, res)
   else staticFile(req, res)
-})
+}
 
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Advance account server: http://localhost:${port}`)
+const tls =
+  tlsCertificatePath && tlsKeyPath
+    ? { cert: readFileSync(tlsCertificatePath), key: readFileSync(tlsKeyPath) }
+    : null
+const server = tls ? createSecureServer(tls, handler) : createServer(handler)
+const protocol = tls ? 'https' : 'http'
+
+server.listen(port, host, () => {
+  console.log(`Advance account server: ${protocol}://${host}:${port}`)
 })

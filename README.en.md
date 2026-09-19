@@ -140,7 +140,9 @@ pnpm build
 pnpm start
 ```
 
-The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `PORT` and `ADVANCE_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database.
+The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `HOST`, `PORT` and `ADVANCE_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database.
+
+The production server can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
 
 `pnpm dev` and `pnpm preview` also enable the account API for development. Static-only hosting keeps IndexedDB persistence but cannot provide sign-in or cross-browser restore. Account snapshots are capped at 72 MiB and contain imported ROMs and saves; deploy behind HTTPS. Server-side snapshots are not end-to-end encrypted.
 

@@ -163,7 +163,9 @@ pnpm build
 pnpm start
 ```
 
-构建结果位于 `dist/`，生产服务地址默认为 [http://localhost:4173](http://localhost:4173)。`pnpm start` 同源提供静态资源和账号 API，使用 Node 内置 SQLite 将账号、会话和每位用户的最新游戏库快照保存在 `.data/advance.sqlite`。可通过 `PORT` 和 `ADVANCE_DATA_DIR` 修改端口和数据目录，部署时必须定期备份该 SQLite 文件并确保目录可写。
+构建结果位于 `dist/`，生产服务地址默认为 [http://localhost:4173](http://localhost:4173)。`pnpm start` 同源提供静态资源和账号 API，使用 Node 内置 SQLite 将账号、会话和每位用户的最新游戏库快照保存在 `.data/advance.sqlite`。可通过 `HOST`、`PORT` 和 `ADVANCE_DATA_DIR` 修改监听地址、端口和数据目录，部署时必须定期备份该 SQLite 文件并确保目录可写。
+
+生产服务可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
 
 Vite 的 `pnpm dev` 与 `pnpm preview` 也会启用账号 API，方便本地开发。Netlify、Cloudflare Pages 等纯静态部署只能保留 IndexedDB 本地持久化，无法提供账号登录与跨浏览器恢复。账号快照最大 72 MiB，包含用户选择导入的 ROM 与存档；传输应使用 HTTPS，服务端数据并非端到端加密。
 
