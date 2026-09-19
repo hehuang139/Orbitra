@@ -53,7 +53,7 @@ const assertScreen = async (platform, name) => {
 
 try {
   await page.goto(process.env.UI_TEST_URL || 'http://127.0.0.1:5173')
-  const input = page.locator('input[type=file][accept*=".gba"]')
+  const input = page.getByLabel('选择游戏文件', { exact: true })
   assert.equal(await input.getAttribute('accept'), '.gba,.gb,.gbc,.nes,.sfc,.smc,.zip')
   await input.setInputFiles([
     {
