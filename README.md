@@ -9,7 +9,7 @@
 一个现代、美观的 GBA、GB、GBC、FC / NES 与 SFC / SNES 浏览器模拟器。真实 WebAssembly 内核，本地游戏库，随时保存，再次出发。
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
-[![Core: mGBA WASM](https://img.shields.io/badge/Core-mGBA_WASM-a8f0c4?style=flat-square&labelColor=173227)](public/emulator/NOTICE.md)
+[![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
@@ -80,7 +80,7 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 | 模块         | 已实现功能                                                                                                  |
 | ------------ | ----------------------------------------------------------------------------------------------------------- |
 | **真实模拟** | mGBA、FCEUmm 与 Snes9x WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES                                   |
-| **游戏库**   | 文件、文件夹递归扫描与拖放导入；平台标签与筛选；搜索、排序、网格 / 列表、收藏、最近游玩、累计时长、删除     |
+| **游戏库**   | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
 | **ZIP 导入** | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
 | **即时存档** | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
 | **进度管理** | 开启自动保存后，每 30 秒及返回游戏库、切入后台时保存，并在下次启动恢复；支持 `.sav` 导入 / 导出             |
@@ -94,7 +94,7 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 
 ## 快速开始
 
-在侧栏「备份与恢复」中选择要导出的游戏，可选择是否包含 ROM。打开此面板会暂停当前游戏并保存最新电池进度；完成后可手动继续。恢复预览默认保留已有元数据、电池存档和槽位。缺少 ROM 时先提供内容相同、平台匹配的 `.gba`、`.gb` 或 `.gbc` 文件；核心版本不同或来源未知的即时存档默认不选中。恢复成功后回到游戏库，重新启动游戏即可读取恢复结果。
+在侧栏「备份与恢复」中选择要导出的游戏，可选择是否包含 ROM。打开此面板会暂停当前游戏并保存最新电池进度；完成后可手动继续。恢复预览默认保留已有元数据、电池存档和槽位。缺少 ROM 时先提供内容相同、平台匹配的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc` 或 `.smc` 文件；核心版本不同或来源未知的即时存档默认不选中。恢复成功后回到游戏库，重新启动游戏即可读取恢复结果。
 
 备份格式与边界见 [备份格式 v1](docs/backup-format.md)，实现和设备验收进度见 [v1.2 roadmap](docs/roadmaps/v1.2.md)。备份只下载到本机，设置、账号信息和未选择的 ROM 不包含在内。
 
@@ -157,6 +157,56 @@ ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏
 浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；登录账号或导出备份可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
 
 ## 构建与部署
+
+### Docker 镜像部署
+
+安装 Docker 和 Docker Compose 插件后，在仓库根目录执行：
+
+```sh
+docker compose up -d --build
+```
+
+打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `gba-emu:local` 并启动 `advance` 服务；修改宿主机端口或停止服务：
+
+```sh
+PORT=8090 docker compose up -d --build
+docker compose down
+```
+
+修改端口后访问 [http://localhost:8090](http://localhost:8090)。也可不使用 Compose，独立构建与运行：
+
+```sh
+docker build -t gba-emu:local .
+docker run -d --name advance -p 8080:8080 \
+  --read-only --tmpfs /tmp --cap-drop ALL \
+  --security-opt no-new-privileges:true --restart unless-stopped \
+  gba-emu:local
+```
+
+镜像使用 Node.js 24 与 pnpm 11.19.0 多阶段构建，最终仅通过 Nginx 提供静态文件，以非 root 用户监听容器 `8080` 端口。Compose 默认启用只读文件系统、`/tmp` 临时目录、移除全部 Linux capabilities、禁止获取新权限和 `unless-stopped` 重启策略。
+
+镜像已配置跨源隔离响应头、`application/wasm` MIME、SPA 路由回退和健康检查（`/healthz` 返回 `200`）；不存在的静态资源返回 `404`，不会返回 HTML。只有带内容哈希的 `assets/` 资源的 HTTP 响应使用长期缓存，入口 HTML、Service Worker 和内核等固定路径资源的 HTTP 响应不长期缓存。Service Worker 会以 cache-first 策略缓存内核资源；变更任何固定路径资源时，必须同时更新 `public/sw.js` 并递增 `CACHE_VERSION`，避免新旧版本混用。
+
+对外部署时，应由 HTTPS 反向代理将站点根目录转发到容器 `8080` 端口，并保留镜像返回的 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。请将应用和内核资源放在同一源下，不建议部署到子路径；普通 HTTP 局域网访问不满足内核运行要求。
+
+此 Nginx 镜像只提供静态应用，不包含账号 API，因此账号登录与跨浏览器同步不可用；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。需要账号同步时，请使用下方的 Node.js 同源生产服务并持久化其 SQLite 数据目录。
+
+如需离线分发构建好的镜像，可导出镜像文件，在目标机器加载后使用上面的 `docker run` 命令启动：
+
+```sh
+# 构建镜像的机器
+docker save -o gba-emu.tar gba-emu:local
+# 目标机器
+docker load -i gba-emu.tar
+```
+
+以下检查使用 Node HTTP，无需浏览器依赖；对已运行的镜像检查响应头、WASM MIME、缓存策略、资源 `404`、SPA 回退与健康检查：
+
+```sh
+DEPLOYMENT_TEST_URL=http://127.0.0.1:8080 pnpm test:deployment
+```
+
+### 静态构建与托管
 
 ```sh
 pnpm build
@@ -265,6 +315,11 @@ pnpm test:gamepad
 pnpm test:touch
 pnpm test:startup
 pnpm test:backup
+pnpm test:account
+pnpm test:pwa
+
+# 对已经运行的 Docker 镜像执行部署检查
+pnpm test:deployment
 ```
 
 | 检查         | 覆盖范围                                                                                          |
@@ -280,6 +335,8 @@ pnpm test:backup
 | 触屏流程     | 模拟指针与视口；多指、取消 / 捕获丢失、配置持久化、320px / 手机 / 横屏布局与按键可达性            |
 | 启动失败流程 | 运行前提与存储异常、首帧等待、启动超时及加载期间释放；失败不覆盖已有存档                          |
 | 备份恢复流程 | 含 / 不含 ROM 的导出恢复、冲突选择、损坏输入、事务回滚、旧实例隔离与窄屏布局                      |
+| 账号同步流程 | 登录、分片上传、按需下载、跨浏览器合并、批量删除同步、退出后保留本地游戏及服务端接口保护          |
+| PWA 与部署   | 离线应用壳、更新流程、核心缓存完整性；容器响应头、MIME、缓存、路由、健康检查与静态资源 404        |
 
 浏览器测试默认连接 `http://127.0.0.1:5173`。内核、手柄与启动套件使用 Vite 开发测试页或模块插桩，需要 `pnpm dev`。环境变量、测试约定与贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。模拟输入和手机视口只提供自动化证据，不能替代实体设备、音频试听或屏幕阅读器检查。测试使用原创试玩 ROM 与运行时生成的原创最小 GB / GBC / NES / SNES ROM；它们验证基础流程，不代表全部 mapper、RTC、增强芯片或商业 ROM 兼容性。
 

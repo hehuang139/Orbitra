@@ -108,7 +108,7 @@ try {
   let checksum = 0x19
   for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += rom[offset]
   rom[0xbd] = -checksum & 255
-  await page.locator('input[type="file"][accept*=".gba"]').setInputFiles({
+  await page.getByLabel('选择游戏文件', { exact: true }).setInputFiles({
     name: `${second}.gba`, mimeType: 'application/octet-stream', buffer: rom,
   })
   await page.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
