@@ -79,7 +79,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 
 - **Portable backups:** choose games and optionally include ROMs in a versioned ZIP with SHA-256 checksums. Preview before restoring, match missing ROMs by content, select individual conflicts, and roll back the entire restore on failure. Existing progress is kept by default; unknown or different-core states are unchecked.
 - **Real emulation:** bundled mGBA, FCEUmm and Snes9x WASM cores support GBA, GB, GBC, FC / NES and SFC / SNES.
-- **Local library:** multiple-file and drag-and-drop imports, platform labels and filters, search, sorting, favorites, recent play, playtime, grid and list views.
+- **Local library:** file imports, recursive folder scanning and drag-and-drop, platform labels and filters, search, sorting, favorites, recent play, playtime, grid and list views.
 - **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
 - **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
 - **Progress management:** automatic states every 30 seconds and when returning to the library or hiding the page, when enabled; `.sav` import/export.
@@ -100,7 +100,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Click **「开始试玩」** to start the demo, or import your own `.gba`, `.gb`, `.gbc`, `.nes`, `.sfc`, `.smc` or `.zip` file.
+Open [http://localhost:5173](http://localhost:5173). Click **「开始试玩」** to start the demo, import your own `.gba`, `.gb`, `.gbc`, `.nes`, `.sfc`, `.smc` or `.zip` file, or select a folder to scan its subdirectories recursively.
 
 In Star Orbit, move toward the gold beacons to collect points. Hold `X` to boost, press `Z` to emit a pulse, and press `Enter` to reset. See the [demo documentation](public/demo/README.md) for its source and build instructions.
 

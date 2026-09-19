@@ -14,6 +14,16 @@ const ZIP_ERROR = 'ZIP 文件已损坏或格式不完整，请重新压缩后导
 const ROM_TYPES = ROM_FILE_EXTENSIONS.join('、')
 const ZIP64_ERROR = '暂不支持 ZIP64 压缩包，请解压后导入游戏 ROM，或使用普通 ZIP 重新压缩。'
 
+export function importableRomFiles(files: Iterable<File>): File[] {
+  return Array.from(files).filter((file) => {
+    const path = file.webkitRelativePath || file.name
+    const parts = path.replaceAll('\\', '/').split('/')
+    if (file.name.startsWith('._') || parts.some((part) => part.toLowerCase() === '__macosx'))
+      return false
+    return Boolean(platformFromFilename(file.name)) || /\.zip$/i.test(file.name)
+  })
+}
+
 interface RomEntry {
   name: string
   platform: GamePlatform
