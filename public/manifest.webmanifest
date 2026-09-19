@@ -1,7 +1,7 @@
 {
-  "name": "Advance · 掌机游戏空间",
-  "short_name": "Advance",
-  "description": "在浏览器中运行 GBA、GB 与 GBC 游戏，游戏与存档保存在本地设备。",
+  "name": "Orbitra · 多平台经典游戏空间",
+  "short_name": "Orbitra",
+  "description": "在浏览器中运行 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，游戏与存档由你掌控。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",

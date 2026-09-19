@@ -12,7 +12,7 @@ const dependencies = [
   ['fflate', require],
 ]
 const sections = [
-  'Advance — Runtime dependency licenses\n\nGenerated from installed packages. Regenerate after updating dependencies with pnpm licenses:generate.\nSee THIRD_PARTY_NOTICES.md for separately bundled mGBA and font licenses.',
+  'Orbitra — Runtime dependency licenses\n\nGenerated from installed packages. Regenerate after updating dependencies with pnpm licenses:generate.\nSee THIRD_PARTY_NOTICES.md for separately bundled mGBA and font licenses.',
 ]
 
 for (const [name, resolver] of dependencies) {

@@ -1,8 +1,9 @@
 /*
- * Advance offline shell. Keep this file dependency-free: it is served from
+ * Orbitra offline shell. Keep this file dependency-free: it is served from
  * public/ and must be installable before the Vite bundle is available.
  */
-const CACHE_VERSION = 'advance-shell-v4'
+const CACHE_VERSION = 'advance-shell-v5'
+// Keep the legacy prefix so upgrades remove older Advance caches instead of orphaning them.
 const CACHE_PREFIX = 'advance-'
 const CORE_ASSETS = [
   '/favicon.svg',

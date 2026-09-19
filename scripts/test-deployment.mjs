@@ -35,7 +35,7 @@ async function request(path, { status = 200, contentType, immutable = false } = 
 }
 
 const html = await (await request('/', { contentType: 'text/html' })).text()
-assert.match(html, /<title>Advance/, 'the application must replace the Nginx welcome page')
+assert.match(html, /<title>Orbitra/, 'the application must replace the Nginx welcome page')
 assert.equal(await (await request('/index.html', { contentType: 'text/html' })).text(), html)
 assert.equal(
   await (await request('/deployment-smoke/route', { contentType: 'text/html' })).text(),

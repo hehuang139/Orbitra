@@ -193,26 +193,17 @@ button:disabled:hover {
   align-items: center;
   font-size: 28px;
   font-weight: 750;
-  letter-spacing: -1.5px;
+  letter-spacing: 0;
   padding: 0 12px;
 }
 .brand-mark {
   width: 33px;
   height: 33px;
-  display: grid;
-  place-items: center;
-  background: var(--mint);
-  border-radius: 10px;
-  color: #183629;
-  transform: rotate(-7deg);
-}
-.brand-mark svg {
-  width: 23px;
-  height: 23px;
-  transform: rotate(7deg);
+  display: block;
+  border-radius: 9px;
 }
 .brand-period {
-  color: var(--mint);
+  color: #ff7468;
 }
 .workspace-label {
   font-size: 10px;

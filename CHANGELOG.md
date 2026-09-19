@@ -2,6 +2,15 @@
 
 本项目记录面向使用者的变更。未发布计划见 [Roadmap](ROADMAP.md)。
 
+## 未发布
+
+### Orbitra 品牌升级
+
+- 项目由 Advance 更名为 **Orbitra**，采用“所有经典，都在同一轨道 / Every era, one orbit”作为新的多平台定位。
+- 新增由多条轨道与像素核心构成的 SVG 标志，并统一更新应用侧栏、favicon、PWA、页面元数据、包名、容器名和中英文文档。
+- IndexedDB 数据库、备份格式、浏览器存储键、账号 Cookie / 响应头及 Service Worker 缓存前缀继续使用原有 `advance-*` 标识，确保升级后仍能读取现有游戏、设置、存档与账号会话。
+- 生产服务新增 `ORBITRA_DATA_DIR`，旧的 `ADVANCE_DATA_DIR` 仍作为兼容别名；服务端数据库文件名保持不变。
+
 ## 1.4.0 — 2026-09-20
 
 ### 游戏导入

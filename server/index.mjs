@@ -79,5 +79,5 @@ const server = tls ? createSecureServer(tls, handler) : createServer(handler)
 const protocol = tls ? 'https' : 'http'
 
 server.listen(port, host, () => {
-  console.log(`Advance account server: ${protocol}://${host}:${port}`)
+  console.log(`Orbitra account server: ${protocol}://${host}:${port}`)
 })

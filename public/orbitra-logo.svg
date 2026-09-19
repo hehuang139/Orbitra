@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 88" role="img" aria-labelledby="title desc">
+  <title id="title">Orbitra</title>
+  <desc id="desc">Orbitra wordmark with a multicolored orbital emblem.</desc>
+  <g transform="translate(4 12)">
+    <rect width="64" height="64" rx="16" fill="#111416"/>
+    <circle cx="32" cy="32" r="18" fill="none" stroke="#A8F0C4" stroke-width="7" stroke-linecap="round" stroke-dasharray="72 42" transform="rotate(-38 32 32)"/>
+    <ellipse cx="32" cy="32" rx="25" ry="11" fill="none" stroke="#64A7FF" stroke-width="4" stroke-linecap="round" stroke-dasharray="42 88" transform="rotate(-24 32 32)"/>
+    <ellipse cx="32" cy="32" rx="25" ry="11" fill="none" stroke="#FF7468" stroke-width="4" stroke-linecap="round" stroke-dasharray="42 88" stroke-dashoffset="-65" transform="rotate(-24 32 32)"/>
+    <rect x="27" y="27" width="10" height="10" rx="2" fill="#F7F9F8" transform="rotate(45 32 32)"/>
+  </g>
+  <text x="86" y="58" fill="#111416" font-family="DM Sans, Inter, system-ui, sans-serif" font-size="48" font-weight="750" letter-spacing="0">Orbitra</text>
+  <circle cx="305" cy="53" r="4" fill="#FF7468"/>
+</svg>

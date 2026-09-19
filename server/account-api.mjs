@@ -118,7 +118,10 @@ function cookie(token, req, maxAge = Math.floor(SESSION_TTL_MS / 1000)) {
 
 export function createAccountApi(options = {}) {
   const dataDirectory = path.resolve(
-    options.dataDirectory || process.env.ADVANCE_DATA_DIR || '.data',
+    options.dataDirectory ||
+      process.env.ORBITRA_DATA_DIR ||
+      process.env.ADVANCE_DATA_DIR ||
+      '.data',
   )
   mkdirSync(dataDirectory, { recursive: true })
   const databasePath = path.join(dataDirectory, 'advance.sqlite')

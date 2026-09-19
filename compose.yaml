@@ -1,6 +1,6 @@
 services:
-  advance:
-    image: gba-emu:local
+  orbitra:
+    image: orbitra:local
     build:
       context: .
     ports:

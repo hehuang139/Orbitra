@@ -859,7 +859,7 @@ export default function App() {
     onProgress('正在读取游戏库快照…')
     const data = await db.getLibrarySnapshot(ids, includeRoms)
     const bytes = await createBackup(data, { includeRoms, onProgress })
-    download(bytes, `advance-backup-${new Date().toISOString().slice(0, 10)}.zip`)
+    download(bytes, `orbitra-backup-${new Date().toISOString().slice(0, 10)}.zip`)
   }
   const restoreLibrary = async (data: BackupData, choices: db.RestoreChoices) => {
     await db.restoreLibrary(data, choices)
@@ -1131,11 +1131,9 @@ export default function App() {
             navigate('library')
           }}
         >
-          <span className="brand-mark">
-            <Plus strokeWidth={4} />
-          </span>
+          <img className="brand-mark" src="/favicon.svg" alt="" />
           <span>
-            advance<span className="brand-period">.</span>
+            orbitra<span className="brand-period">.</span>
           </span>
         </a>
         <div className="workspace-label">
@@ -2462,7 +2460,7 @@ export default function App() {
             ) : (
               <>
                 <p className="modal-description">
-                  Advance 是一个在浏览器中运行的经典游戏空间。导入 {romFormatLabel} 或 .ZIP
+                  Orbitra 是一个在浏览器中运行的经典游戏空间。导入 {romFormatLabel} 或 .ZIP
                   游戏，或先体验内置的原创游戏 Star Orbit。
                 </p>
                 <div className="help-steps">

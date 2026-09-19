@@ -648,7 +648,7 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
       return backend?.platform ?? null
     },
     get version() {
-      return backend?.version ?? 'Advance 多核心运行时'
+      return backend?.version ?? 'Orbitra 多核心运行时'
     },
     async loadRom(data, name, platform) {
       if (disposed) throw new Error('模拟器已关闭，请重新打开游戏。')

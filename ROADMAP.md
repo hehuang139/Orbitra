@@ -1,6 +1,6 @@
-# Advance Roadmap
+# Orbitra Roadmap
 
-本文区分当前已交付能力、下一阶段的改进方向与仍待评估的功能。未勾选条目尚未完成；没有承诺的发布日期。欢迎通过 [Issues](https://github.com/hehuang139/gba-emu/issues) 分享使用场景、复现资料与优先级建议。
+本文区分当前已交付能力、下一阶段的改进方向与仍待评估的功能。未勾选条目尚未完成；没有承诺的发布日期。欢迎通过 [Issues](https://github.com/hehuang139/orbitra/issues) 分享使用场景、复现资料与优先级建议。
 
 ## 已交付
 

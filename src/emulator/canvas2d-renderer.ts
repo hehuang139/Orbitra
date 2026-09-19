@@ -74,10 +74,10 @@ function createSoftwareContext(
     getParameter: (parameter: number) => {
       if (parameter === MAX_TEXTURE_SIZE) return 4096
       if (parameter === FRAMEBUFFER_BINDING) return null
-      if (parameter === VERSION) return 'WebGL 2.0 (Advance Canvas 2D compatibility)'
+      if (parameter === VERSION) return 'WebGL 2.0 (Orbitra Canvas 2D compatibility)'
       if (parameter === SHADING_LANGUAGE_VERSION) return 'WebGL GLSL ES 3.00 (compatibility)'
-      if (parameter === RENDERER) return 'Advance Canvas 2D'
-      if (parameter === VENDOR) return 'Advance'
+      if (parameter === RENDERER) return 'Orbitra Canvas 2D'
+      if (parameter === VENDOR) return 'Orbitra'
       return 0
     },
     getError: () => 0,

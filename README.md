@@ -1,25 +1,25 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="72" height="72" alt="Advance 标志" />
+<img src="public/favicon.svg" width="72" height="72" alt="Orbitra 标志" />
 
-# Advance
+# Orbitra
 
-**你的掌机游戏空间。**
+**所有经典，都在同一轨道。**
 
-一个现代、美观的 GBA、GB、GBC、FC / NES 与 SFC / SNES 浏览器模拟器。真实 WebAssembly 内核，本地游戏库，随时保存，再次出发。
+一个面向多平台的现代浏览器模拟器。真实 WebAssembly 内核、统一游戏库、本地优先的数据管理，当前支持 GBA、GB、GBC、FC / NES 与 SFC / SNES。
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
 [![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
+[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [品牌素材](docs/brand.md) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
 
 </div>
 
-![Advance 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
+![Orbitra 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
 
-Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm 与 Snes9x WebAssembly** 核心实际执行。
+Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm 与 Snes9x WebAssembly** 核心实际执行。
 
 无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可选账号会把 ROM、游戏内存档与即时存档同步到自托管服务，登录后可在新的浏览器中恢复。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
 
@@ -72,7 +72,7 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 移动端布局按平台提供方向键、A / B、Start / Select、L / R 与 SFC 的 X / Y 触屏控件；播放工具栏也可直接操作。可选择标准或紧凑布局，调整按键大小与不透明度；支持多指同时操作，横竖屏切换会释放当前按键。
 
 <p align="center">
-  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Advance 手机播放器、播放工具栏与触屏虚拟手柄" /></a>
+  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Orbitra 手机播放器、播放工具栏与触屏虚拟手柄" /></a>
 </p>
 
 ## 功能特性
@@ -101,8 +101,8 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 推荐 **Node.js 24** 与 **pnpm 11.19.0**（最低 Node.js 22.18）。如尚未安装 pnpm，先运行 `npm install --global pnpm@11.19.0`。
 
 ```sh
-git clone https://github.com/hehuang139/gba-emu.git
-cd gba-emu
+git clone https://github.com/hehuang139/orbitra.git
+cd orbitra
 pnpm install --frozen-lockfile
 pnpm dev
 ```
@@ -166,7 +166,7 @@ ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏
 docker compose up -d --build
 ```
 
-打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `gba-emu:local` 并启动 `advance` 服务；修改宿主机端口或停止服务：
+打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `orbitra:local` 并启动 `orbitra` 服务；修改宿主机端口或停止服务：
 
 ```sh
 PORT=8090 docker compose up -d --build
@@ -176,11 +176,11 @@ docker compose down
 修改端口后访问 [http://localhost:8090](http://localhost:8090)。也可不使用 Compose，独立构建与运行：
 
 ```sh
-docker build -t gba-emu:local .
-docker run -d --name advance -p 8080:8080 \
+docker build -t orbitra:local .
+docker run -d --name orbitra -p 8080:8080 \
   --read-only --tmpfs /tmp --cap-drop ALL \
   --security-opt no-new-privileges:true --restart unless-stopped \
-  gba-emu:local
+  orbitra:local
 ```
 
 镜像使用 Node.js 24 与 pnpm 11.19.0 多阶段构建，最终仅通过 Nginx 提供静态文件，以非 root 用户监听容器 `8080` 端口。Compose 默认启用只读文件系统、`/tmp` 临时目录、移除全部 Linux capabilities、禁止获取新权限和 `unless-stopped` 重启策略。
@@ -195,9 +195,9 @@ docker run -d --name advance -p 8080:8080 \
 
 ```sh
 # 构建镜像的机器
-docker save -o gba-emu.tar gba-emu:local
+docker save -o orbitra.tar orbitra:local
 # 目标机器
-docker load -i gba-emu.tar
+docker load -i orbitra.tar
 ```
 
 以下检查使用 Node HTTP，无需浏览器依赖；对已运行的镜像检查响应头、WASM MIME、缓存策略、资源 `404`、SPA 回退与健康检查：
@@ -213,7 +213,7 @@ pnpm build
 pnpm start
 ```
 
-构建结果位于 `dist/`，生产服务地址默认为 [http://localhost:4173](http://localhost:4173)。`pnpm start` 同源提供静态资源和账号 API，使用 Node 内置 SQLite 将账号、会话和每位用户的最新游戏库快照保存在 `.data/advance.sqlite`。可通过 `HOST`、`PORT` 和 `ADVANCE_DATA_DIR` 修改监听地址、端口和数据目录，部署时必须定期备份该 SQLite 文件并确保目录可写。
+构建结果位于 `dist/`，生产服务地址默认为 [http://localhost:4173](http://localhost:4173)。`pnpm start` 同源提供静态资源和账号 API，使用 Node 内置 SQLite 将账号、会话和每位用户的最新游戏库快照保存在 `.data/advance.sqlite`。可通过 `HOST`、`PORT` 和 `ORBITRA_DATA_DIR` 修改监听地址、端口和数据目录，部署时必须定期备份该 SQLite 文件并确保目录可写。旧变量 `ADVANCE_DATA_DIR` 与数据库文件名继续兼容，现有部署无需迁移数据。
 
 生产服务可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
 
@@ -235,7 +235,7 @@ Vite 开发与预览服务已配置上述响应头；`public/_headers` 会随构
 server {
     listen 443 ssl;
     # 在此配置你的域名和 TLS 证书
-    root /var/www/advance/dist;
+    root /var/www/orbitra/dist;
 
     add_header Cross-Origin-Opener-Policy same-origin always;
     add_header Cross-Origin-Embedder-Policy require-corp always;
@@ -354,13 +354,13 @@ pnpm test:deployment
 
 ## 参与贡献
 
-欢迎提交 Bug、改进交互、完善文档或增加测试。请先阅读 [贡献指南](CONTRIBUTING.md)，提交问题时附上浏览器版本、复现步骤与错误信息。可通过 [Issues](https://github.com/hehuang139/gba-emu/issues) 讨论建议，通过 [Pull requests](https://github.com/hehuang139/gba-emu/pulls) 提交改动。
+欢迎提交 Bug、改进交互、完善文档或增加测试。请先阅读 [贡献指南](CONTRIBUTING.md)，提交问题时附上浏览器版本、复现步骤与错误信息。可通过 [Issues](https://github.com/hehuang139/orbitra/issues) 讨论建议，通过 [Pull requests](https://github.com/hehuang139/orbitra/pulls) 提交改动。
 
 请勿在 Issue、PR 或测试资源中上传无权分发的游戏 ROM、BIOS 或素材。原创试玩及有明确再分发许可的自制游戏更适合用于复现和测试。
 
 ## 鸣谢
 
-Advance 建立在以下开源项目与创作者的工作之上：
+Orbitra 建立在以下开源项目与创作者的工作之上：
 
 | 项目                                                                                                    | 用途                                 |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |

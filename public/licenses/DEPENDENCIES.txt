@@ -1,4 +1,4 @@
-Advance — Runtime dependency licenses
+Orbitra — Runtime dependency licenses
 
 Generated from installed packages. Regenerate after updating dependencies with pnpm licenses:generate.
 See THIRD_PARTY_NOTICES.md for separately bundled mGBA and font licenses.

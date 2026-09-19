@@ -1,25 +1,25 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="72" height="72" alt="Advance logo" />
+<img src="public/favicon.svg" width="72" height="72" alt="Orbitra logo" />
 
-# Advance
+# Orbitra
 
-**Your space for handheld games.**
+**Every era, one orbit.**
 
-A modern GBA, GB, GBC, FC / NES and SFC / SNES emulator for the browser, powered by local WebAssembly cores.
+A modern multi-platform emulator for the browser, powered by local WebAssembly cores and a unified, local-first game library. Currently supports GBA, GB, GBC, FC / NES and SFC / SNES.
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
 [![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[简体中文](README.md) · [Features](#features) · [Quick start](#quick-start) · [Deployment](#deployment) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+[简体中文](README.md) · [Features](#features) · [Quick start](#quick-start) · [Deployment](#deployment) · [Brand assets](docs/brand.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
-![Advance desktop game library](docs/images/desktop-library.png)
+![Orbitra desktop game library](docs/images/desktop-library.png)
 
-Advance combines a dark, mint-accented interface with a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm and Snes9x cores run the supported systems locally.
+Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm and Snes9x cores run the supported systems locally.
 
 No account or user-supplied BIOS is required for the local library. An optional self-hosted account service can sync ROMs, battery saves and save states for restoration in another browser. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
@@ -72,7 +72,7 @@ Keep favorite games together. List view shows game details and play history, wit
 The mobile layout exposes platform-specific controls, including X / Y / L / R for SFC games, alongside an accessible playback toolbar. Choose standard or compact layouts and adjust button size and opacity. Multiple fingers can hold buttons simultaneously; changing orientation releases held inputs.
 
 <p align="center">
-  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Advance mobile player with playback toolbar and on-screen gamepad" /></a>
+  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Orbitra mobile player with playback toolbar and on-screen gamepad" /></a>
 </p>
 
 ## Features
@@ -94,8 +94,8 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 Recommended: **Node.js 24** and **pnpm 11.19.0**. Minimum Node.js version: 22.18. If pnpm is not installed, run `npm install --global pnpm@11.19.0` first.
 
 ```sh
-git clone https://github.com/hehuang139/gba-emu.git
-cd gba-emu
+git clone https://github.com/hehuang139/orbitra.git
+cd orbitra
 pnpm install --frozen-lockfile
 pnpm dev
 ```
@@ -143,7 +143,7 @@ Install Docker and the Docker Compose plugin, then run from the repository root:
 docker compose up -d --build
 ```
 
-Open [http://localhost:8080](http://localhost:8080). `compose.yaml` builds the local `gba-emu:local` image and starts the `advance` service. To change the host port or stop the service:
+Open [http://localhost:8080](http://localhost:8080). `compose.yaml` builds the local `orbitra:local` image and starts the `orbitra` service. To change the host port or stop the service:
 
 ```sh
 PORT=8090 docker compose up -d --build
@@ -153,11 +153,11 @@ docker compose down
 After changing the port, open [http://localhost:8090](http://localhost:8090). You can also build and run without Compose:
 
 ```sh
-docker build -t gba-emu:local .
-docker run -d --name advance -p 8080:8080 \
+docker build -t orbitra:local .
+docker run -d --name orbitra -p 8080:8080 \
   --read-only --tmpfs /tmp --cap-drop ALL \
   --security-opt no-new-privileges:true --restart unless-stopped \
-  gba-emu:local
+  orbitra:local
 ```
 
 The multi-stage build uses Node.js 24 and pnpm 11.19.0. The final image serves only static files through Nginx, running as a non-root user on container port `8080`. Compose enables a read-only filesystem, temporary `/tmp` storage, drops all Linux capabilities, prevents privilege escalation, and uses the `unless-stopped` restart policy.
@@ -172,9 +172,9 @@ To distribute a built image offline, export it on the build machine, load it on 
 
 ```sh
 # Build machine
-docker save -o gba-emu.tar gba-emu:local
+docker save -o orbitra.tar orbitra:local
 # Target machine
-docker load -i gba-emu.tar
+docker load -i orbitra.tar
 ```
 
 The following Node HTTP check needs no browser dependencies. Check a running image's headers, WASM MIME type, caching, missing-resource `404` responses, SPA fallback, and health check:
@@ -190,7 +190,7 @@ pnpm build
 pnpm start
 ```
 
-The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `HOST`, `PORT` and `ADVANCE_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database.
+The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `HOST`, `PORT` and `ORBITRA_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database. The legacy `ADVANCE_DATA_DIR` variable and database filename remain supported, so existing deployments do not need to move data.
 
 The production server can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
 

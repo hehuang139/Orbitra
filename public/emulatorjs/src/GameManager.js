@@ -54,7 +54,7 @@ class EJS_GameManager {
             try {
                 this.toggleMainLoop(0);
             } catch(e) {}
-            // Advance can use an in-memory save directory owned by the host.
+            // Orbitra can use an in-memory save directory owned by the host.
             if (!this.EJS.config.disableDatabases) {
                 try {
                     this.FS.unmount("/data/saves");
@@ -79,7 +79,7 @@ class EJS_GameManager {
         return new Promise(async resolve => {
             this.mkdir("/data");
             this.mkdir("/data/saves");
-            // Advance owns persistence and injects the selected game's save.
+            // Orbitra owns persistence and injects the selected game's save.
             if (this.EJS.config.disableDatabases) {
                 resolve();
                 return;
@@ -447,7 +447,7 @@ class EJS_GameManager {
     toggleFastForward(active) {
         this.functions.toggleFastForward(active);
     }
-    // Advance exposes rewind through the same host-facing manager API.
+    // Orbitra exposes rewind through the same host-facing manager API.
     toggleRewind(active) {
         this.functions.toggleRewind(active);
     }

@@ -34,10 +34,10 @@ jobs:
       - name: Build and verify the read-only container
         shell: bash
         run: |
-          trap 'docker compose -p advance-deployment-ci logs --no-color; docker compose -p advance-deployment-ci down' EXIT
-          docker compose -p advance-deployment-ci up -d --build --wait --wait-timeout 60
-          test "$(docker compose -p advance-deployment-ci exec -T advance id -u)" -ne 0
-          container_id="$(docker compose -p advance-deployment-ci ps -q advance)"
+          trap 'docker compose -p orbitra-deployment-ci logs --no-color; docker compose -p orbitra-deployment-ci down' EXIT
+          docker compose -p orbitra-deployment-ci up -d --build --wait --wait-timeout 60
+          test "$(docker compose -p orbitra-deployment-ci exec -T orbitra id -u)" -ne 0
+          container_id="$(docker compose -p orbitra-deployment-ci ps -q orbitra)"
           docker inspect "$container_id" | jq -e '
             .[0].HostConfig.ReadonlyRootfs == true and
             (.[0].HostConfig.CapDrop | index("ALL")) != null and
@@ -92,7 +92,7 @@ jobs:
       - name: Upload production bundle
         uses: actions/upload-artifact@v4
         with:
-          name: advance-gba-dist
+          name: orbitra-dist
           path: dist/
           if-no-files-found: error
           retention-days: 14
