@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Zip, ZipDeflate, zipSync } from 'fflate'
-import { extractRomFiles } from './import-roms.ts'
+import { extractRomFiles, importableRomFiles } from './import-roms.ts'
 
 const MiB = 1024 * 1024
 const payload = (seed = 1, size = 1024) => new Uint8Array(size).fill(seed)
@@ -39,6 +39,27 @@ function patchEntry(
   patch(view, central, view.getUint32(central + 42, true))
   return copy
 }
+
+test('folder scans keep supported ROMs and ZIPs while ignoring unrelated files', () => {
+  const macMetadata = new File([], 'metadata.gba')
+  Object.defineProperty(macMetadata, 'webkitRelativePath', {
+    value: 'Library/__MACOSX/metadata.gba',
+  })
+  const files = [
+    new File([], 'Advance.GBA'),
+    new File([], 'handheld.gb'),
+    new File([], 'collection.ZIP'),
+    new File([], 'Advance.png'),
+    new File([], 'README.txt'),
+    new File([], 'Advance.sav'),
+    new File([], '._metadata.gba'),
+    macMetadata,
+  ]
+  assert.deepEqual(
+    importableRomFiles(files).map((file) => file.name),
+    ['Advance.GBA', 'handheld.gb', 'collection.ZIP'],
+  )
+})
 
 function declaredSize(bytes: Uint8Array, index: number, size: number): Uint8Array {
   return patchEntry(bytes, index, (view, central, local) => {

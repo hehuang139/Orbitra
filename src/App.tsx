@@ -46,7 +46,7 @@ import { HandheldArt, SpaceArt } from './components/Artwork'
 import { createEmulator } from './emulator'
 import type { Emulator, EmulatorButton, EmulatorStatus } from './emulator'
 import * as db from './lib/storage'
-import { extractRomFiles } from './lib/import-roms'
+import { extractRomFiles, importableRomFiles } from './lib/import-roms'
 import {
   PLATFORM_LIST,
   PLATFORM_REGISTRY,
@@ -211,6 +211,7 @@ export default function App() {
   const maintenanceRef = useRef(false)
   const pendingWrites = useRef(new Set<Promise<unknown>>())
   const inputRef = useRef<HTMLInputElement>(null)
+  const directoryInputRef = useRef<HTMLInputElement>(null)
   const saveInputRef = useRef<HTMLInputElement>(null)
   const stateInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
@@ -997,11 +998,27 @@ export default function App() {
       <input
         ref={inputRef}
         type="file"
+        aria-label="选择游戏文件"
         accept={acceptedGameFiles}
         multiple
         hidden
         onChange={(event) => {
           void importFiles(Array.from(event.target.files || []))
+          event.target.value = ''
+        }}
+      />
+      <input
+        ref={directoryInputRef}
+        type="file"
+        aria-label="选择游戏文件夹"
+        accept={acceptedGameFiles}
+        multiple
+        hidden
+        webkitdirectory=""
+        onChange={(event) => {
+          const files = importableRomFiles(event.target.files || [])
+          if (files.length) void importFiles(files)
+          else notify(`所选文件夹中没有找到 ${romFormatLabel} / ZIP 游戏文件`, true)
           event.target.value = ''
         }}
       />
@@ -1263,15 +1280,25 @@ export default function App() {
                       : '每一段冒险，都值得好好保存。'}
               </p>
             </div>
-            <button
-              className="button primary import-top"
-              disabled={busy}
-              aria-busy={Boolean(importLabel)}
-              onClick={() => inputRef.current?.click()}
-            >
-              {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
-              {importLabel || '导入游戏'}
-            </button>
+            <div className="import-actions">
+              <button
+                className="button secondary import-top"
+                disabled={busy}
+                onClick={() => directoryInputRef.current?.click()}
+              >
+                <FolderOpen size={18} />
+                导入文件夹
+              </button>
+              <button
+                className="button primary import-top"
+                disabled={busy}
+                aria-busy={Boolean(importLabel)}
+                onClick={() => inputRef.current?.click()}
+              >
+                {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
+                {importLabel || '导入游戏'}
+              </button>
+            </div>
           </div>
 
           <section
@@ -1658,7 +1685,7 @@ export default function App() {
                           <Plus size={25} strokeWidth={1.5} />
                         </span>
                         <strong>下一场冒险，由你选择</strong>
-                        <p>点击导入，或将游戏文件拖到这里</p>
+                        <p>使用上方按钮导入文件或文件夹，也可拖放到这里</p>
                         <span className="file-tag">
                           {romFormatLabel} / ZIP<span>自动解压</span>
                         </span>
@@ -2256,9 +2283,10 @@ export default function App() {
                     <span>01</span>
                     <strong>带上你的游戏</strong>
                     <p>
-                      点击「导入游戏」，或拖入 {romFormatLabel} / .ZIP 文件。ZIP
-                      中的游戏会自动识别平台并解压，包括子文件夹。各平台按独立大小限制校验；ZIP 最大
-                      64 MiB，每包最多 32 个游戏、解压合计 128 MiB。
+                      点击「导入游戏」选择文件，或点击「导入文件夹」递归扫描目录。也可拖入
+                      {romFormatLabel} / .ZIP 文件。ZIP 中的游戏会自动识别平台并解压，包括子文件夹。
+                      各平台按独立大小限制校验；ZIP 最大 64 MiB，每包最多 32 个游戏、解压合计 128
+                      MiB。
                     </p>
                   </div>
                   <div>
