@@ -11,7 +11,10 @@ export interface CapabilityCheck {
 export interface CompatibilityReport {
   checks: CapabilityCheck[]
   ready: boolean
+  renderingBackend: RenderingBackend
 }
+
+export type RenderingBackend = 'webgl2' | 'canvas2d' | 'none'
 
 type ProbeEnvironment = {
   isSecureContext?: boolean
@@ -27,6 +30,12 @@ type ProbeEnvironment = {
       getContext?: (kind: string) => unknown
     }
   }
+}
+
+type RenderingProbe = {
+  backend: RenderingBackend
+  hasWebGL1: boolean
+  softwareWebGL2: boolean
 }
 
 const hasFunction = (value: unknown): value is (...args: never[]) => unknown =>
@@ -56,6 +65,82 @@ function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
       },
     )
   })
+}
+
+function releaseWebGLContext(context: unknown): void {
+  safely(() => {
+    const candidate = context as {
+      getExtension?: (name: string) => { loseContext?: () => void } | null
+    }
+    candidate.getExtension?.('WEBGL_lose_context')?.loseContext?.()
+    return true
+  }, false)
+}
+
+function isSoftwareRenderer(context: unknown): boolean {
+  return safely(() => {
+    const candidate = context as {
+      getExtension?: (name: string) => { UNMASKED_RENDERER_WEBGL?: number } | null
+      getParameter?: (parameter: number) => unknown
+    }
+    const info = candidate.getExtension?.('WEBGL_debug_renderer_info')
+    const renderer = info?.UNMASKED_RENDERER_WEBGL
+      ? candidate.getParameter?.(info.UNMASKED_RENDERER_WEBGL)
+      : candidate.getParameter?.(0x1f01)
+    return (
+      typeof renderer === 'string' &&
+      /swiftshader|llvmpipe|softpipe|lavapipe|software rasterizer|\bwarp\b/i.test(renderer)
+    )
+  }, false)
+}
+
+function probeRendering(environment: ProbeEnvironment): RenderingProbe {
+  const createCanvas = () => environment.document?.createElement?.('canvas')
+  let webgl2: unknown = null
+  try {
+    webgl2 = createCanvas()?.getContext?.('webgl2')
+    const lost = safely(
+      () => (webgl2 as { isContextLost?: () => boolean }).isContextLost?.() === true,
+      true,
+    )
+    if (webgl2 && !lost) {
+      return {
+        backend: 'webgl2',
+        hasWebGL1: false,
+        softwareWebGL2: isSoftwareRenderer(webgl2),
+      }
+    }
+  } catch {
+    webgl2 = null
+  } finally {
+    releaseWebGLContext(webgl2)
+  }
+
+  let webgl1: unknown = null
+  let hasWebGL1 = false
+  try {
+    webgl1 = createCanvas()?.getContext?.('webgl')
+    hasWebGL1 = Boolean(
+      webgl1 &&
+      !safely(() => (webgl1 as { isContextLost?: () => boolean }).isContextLost?.() === true, true),
+    )
+  } catch {
+    hasWebGL1 = false
+  } finally {
+    releaseWebGLContext(webgl1)
+  }
+
+  const canvas2d = safely(() => createCanvas()?.getContext?.('2d'), null as unknown)
+  const supportsCanvas2D = Boolean(
+    canvas2d &&
+    hasFunction((canvas2d as { createImageData?: unknown }).createImageData) &&
+    hasFunction((canvas2d as { putImageData?: unknown }).putImageData),
+  )
+  return {
+    backend: supportsCanvas2D ? 'canvas2d' : 'none',
+    hasWebGL1,
+    softwareWebGL2: false,
+  }
 }
 
 let probeSequence = 0
@@ -288,31 +373,45 @@ export function checkRuntimePrerequisites(
     action: wasm ? undefined : '请升级浏览器后重试。',
   })
 
-  let webgl = false
-  let context: WebGLRenderingContext | null = null
-  try {
-    const canvas = environment.document?.createElement?.('canvas')
-    // The bundled mGBA build requests a WebGL 2 context; WebGL 1 alone
-    // cannot satisfy its renderer, even if the browser exposes that API.
-    context = canvas?.getContext?.('webgl2') as WebGLRenderingContext | null
-    webgl = Boolean(context)
-  } catch {
-    webgl = false
-  } finally {
-    safely(() => {
-      context?.getExtension?.('WEBGL_lose_context')?.loseContext()
-      return true
-    }, false)
-  }
+  const rendering = probeRendering(environment)
+  const renderingStatus: CapabilityStatus =
+    rendering.backend === 'none'
+      ? 'error'
+      : rendering.backend === 'canvas2d' || rendering.softwareWebGL2
+        ? 'warning'
+        : 'ok'
+  const renderingDetail =
+    rendering.backend === 'webgl2'
+      ? rendering.softwareWebGL2
+        ? 'WebGL 2 软件渲染可用，性能可能较低'
+        : 'WebGL 2 可以显示游戏画面'
+      : rendering.backend === 'canvas2d'
+        ? rendering.hasWebGL1
+          ? '仅检测到 WebGL 1，将使用 Canvas 2D 软件渲染'
+          : 'WebGL 不可用，将使用 Canvas 2D 软件渲染'
+        : rendering.hasWebGL1
+          ? '浏览器仅提供 WebGL 1，且 Canvas 2D 软件渲染不可用'
+          : '无法创建 WebGL 或 Canvas 2D 图形上下文'
   checks.push({
     id: 'webgl',
-    label: 'WebGL',
-    status: webgl ? 'ok' : 'error',
-    detail: webgl ? 'WebGL 2 可以显示游戏画面' : '无法创建模拟核心需要的 WebGL 2 上下文',
-    action: webgl ? undefined : '请启用硬件加速，或更新显卡驱动并使用支持 WebGL 2 的浏览器。',
+    label: '图形渲染',
+    status: renderingStatus,
+    detail: renderingDetail,
+    action:
+      renderingStatus === 'ok'
+        ? undefined
+        : rendering.backend === 'none'
+          ? '请启用 Canvas 2D 或硬件加速；若刚更新显卡驱动，请重启系统和浏览器后重试。'
+          : rendering.backend === 'canvas2d'
+            ? '兼容模式支持 GBA、GB 与 GBC；如帧率较低，请更新显卡驱动并重启浏览器。'
+            : '当前使用浏览器的软件图形后端；如帧率较低，请修复显卡驱动或启用硬件加速。',
   })
 
-  return { checks, ready: checks.every((check) => check.status !== 'error') }
+  return {
+    checks,
+    ready: checks.every((check) => check.status !== 'error'),
+    renderingBackend: rendering.backend,
+  }
 }
 
 export async function probeCompatibility(
@@ -323,7 +422,8 @@ export async function probeCompatibility(
     typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
       ? Math.max(1, options.timeoutMs)
       : 2000
-  const { checks } = checkRuntimePrerequisites(environment)
+  const runtime = checkRuntimePrerequisites(environment)
+  const { checks } = runtime
   checks.push(
     ...(await Promise.all([
       probeIndexedDB(environment, timeoutMs),
@@ -331,5 +431,9 @@ export async function probeCompatibility(
     ])),
   )
 
-  return { checks, ready: checks.every((check) => check.status !== 'error') }
+  return {
+    checks,
+    ready: checks.every((check) => check.status !== 'error'),
+    renderingBackend: runtime.renderingBackend,
+  }
 }

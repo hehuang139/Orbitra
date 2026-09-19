@@ -7,28 +7,30 @@
 ZIP 根目录只有 `manifest.json`，其余条目只允许以下路径：
 
 ```text
-games/<ROM SHA-256>/rom.gba
-games/<ROM SHA-256>/battery.sav
-games/<ROM SHA-256>/state-<0..5>.bin
+games/<游戏内容 ID>/rom.<gba|gb|gbc>
+games/<游戏内容 ID>/battery.sav
+games/<游戏内容 ID>/state-<0..5>.bin
 ```
 
-清单包含 `format: "advance-gba-backup"`、`formatVersion: 1`、ISO UTC `exportedAt`、`coreVersion`、`games` 和 `files`。每个游戏包含现有 `Game` 元数据、可选 `rom` / `battery` 文件路径、`states` 数组；即时存档记录游戏 ID、槽位、创建时间、可选 PNG data URL 截图、可选核心标识和 `path`。`files` 为所有负载记录 `path`、`size` 和十六进制 SHA-256。清单自身不列入文件校验表，ZIP CRC 检查覆盖它。
+清单包含 `format: "advance-gba-backup"`、`formatVersion: 1`、ISO UTC `exportedAt`、`coreVersion`、`games` 和 `files`。每个游戏包含现有 `Game` 元数据（包括 `platform`）、可选 `rom` / `battery` 文件路径、`states` 数组；即时存档记录游戏 ID、槽位、创建时间、可选 PNG data URL 截图、可选核心标识和 `path`。ROM 负载名必须与平台严格对应：GBA、GB、GBC 分别使用 `rom.gba`、`rom.gb`、`rom.gbc`。`files` 为所有负载记录 `path`、`size` 和原始负载的十六进制 SHA-256。清单自身不列入文件校验表，ZIP CRC 检查覆盖它。
 
-游戏 ID 是 ROM 内容 SHA-256，与文件名无关。含 ROM 时必须同时满足清单字节数和内容标识；不含 ROM 时只能匹配本地或用户临时提供的相同内容 ROM。文件名和标题仅用于显示，不作为解压路径。
+为兼容已有数据库，GBA 游戏 ID 仍为 `SHA-256(ROM)`。GB 与 GBC 使用平台域分隔的 ID：`SHA-256(UTF-8("advance-game-id:v1\0<platform>\0") || SHA-256(ROM))`，其中内层摘要按 32 个原始字节拼接。这样同一组 ROM 字节以 GB 与 GBC 身份导入时不会共享游戏和存档，结果仍是 64 位小写十六进制 ID。文件名扩展、`platform` 和 ROM 负载扩展必须一致。
+
+格式版本保持 v1。旧版 v1 清单没有 `platform` 时，仅文件名为 `.gba` 的记录会明确迁移为 `gba`，并继续使用原有内容 ID 和 `rom.gba` 路径；缺少平台的 `.gb` / `.gbc` 记录不会被推断。新导出始终写入平台。不含 ROM 时只能匹配本地或用户临时提供的相同平台、扩展名、大小和内容 ID；文件名和标题仅用于显示，不作为解压路径。
 
 ## 大小与解析边界
 
-| 项目 | 上限 |
-| --- | --- |
-| ZIP 文件 | 72 MiB |
-| 解压后全部条目（含清单） | 64 MiB |
-| 所选游戏的关联 ROM、存档与清单合计（含省略的 ROM） | 64 MiB |
-| 游戏 / 文件数 | 16 / 129 |
-| 单 ROM | 192 字节至 32 MiB |
-| 单即时存档 / 电池存档 | 16 MiB / 1 MiB |
-| 清单 / 单截图 data URL | 2 MiB / 256 KiB 字符 |
+| 项目                                               | 上限                                              |
+| -------------------------------------------------- | ------------------------------------------------- |
+| ZIP 文件                                           | 72 MiB                                            |
+| 解压后全部条目（含清单）                           | 64 MiB                                            |
+| 所选游戏的关联 ROM、存档与清单合计（含省略的 ROM） | 64 MiB                                            |
+| 游戏 / 文件数                                      | 16 / 129                                          |
+| 单 ROM                                             | GBA：192 字节至 32 MiB；GB / GBC：32 KiB 至 8 MiB |
+| 单即时存档 / 电池存档                              | 16 MiB / 1 MiB                                    |
+| 清单 / 单截图 data URL                             | 2 MiB / 256 KiB 字符                              |
 
-这是当前内存实现的保守软件边界，不代表低性能设备已验收。ZIP 只接受 stored / deflate；拒绝 ZIP64、分卷、加密、重复条目、未知路径、路径穿越、重叠条目、未声明负载、缺失或交叉引用、声明大小不符和校验失败。按小块解压，实际输出超过声明时立即中断。损坏文件不会进入写事务，未知版本也不会尝试降级解释。
+这是当前内存实现的保守软件边界，不代表低性能设备已验收。ZIP 只接受 stored / deflate；拒绝 ZIP64、分卷、加密、重复条目、未知路径、路径穿越、重叠条目、未声明负载、缺失或交叉引用、平台 / 文件扩展 / ROM 负载路径错配、声明大小不符和校验失败。按小块解压，实际输出超过声明时立即中断。损坏文件不会进入写事务，未知版本也不会尝试降级解释。
 
 ## 导出与恢复语义
 

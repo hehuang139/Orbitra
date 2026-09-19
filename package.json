@@ -2,7 +2,7 @@
   "name": "advance-gba",
   "private": true,
   "version": "1.0.0",
-  "description": "Advance — a modern browser-based GBA emulator with mGBA WebAssembly, ZIP import, save states, rewind, gamepad and touch controls.",
+  "description": "Advance — a modern browser-based GBA, GB and GBC emulator with mGBA WebAssembly, ZIP import, save states, rewind, gamepad and touch controls.",
   "license": "MIT",
   "author": "hehuang139",
   "repository": {
@@ -24,6 +24,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --experimental-strip-types --test src/lib/*.test.ts src/emulator/*.test.ts",
     "test:engine": "node scripts/test-engine.mjs",
+    "test:platforms": "node scripts/test-platforms.mjs",
     "test:ui": "node scripts/test-ui.mjs",
     "test:zip": "node scripts/test-zip-import.mjs",
     "test:saves": "node scripts/test-save-flows.mjs",

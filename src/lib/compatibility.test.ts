@@ -243,16 +243,20 @@ test('releases the temporary WebGL context after checking support', async () => 
     ...healthy(),
     document: {
       createElement: () => ({
-        getContext: () => ({
-          getExtension: (name: string) => {
-            assert.equal(name, 'WEBGL_lose_context')
-            return {
-              loseContext: () => {
-                released = true
-              },
-            }
-          },
-        }),
+        getContext: (kind: string) =>
+          kind === 'webgl2'
+            ? {
+                getExtension: (name: string) => {
+                  if (name === 'WEBGL_lose_context')
+                    return {
+                      loseContext: () => {
+                        released = true
+                      },
+                    }
+                  return null
+                },
+              }
+            : null,
       }),
     },
   })
@@ -322,7 +326,7 @@ test('startup identifies unavailable SharedArrayBuffer and WebAssembly separatel
   }
 })
 
-test('a WebGL 1 only browser fails the bundled core prerequisites', () => {
+test('a WebGL 1 only browser uses the Canvas 2D compatibility renderer', () => {
   const requested: string[] = []
   const report = checkRuntimePrerequisites({
     ...healthy(),
@@ -330,12 +334,69 @@ test('a WebGL 1 only browser fails the bundled core prerequisites', () => {
       createElement: () => ({
         getContext: (kind: string) => {
           requested.push(kind)
-          return kind === 'webgl' ? {} : null
+          if (kind === 'webgl') return {}
+          if (kind === '2d') return { createImageData() {}, putImageData() {} }
+          return null
         },
       }),
     },
   })
+  assert.equal(report.ready, true)
+  assert.equal(report.renderingBackend, 'canvas2d')
+  assert.deepEqual(requested, ['webgl2', 'webgl', '2d'])
+  const check = report.checks.find((item) => item.id === 'webgl')!
+  assert.equal(check.status, 'warning')
+  assert.match(check.detail, /WebGL 1.*Canvas 2D/)
+})
+
+test('a browser without WebGL uses Canvas 2D and remains ready', () => {
+  const report = checkRuntimePrerequisites({
+    ...healthy(),
+    document: {
+      createElement: () => ({
+        getContext: (kind: string) =>
+          kind === '2d' ? { createImageData() {}, putImageData() {} } : null,
+      }),
+    },
+  })
+  assert.equal(report.ready, true)
+  assert.equal(report.renderingBackend, 'canvas2d')
+  const check = report.checks.find((item) => item.id === 'webgl')!
+  assert.equal(check.status, 'warning')
+  assert.match(check.detail, /WebGL 不可用.*Canvas 2D/)
+})
+
+test('a browser without any drawing context still fails clearly', () => {
+  const report = checkRuntimePrerequisites({
+    ...healthy(),
+    document: { createElement: () => ({ getContext: () => null }) },
+  })
   assert.equal(report.ready, false)
-  assert.deepEqual(requested, ['webgl2'])
-  assert.match(report.checks.find((check) => check.id === 'webgl')?.detail || '', /WebGL 2/)
+  assert.equal(report.renderingBackend, 'none')
+  const check = report.checks.find((item) => item.id === 'webgl')!
+  assert.equal(check.status, 'error')
+  assert.match(check.detail, /WebGL.*Canvas 2D/)
+})
+
+test('software WebGL 2 is allowed with a performance warning', () => {
+  const report = checkRuntimePrerequisites({
+    ...healthy(),
+    document: {
+      createElement: () => ({
+        getContext: (kind: string) =>
+          kind === 'webgl2'
+            ? {
+                getExtension: (name: string) =>
+                  name === 'WEBGL_debug_renderer_info' ? { UNMASKED_RENDERER_WEBGL: 0x9246 } : null,
+                getParameter: () => 'ANGLE (SwiftShader Device)',
+              }
+            : null,
+      }),
+    },
+  })
+  assert.equal(report.ready, true)
+  assert.equal(report.renderingBackend, 'webgl2')
+  const check = report.checks.find((item) => item.id === 'webgl')!
+  assert.equal(check.status, 'warning')
+  assert.match(check.detail, /软件渲染/)
 })

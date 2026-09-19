@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Download, HardDrive, LoaderCircle, RefreshCw, Trash2, Upload } from 'lucide-react'
-import { BACKUP_LIMITS, parseBackup } from '../lib/backup-format'
+import { BACKUP_LIMITS, gameIdForRom, parseBackup } from '../lib/backup-format'
 import type { BackupData } from '../lib/backup-format'
 import { BUNDLED_CORE_ID } from '../lib/core-version'
 import * as db from '../lib/storage'
 import type { RestoreChoices, RestorePreview } from '../lib/storage'
 import type { Game } from '../lib/types'
+import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms'
 import './backup-manager.css'
 
 interface BackupManagerProps {
@@ -151,18 +152,19 @@ export function BackupManager({
       const entry = data.games.find((item) => item.game.id === gameId)
       if (!entry) throw new Error('备份中找不到该游戏，请重新选择备份。')
       setMessage(`正在校验 ${entry.game.title} 的 ROM…`)
-      if (!/\.gba$/i.test(file.name)) throw new Error('请选择 .gba 格式的 ROM 文件。')
+      const platform = PLATFORM_REGISTRY[entry.game.platform]
+      if (platformFromFilename(file.name) !== entry.game.platform)
+        throw new Error(`请选择 ${platform.extensions.join(' / ')} 格式的 ROM 文件。`)
       if (file.size !== entry.game.size)
         throw new Error('ROM 大小与备份不一致，请选择对应的原始游戏文件。')
       if (!globalThis.crypto?.subtle)
         throw new Error('浏览器无法校验 ROM，请使用 HTTPS 或 localhost 打开应用。')
       const bytes = new Uint8Array(await file.arrayBuffer())
-      const digest = await crypto.subtle.digest('SHA-256', bytes)
-      const hash = Array.from(new Uint8Array(digest), (byte) =>
-        byte.toString(16).padStart(2, '0'),
-      ).join('')
-      if (hash !== gameId || bytes.byteLength !== entry.game.size)
-        throw new Error('ROM 的 SHA-256 与备份不一致，未添加此文件。')
+      if (
+        (await gameIdForRom(entry.game.platform, bytes)) !== gameId ||
+        bytes.byteLength !== entry.game.size
+      )
+        throw new Error('ROM 的平台内容标识与备份不一致，未添加此文件。')
       const updated: BackupData = {
         ...data,
         games: data.games.map((item) => (item.game.id === gameId ? { ...item, rom: bytes } : item)),
@@ -388,12 +390,13 @@ export function BackupManager({
                     <details className="backup-identity">
                       <summary>查看 ROM 标识与文件名</summary>
                       <p>{entry.game.filename}</p>
-                      <code>SHA-256: {entry.game.id}</code>
+                      <code>内容 ID: {entry.game.id}</code>
                     </details>
                     {entry.missingRom ? (
                       <div className="backup-missing-rom">
                         <p>
-                          缺少匹配的 ROM，此游戏默认跳过，可先恢复其他游戏。请选择原始 .gba
+                          缺少匹配的 ROM，此游戏默认跳过，可先恢复其他游戏。请选择原始{' '}
+                          {PLATFORM_REGISTRY[entry.game.platform].extensions.join(' / ')}{' '}
                           文件，校验通过后才能恢复此游戏。
                         </p>
                         <label className="backup-file-label" htmlFor={`${id}-rom-${entry.game.id}`}>
@@ -403,7 +406,7 @@ export function BackupManager({
                           id={`${id}-rom-${entry.game.id}`}
                           className="backup-file-input"
                           type="file"
-                          accept=".gba"
+                          accept={PLATFORM_REGISTRY[entry.game.platform].extensions.join(',')}
                           onChange={(event) => {
                             const file = event.target.files?.[0]
                             event.target.value = ''

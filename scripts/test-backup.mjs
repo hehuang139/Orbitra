@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
-import { parseBackup } from '../src/lib/backup-format.ts'
+import { createBackup, gameIdForRom, parseBackup } from '../src/lib/backup-format.ts'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({
@@ -18,6 +18,45 @@ let checksum = 0x19
 for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += rom[offset]
 rom[0xbd] = -checksum & 255
 const romFile = { name: `${title}.gba`, mimeType: 'application/octet-stream', buffer: rom }
+const handheldRoms = Object.fromEntries(
+  await Promise.all(
+    ['gb', 'gbc'].map(async (platform, platformIndex) => {
+      const bytes = Uint8Array.from(
+        { length: 32 * 1024 },
+        (_, index) => (index + platformIndex * 29) % 251,
+      )
+      return [
+        platform,
+        {
+          bytes,
+          id: await gameIdForRom(platform, bytes),
+          filename: `Backup ${platform.toUpperCase()}.${platform}`,
+          title: `Backup ${platform.toUpperCase()}`,
+        },
+      ]
+    }),
+  ),
+)
+const handheldWithoutRom = await createBackup({
+  formatVersion: 1,
+  exportedAt: '2026-09-16T00:00:00.000Z',
+  coreVersion: 'backup-platform-test@1',
+  games: Object.entries(handheldRoms).map(([platform, item], index) => ({
+    game: {
+      id: item.id,
+      title: item.title,
+      filename: item.filename,
+      platform,
+      size: item.bytes.length,
+      addedAt: index + 1,
+      lastPlayed: null,
+      playTime: 0,
+      favorite: false,
+    },
+    rom: item.bytes,
+    states: [],
+  })),
+})
 const checks = []
 const errors = []
 let phase = 'setup'
@@ -151,7 +190,7 @@ try {
   const source = await newPage()
   phase = 'seed real core and progress'
   console.log(phase)
-  await source.locator('input[type="file"][accept=".gba,.zip"]').setInputFiles(romFile)
+  await source.locator('input[type="file"][accept*=".gba"]').setInputFiles(romFile)
   await source.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
   await launch(source)
   await importScore(source, 7)
@@ -190,6 +229,7 @@ try {
   const parsed = await parseBackup(new File([withRom], 'backup.zip'))
   const parsedWithout = await parseBackup(new File([withoutRom], 'backup.zip'))
   assert.equal(parsed.games.length, 1)
+  assert.equal(parsed.games[0].game.platform, 'gba')
   assert.deepEqual(Buffer.from(parsed.games[0].rom), rom)
   assert.equal(parsedWithout.games[0].rom, undefined)
   assert.equal(parsed.games[0].battery[3], 7)
@@ -353,7 +393,7 @@ try {
   const wrong = Buffer.from(rom)
   wrong[0] ^= 1
   await romInput.setInputFiles({ ...romFile, buffer: wrong })
-  await missing.locator('.backup-feedback.is-error').filter({ hasText: 'SHA-256' }).waitFor()
+  await missing.locator('.backup-feedback.is-error').filter({ hasText: '内容标识' }).waitFor()
   assert.deepEqual(await readDatabase(missing), missingBefore)
   await romInput.setInputFiles(romFile)
   await missing.locator('.backup-feedback').first().filter({ hasText: 'ROM 校验通过' }).waitFor()
@@ -379,6 +419,49 @@ try {
   await verifyScore(missing, 7)
   checks.push(
     'without-ROM backup matches bytes in memory, rejects wrong content, restores progress, handles unavailable quota and fits 320px/mobile/landscape',
+  )
+
+  phase = 'GB and GBC missing-ROM matching'
+  const handheld = await newPage()
+  await openBackup(handheld)
+  await preview(handheld, handheldWithoutRom)
+  for (const platform of ['gb', 'gbc']) {
+    const item = handheldRoms[platform]
+    const input = handheld.getByLabel(`为 ${item.title} 选择匹配 ROM`, { exact: true })
+    assert.equal(await input.getAttribute('accept'), `.${platform}`)
+    if (platform === 'gb') {
+      await input.setInputFiles({
+        name: 'wrong.gba',
+        mimeType: 'application/octet-stream',
+        buffer: Buffer.from(item.bytes),
+      })
+      await handheld
+        .locator('.backup-feedback.is-error')
+        .filter({ hasText: '请选择 .gb' })
+        .waitFor()
+    }
+    await input.setInputFiles({
+      name: item.filename,
+      mimeType: 'application/octet-stream',
+      buffer: Buffer.from(item.bytes),
+    })
+    await handheld
+      .locator('.backup-feedback')
+      .first()
+      .filter({ hasText: `${item.title} 的 ROM 校验通过` })
+      .waitFor()
+  }
+  await confirmRestore(handheld)
+  const restoredHandhelds = (await readDatabase(handheld))[0].filter((game) =>
+    ['gb', 'gbc'].includes(game.platform),
+  )
+  assert.deepEqual(restoredHandhelds.map((game) => [game.filename, game.platform]).sort(), [
+    ['Backup GB.gb', 'gb'],
+    ['Backup GBC.gbc', 'gbc'],
+  ])
+  await button(handheld, '关闭对话框').click()
+  checks.push(
+    'GB/GBC without-ROM backups require the matching extension and restore platform metadata after domain-separated identity checks',
   )
   assert.deepEqual(errors, [])
   const result = {
