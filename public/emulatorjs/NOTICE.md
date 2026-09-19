@@ -20,17 +20,19 @@ WebGL 1 implementations as well as WebGL 2 implementations.
 ## Local frontend changes
 
 The emulation core archives are redistributed unmodified. The readable EmulatorJS frontend source
-is redistributed with four host integration changes, visibly marked with `Advance` comments:
+is redistributed with five host integration changes, visibly marked with `Advance` comments:
 
 1. Disable the runtime update request because all assets are pinned and served locally.
 2. Keep `/data/saves` in memory when application-managed persistence is enabled.
 3. Add `destroy()` and listener tracking so changing games in a single-page application releases
    window and DOM event handlers.
 4. Expose rewind control and make application-owned teardown tolerate an in-memory save directory.
+5. Observe rejected screen wake-lock requests from legacy cores so browser permission denial does
+   not surface as an uncaught application error.
 
 Modified source SHA-256 values:
 
-- `src/emulator.js`: `3aa5fa9a93a7d4d8f7b430b9b576886adf79738fd8fcaf2e27e9a59cd86b7123`
+- `src/emulator.js`: `d86d7d0edc790cf09fd48b8d204ca8f1249e2c14ba95e9f1f7381007f86ae3d1`
 - `src/GameManager.js`: `5445c09645d5d79068481b49f0f4594ab35705dafc82acdcc34cba7984e93635`
 
 Unmodified core archive SHA-256 values:

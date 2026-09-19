@@ -2,7 +2,7 @@
  * Advance offline shell. Keep this file dependency-free: it is served from
  * public/ and must be installable before the Vite bundle is available.
  */
-const CACHE_VERSION = 'advance-shell-v3'
+const CACHE_VERSION = 'advance-shell-v4'
 const CACHE_PREFIX = 'advance-'
 const CORE_ASSETS = [
   '/favicon.svg',

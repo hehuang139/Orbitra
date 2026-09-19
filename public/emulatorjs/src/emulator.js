@@ -663,7 +663,14 @@ class EmulatorJS {
     }
     initGameCore(js, wasm, thread) {
         let script = this.createElement("script");
-        script.src = URL.createObjectURL(new Blob([js], { type: "application/javascript" }));
+        let coreScript = new TextDecoder().decode(js);
+        // Current legacy cores retain the rejected wake-lock promise but do not
+        // observe it until shutdown, which surfaces a spurious page error.
+        coreScript = coreScript.replace(
+            'RPE.sentinelPromise=navigator.wakeLock.request("screen")',
+            'RPE.sentinelPromise=navigator.wakeLock.request("screen");RPE.sentinelPromise.catch(()=>{})'
+        );
+        script.src = URL.createObjectURL(new Blob([coreScript], { type: "application/javascript" }));
         script.addEventListener("load", () => {
             this.initModule(wasm, thread);
         });
