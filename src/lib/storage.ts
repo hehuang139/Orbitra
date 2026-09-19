@@ -418,6 +418,21 @@ export async function getRom(id: string): Promise<Uint8Array | undefined> {
   })
 }
 
+/** Cache a cloud ROM without marking saves or metadata as locally modified. */
+export async function cacheRom(id: string, data: Uint8Array): Promise<Uint8Array> {
+  const bytes = copyBytes(data, '下载的游戏 ROM 数据无效，请重试。')
+  const game = await transaction([STORES.games], 'readonly', (tx) => requireGame(tx, id))
+  if (bytes.byteLength !== game.size || (await gameIdForRom(game.platform, bytes)) !== id)
+    throw new Error('下载的游戏 ROM 与云端游戏清单不匹配。')
+  await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
+    const current = await requireGame(tx, id)
+    if (current.platform !== game.platform || current.size !== bytes.byteLength)
+      throw new Error('游戏清单已发生变化，请重新下载 ROM。')
+    await requestResult(tx.objectStore(STORES.roms).put({ id, data: bytes }))
+  })
+  return new Uint8Array(bytes)
+}
+
 export async function deleteGame(id: string): Promise<void> {
   await transaction(Object.values(STORES), 'readwrite', async (tx) => {
     const stateKeys = await requestResult(
@@ -669,7 +684,8 @@ export async function getLibrarySnapshot(
   const records = await readLibrarySnapshot(gameIds ? [...gameIds] : undefined, includeRoms)
   const games: BackupGame[] = records.map((record) => {
     if (!record.game) throw new Error('所选游戏已不存在，请刷新游戏库后重试。')
-    if (!record.hasRom) throw new Error('游戏 ROM 已丢失，请重新导入后再备份。')
+    if (includeRoms && !record.hasRom)
+      throw new Error('游戏 ROM 尚未下载，请先启动游戏或重新导入后再备份。')
     return {
       game: record.game,
       ...(includeRoms ? { rom: record.rom } : {}),
@@ -850,8 +866,6 @@ export async function restoreLibrary(data: BackupData, choices: RestoreChoices):
     const current = local.get(entry.game.id)!
     if (!current.game && !choice.metadata)
       throw new Error('新游戏需要同时恢复游戏信息，才能关联存档。')
-    if (!entry.rom && !current.rom)
-      throw new Error('所选游戏缺少 ROM，请先提供同一平台且内容标识匹配的原始 ROM。')
     writes.push({ entry, choice })
   }
   if (!writes.length) return

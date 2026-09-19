@@ -19,6 +19,9 @@ export interface CloudSnapshotReceipt {
 
 export interface CloudLibraryItem extends CloudSnapshotReceipt {
   gameId: string
+  syncReady: boolean
+  syncSize: number
+  syncSha256: string
 }
 
 export interface CloudLibraryIndex {
@@ -146,11 +149,39 @@ export async function downloadCloudLibraryItem(gameId: string): Promise<CloudSna
   }
 }
 
+export async function downloadCloudLibrarySync(gameId: string): Promise<CloudSnapshot> {
+  const response = await fetch(`/api/library/${encodeURIComponent(gameId)}/sync`, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (!response.ok) throw await apiError(response)
+  return {
+    bytes: new Uint8Array(await response.arrayBuffer()),
+    revision: Number(response.headers.get('X-Advance-Revision') || 0),
+    updatedAt: Number(response.headers.get('X-Advance-Updated-At') || 0),
+  }
+}
+
 export async function uploadCloudLibraryItem(
   gameId: string,
   bytes: Uint8Array,
 ): Promise<CloudSnapshotReceipt> {
   const response = await fetch(`/api/library/${encodeURIComponent(gameId)}`, {
+    method: 'PUT',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/zip' },
+    body: new Blob([new Uint8Array(bytes)], { type: 'application/zip' }),
+  })
+  if (!response.ok) throw await apiError(response)
+  return response.json() as Promise<CloudSnapshotReceipt>
+}
+
+export async function uploadCloudLibrarySync(
+  gameId: string,
+  bytes: Uint8Array,
+): Promise<CloudSnapshotReceipt> {
+  const response = await fetch(`/api/library/${encodeURIComponent(gameId)}/sync`, {
     method: 'PUT',
     credentials: 'same-origin',
     cache: 'no-store',

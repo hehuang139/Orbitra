@@ -2,6 +2,7 @@ import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { IDBDatabase, IDBFactory, IDBObjectStore } from 'fake-indexeddb'
 import {
+  cacheRom,
   deleteGame,
   deleteState,
   getBatterySave,
@@ -456,26 +457,25 @@ test('restores only explicitly selected metadata, battery and slots, retaining e
   )
 })
 
-test('no-ROM restore requires a matching ROM for new games and ignores omitted missing games', async () => {
+test('no-ROM restore creates cloud library entries and ROMs can be cached on demand', async () => {
   const full = await backupFixture()
   const fixture = structuredClone(full)
   for (const entry of fixture.games) delete entry.rom
   globalThis.indexedDB = new IDBFactory()
   const preview = await previewRestore(fixture)
   assert.ok(preview.games.every((entry) => entry.missingRom))
-  const before = await rawLibrary()
-  await assert.rejects(restoreLibrary(fixture, defaultChoices(preview)), /缺少 ROM/)
-  assert.deepEqual(await rawLibrary(), before)
+  await restoreLibrary(fixture, defaultChoices(preview))
+  assert.equal((await getGames()).length, fixture.games.length)
+  assert.equal(await getRom(fixture.games[0].game.id), undefined)
+  assert.equal((await getLibrarySnapshot()).games[0].rom, undefined)
+
   const first = fixture.games[0]
-  first.rom = full.games[0].rom
-  const matched = await previewRestore(fixture)
-  await restoreLibrary(fixture, {
-    fingerprint: matched.fingerprint,
-    games: {
-      [first.game.id]: matched.games.find((entry) => entry.game.id === first.game.id)!.defaults,
-    },
-  })
-  assert.deepEqual((await getLibrarySnapshot(undefined, true)).games, [full.games[0]])
+  await cacheRom(first.game.id, full.games[0].rom!)
+  assert.deepEqual(await getRom(first.game.id), full.games[0].rom)
+  assert.deepEqual((await getLibrarySnapshot([first.game.id], true)).games, [full.games[0]])
+  await assert.rejects(cacheRom(first.game.id, full.games[1].rom!), /不匹配/)
+
+  globalThis.indexedDB = new IDBFactory()
   await assert.rejects(
     restoreLibrary(fixture, {
       fingerprint: (await previewRestore(fixture)).fingerprint,

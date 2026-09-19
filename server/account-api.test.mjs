@@ -91,17 +91,30 @@ test('account session preserves a snapshot across logout and login', async () =>
   assert.equal(itemReceipt.revision, 1)
   assert.equal(itemReceipt.size, snapshot.length)
 
+  const syncSnapshot = Buffer.alloc(24)
+  syncSnapshot[0] = 0x50
+  syncSnapshot[1] = 0x4b
+  const syncUploaded = await request(`/api/library/${gameId}/sync`, {
+    method: 'PUT',
+    headers: { Cookie: firstCookie, 'Content-Type': 'application/zip' },
+    body: syncSnapshot,
+  })
+  assert.equal(syncUploaded.status, 200)
+  assert.equal((await syncUploaded.json()).revision, 2)
+
   const library = await request('/api/library', { headers: { Cookie: firstCookie } })
   assert.equal(library.status, 200)
   const libraryBody = await library.json()
-  assert.equal(libraryBody.revision, 1)
+  assert.equal(libraryBody.revision, 2)
   assert.deepEqual(
     libraryBody.items.map((item) => item.gameId),
     [gameId],
   )
+  assert.equal(libraryBody.items[0].syncReady, true)
+  assert.equal(libraryBody.items[0].syncSize, syncSnapshot.length)
 
   const currentLibrary = await request('/api/library', {
-    headers: { Cookie: firstCookie, 'If-None-Match': '"advance-library-1"' },
+    headers: { Cookie: firstCookie, 'If-None-Match': '"advance-library-2"' },
   })
   assert.equal(currentLibrary.status, 304)
 
@@ -111,13 +124,19 @@ test('account session preserves a snapshot across logout and login', async () =>
   assert.equal(itemDownloaded.status, 200)
   assert.deepEqual(Buffer.from(await itemDownloaded.arrayBuffer()), snapshot)
 
+  const syncDownloaded = await request(`/api/library/${gameId}/sync`, {
+    headers: { Cookie: firstCookie },
+  })
+  assert.equal(syncDownloaded.status, 200)
+  assert.deepEqual(Buffer.from(await syncDownloaded.arrayBuffer()), syncSnapshot)
+
   const itemDeleted = await request(`/api/library/${gameId}`, {
     method: 'DELETE',
     headers: { Cookie: firstCookie, 'Content-Type': 'application/json' },
     body: '{}',
   })
   assert.equal(itemDeleted.status, 200)
-  assert.equal((await itemDeleted.json()).revision, 2)
+  assert.equal((await itemDeleted.json()).revision, 3)
   const emptyLibrary = await request('/api/library', { headers: { Cookie: firstCookie } })
   assert.deepEqual((await emptyLibrary.json()).items, [])
 

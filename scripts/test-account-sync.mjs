@@ -44,7 +44,7 @@ try {
   await first.page.getByRole('button', { name: '创建账号并同步' }).click()
   await first.page
     .locator('.account-panel')
-    .getByText(/已同步 1 个游戏及其存档/)
+    .getByText(/已同步 1 个游戏清单及存档/)
     .waitFor()
   await first.page.getByRole('button', { name: '关闭对话框' }).click()
 
@@ -55,7 +55,7 @@ try {
   await second.page.getByRole('button', { name: '登录并恢复' }).click()
   await second.page
     .locator('.account-panel')
-    .getByText(/已同步 1 个游戏及其存档/)
+    .getByText(/已同步 1 个游戏清单及存档/)
     .waitFor()
   await second.page.getByRole('button', { name: '关闭对话框' }).click()
 
@@ -75,7 +75,7 @@ try {
   await openAccount(first.page)
   await first.page
     .locator('.account-panel')
-    .getByText(new RegExp(`已同步 ${importedCount + 1} 个游戏及其存档`))
+    .getByText(new RegExp(`已同步 ${importedCount + 1} 个游戏清单及存档`))
     .waitFor()
   await second.page.waitForFunction(
     (expected) => document.querySelectorAll('.game-card').length === expected,
@@ -83,6 +83,31 @@ try {
   )
   await second.page.locator('.game-title', { hasText: titles.at(-1) }).waitFor()
   assert.equal(await second.page.locator('.game-card').count(), importedCount + 1)
+  const romCount = (page) =>
+    page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          const request = indexedDB.open('advance-gba', 1)
+          request.onerror = () => reject(request.error)
+          request.onsuccess = () => {
+            const database = request.result
+            const count = database.transaction('roms').objectStore('roms').count()
+            count.onerror = () => reject(count.error)
+            count.onsuccess = () => {
+              database.close()
+              resolve(count.result)
+            }
+          }
+        }),
+    )
+  assert.equal(
+    await romCount(second.page),
+    1,
+    'the second browser should only have its bundled demo ROM',
+  )
+  await second.page.getByRole('button', { name: `开始 ${titles.at(-1)}` }).click()
+  await second.page.getByText('正在游玩', { exact: true }).waitFor()
+  assert.equal(await romCount(second.page), 2, 'playing should cache only the requested cloud ROM')
   await first.page.getByRole('button', { name: '关闭对话框' }).click()
   await first.page.getByRole('button', { name: `${titles[0]} 的更多操作` }).click()
   await first.page.getByRole('button', { name: '删除游戏及存档' }).click()

@@ -173,7 +173,7 @@ export function AccountPanel({ account }: AccountPanelProps) {
         {account.message}
       </div>
       <p className="small-note">
-        账号同步包含 ROM、游戏内存档和即时存档。未登录时仍使用当前浏览器的本地存储。
+        自动同步游戏清单与存档；ROM 保存在云端，启动游戏时才下载并缓存到当前浏览器。
       </p>
     </div>
   )

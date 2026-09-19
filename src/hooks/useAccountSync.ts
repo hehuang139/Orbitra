@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   deleteCloudLibraryItem,
   downloadCloudLibraryItem,
+  downloadCloudLibrarySync,
   downloadCloudSnapshot,
   getAccountSession,
   getCloudLibraryIndex,
@@ -9,6 +10,7 @@ import {
   logoutAccount,
   registerAccount,
   uploadCloudLibraryItem,
+  uploadCloudLibrarySync,
 } from '../lib/account-api.ts'
 import type { AccountUser, CloudLibraryItem } from '../lib/account-api.ts'
 import { createBackup, parseBackup } from '../lib/backup-format.ts'
@@ -27,10 +29,43 @@ export interface AccountSyncController {
   signUp(username: string, password: string): Promise<void>
   signOut(): Promise<void>
   syncNow(): Promise<void>
+  ensureRom(gameId: string): Promise<Uint8Array | undefined>
 }
 
 interface AccountSyncOptions {
   onLibraryChanged(): Promise<void>
+}
+
+const KNOWN_LIBRARY_PREFIX = 'advance.account-library.'
+
+function loadKnownLibrary(userId: number): Map<string, CloudLibraryItem> {
+  try {
+    const value = JSON.parse(localStorage.getItem(`${KNOWN_LIBRARY_PREFIX}${userId}`) || '[]')
+    if (!Array.isArray(value)) return new Map()
+    return new Map(
+      value
+        .filter(
+          (item): item is CloudLibraryItem =>
+            item &&
+            typeof item === 'object' &&
+            typeof item.gameId === 'string' &&
+            /^[0-9a-f]{64}$/.test(item.gameId) &&
+            typeof item.syncReady === 'boolean' &&
+            typeof item.syncSha256 === 'string',
+        )
+        .map((item) => [item.gameId, item]),
+    )
+  } catch {
+    return new Map()
+  }
+}
+
+function saveKnownLibrary(userId: number, items: Map<string, CloudLibraryItem>): void {
+  try {
+    localStorage.setItem(`${KNOWN_LIBRARY_PREFIX}${userId}`, JSON.stringify([...items.values()]))
+  } catch {
+    // Sync still works without this deletion/version cache.
+  }
 }
 
 function defaultRestoreChoices(preview: RestorePreview): RestoreChoices {
@@ -39,9 +74,11 @@ function defaultRestoreChoices(preview: RestorePreview): RestoreChoices {
     games: Object.fromEntries(
       preview.games.map((entry) => [
         entry.game.id,
-        entry.missingRom
-          ? { metadata: false, battery: false, slots: [] }
-          : { ...entry.defaults, slots: [...entry.defaults.slots] },
+        {
+          metadata: true,
+          battery: entry.battery.available,
+          slots: entry.states.filter((state) => !state.incompatible).map((state) => state.slot),
+        },
       ]),
     ),
   }
@@ -140,16 +177,17 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
             const downloads = index.items.filter((item) => {
               const previous = previousItems.get(item.gameId)
               return (
-                !localIds.has(item.gameId) ||
-                (previous !== undefined &&
-                  previous.sha256 !== item.sha256 &&
-                  !dirtyGameIds.current.has(item.gameId))
+                item.syncReady &&
+                !dirtyGameIds.current.has(item.gameId) &&
+                (!localIds.has(item.gameId) ||
+                  previous === undefined ||
+                  previous.syncSha256 !== item.syncSha256)
               )
             })
             for (const item of downloads) {
               completed += 1
               setMessage(`正在恢复账号游戏 ${completed}/${downloads.length}…`)
-              const remote = await downloadCloudLibraryItem(item.gameId)
+              const remote = await downloadCloudLibrarySync(item.gameId)
               const data = await parseBackup(
                 new Blob([new Uint8Array(remote.bytes)], { type: 'application/zip' }),
               )
@@ -171,6 +209,7 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
             }
 
             libraryItems.current = remoteItems
+            saveKnownLibrary(userRef.current.id, remoteItems)
             revisionRef.current = index.revision
             setRevision(index.revision)
             if (index.updatedAt) setLastSyncedAt(index.updatedAt)
@@ -181,7 +220,7 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
           } else if (!forceAll && dirtyGameIds.current.size === 0 && !fullUpload.current) {
             const games = await db.getGames()
             setPhase('idle')
-            setMessage(`已同步 ${games.length} 个游戏及其存档`)
+            setMessage(`已同步 ${games.length} 个游戏清单及存档`)
             return
           }
         }
@@ -193,7 +232,8 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
           for (const game of games) uploadIds.add(game.id)
         } else {
           for (const game of games) {
-            if (!libraryItems.current.has(game.id)) uploadIds.add(game.id)
+            const remote = libraryItems.current.get(game.id)
+            if (!remote || !remote.syncReady) uploadIds.add(game.id)
           }
         }
         for (const id of dirtyGameIds.current) {
@@ -213,16 +253,30 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
         let completed = 0
         for (const id of uploadIds) {
           completed += 1
-          setMessage(`正在上传账号游戏 ${completed}/${uploadIds.size}…`)
-          const data = await db.getLibrarySnapshot([id], true)
-          const bytes = await createBackup(data, { includeRoms: true })
-          const receipt = await uploadCloudLibraryItem(id, bytes)
+          setMessage(`正在同步游戏清单与存档 ${completed}/${uploadIds.size}…`)
+          let remote = libraryItems.current.get(id)
+          if (!remote) {
+            const fullData = await db.getLibrarySnapshot([id], true)
+            const fullBytes = await createBackup(fullData, { includeRoms: true })
+            const fullReceipt = await uploadCloudLibraryItem(id, fullBytes)
+            remote = {
+              gameId: id,
+              ...fullReceipt,
+              syncReady: false,
+              syncSize: fullReceipt.size,
+              syncSha256: fullReceipt.sha256,
+            }
+          }
+          const syncData = await db.getLibrarySnapshot([id], false)
+          const syncBytes = await createBackup(syncData, { includeRoms: false })
+          const receipt = await uploadCloudLibrarySync(id, syncBytes)
           libraryItems.current.set(id, {
-            gameId: id,
+            ...remote,
             revision: receipt.revision,
             updatedAt: receipt.updatedAt,
-            size: receipt.size,
-            sha256: receipt.sha256,
+            syncReady: true,
+            syncSize: receipt.size,
+            syncSha256: receipt.sha256,
           })
           dirtyGameIds.current.delete(id)
           revisionRef.current = receipt.revision
@@ -230,9 +284,15 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
           setLastSyncedAt(receipt.updatedAt)
         }
         if (forceAll || fullUpload.current) fullUpload.current = false
+        saveKnownLibrary(userRef.current.id, libraryItems.current)
 
         setPhase('idle')
-        setMessage(`已同步 ${games.length} 个游戏及其存档`)
+        const waiting = [...libraryItems.current.values()].filter((item) => !item.syncReady).length
+        setMessage(
+          waiting
+            ? `已同步 ${games.length} 个游戏；${waiting} 个旧游戏等待源浏览器更新清单`
+            : `已同步 ${games.length} 个游戏清单及存档`,
+        )
       } catch (cause) {
         setPhase('error')
         setMessage(cause instanceof Error ? cause.message : '账号同步失败，请稍后重试。')
@@ -259,10 +319,13 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
         if (cancelled) return
         userRef.current = current
         setUser(current)
-        if (current) void runSync(true)
-        else {
+        if (current) {
+          libraryItems.current = loadKnownLibrary(current.id)
+          revisionRef.current = 0
+          void runSync(true)
+        } else {
           setPhase('signed-out')
-          setMessage('登录后自动同步游戏、ROM 与存档。')
+          setMessage('登录后自动同步游戏清单与存档，ROM 在启动时按需下载。')
         }
       },
       () => {
@@ -336,6 +399,8 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
             ? await loginAccount(username, password)
             : await registerAccount(username, password)
         userRef.current = current
+        libraryItems.current = loadKnownLibrary(current.id)
+        revisionRef.current = 0
         setUser(current)
         await runSync(true)
       } catch (cause) {
@@ -369,5 +434,28 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
       setLastSyncedAt(null)
     },
     syncNow: () => runSync(true, true),
+    async ensureRom(gameId: string) {
+      const local = await db.getRom(gameId)
+      if (local) return local
+      if (!userRef.current || !libraryItems.current.has(gameId)) return undefined
+      setMessage('正在下载游戏 ROM…')
+      try {
+        const remote = await downloadCloudLibraryItem(gameId)
+        const data = await parseBackup(
+          new Blob([new Uint8Array(remote.bytes)], { type: 'application/zip' }),
+        )
+        const entry = data.games.find((item) => item.game.id === gameId)
+        if (!entry?.rom) throw new Error('云端游戏缺少 ROM，请在原浏览器中重新导入。')
+        const bytes = await db.cacheRom(gameId, entry.rom)
+        setMessage(
+          `ROM 已缓存到当前浏览器；已同步 ${(await db.getGames()).length} 个游戏清单及存档`,
+        )
+        return bytes
+      } catch (cause) {
+        setPhase('error')
+        setMessage(cause instanceof Error ? cause.message : '游戏下载失败，请稍后重试。')
+        throw cause
+      }
+    },
   }
 }

@@ -564,8 +564,8 @@ export default function App() {
           const battery = await engine.exportSave()
           if (battery) await db.setBatterySave(activeRef.current.id, battery)
         }
-        const bytes = await db.getRom(game.id)
-        if (!bytes) throw new Error('游戏文件未找到，请重新导入')
+        const bytes = await account.ensureRom(game.id)
+        if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
         const battery = await db.getBatterySave(game.id)
         const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
         const resume =
@@ -598,7 +598,7 @@ export default function App() {
         canvasRef.current?.focus({ preventScroll: true })
         stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }),
-    [run, snapshot, notify, refresh, releaseInputs],
+    [run, snapshot, notify, refresh, releaseInputs, account],
   )
 
   const closeGame = () =>

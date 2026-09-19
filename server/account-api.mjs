@@ -167,6 +167,18 @@ export function createAccountApi(options = {}) {
     CREATE INDEX IF NOT EXISTS library_items_user_revision
       ON library_items(user_id, revision);
   `)
+  const libraryColumns = new Set(
+    database
+      .prepare('PRAGMA table_info(library_items)')
+      .all()
+      .map((column) => column.name),
+  )
+  if (!libraryColumns.has('sync_size'))
+    database.exec('ALTER TABLE library_items ADD COLUMN sync_size INTEGER')
+  if (!libraryColumns.has('sync_sha256'))
+    database.exec('ALTER TABLE library_items ADD COLUMN sync_sha256 TEXT')
+  if (!libraryColumns.has('sync_data'))
+    database.exec('ALTER TABLE library_items ADD COLUMN sync_data BLOB')
 
   const findUser = database.prepare(
     'SELECT id, username, password_salt, password_hash, created_at FROM users WHERE username_key = ?',
@@ -210,15 +222,15 @@ export function createAccountApi(options = {}) {
     RETURNING revision, updated_at
   `)
   const listLibraryItems = database.prepare(`
-    SELECT game_id, revision, updated_at, size, sha256
+    SELECT game_id, revision, updated_at, size, sha256, sync_size, sync_sha256
     FROM library_items WHERE user_id = ? ORDER BY game_id
   `)
   const findLibraryItem = database.prepare(`
-    SELECT revision, updated_at, size, sha256, data
+    SELECT revision, updated_at, size, sha256, data, sync_size, sync_sha256, sync_data
     FROM library_items WHERE user_id = ? AND game_id = ?
   `)
   const libraryUsage = database.prepare(
-    'SELECT COUNT(*) AS count, COALESCE(SUM(size), 0) AS size FROM library_items WHERE user_id = ?',
+    'SELECT COUNT(*) AS count, COALESCE(SUM(size + COALESCE(sync_size, 0)), 0) AS size FROM library_items WHERE user_id = ?',
   )
   const saveLibraryItem = database.prepare(`
     INSERT INTO library_items (user_id, game_id, revision, updated_at, size, sha256, data)
@@ -228,7 +240,19 @@ export function createAccountApi(options = {}) {
       updated_at = excluded.updated_at,
       size = excluded.size,
       sha256 = excluded.sha256,
-      data = excluded.data
+      data = excluded.data,
+      sync_size = NULL,
+      sync_sha256 = NULL,
+      sync_data = NULL
+  `)
+  const saveLibrarySync = database.prepare(`
+    UPDATE library_items SET
+      revision = ?,
+      updated_at = ?,
+      sync_size = ?,
+      sync_sha256 = ?,
+      sync_data = ?
+    WHERE user_id = ? AND game_id = ?
   `)
   const deleteLibraryItem = database.prepare(
     'DELETE FROM library_items WHERE user_id = ? AND game_id = ?',
@@ -447,6 +471,9 @@ export function createAccountApi(options = {}) {
                 updatedAt: Number(item.updated_at),
                 size: Number(item.size),
                 sha256: item.sha256,
+                syncReady: item.sync_size !== null,
+                syncSize: Number(item.sync_size ?? item.size),
+                syncSha256: item.sync_sha256 ?? item.sha256,
               })),
             },
             { ETag: etag },
@@ -454,26 +481,31 @@ export function createAccountApi(options = {}) {
           return
         }
 
-        const match = /^\/api\/library\/([0-9a-f]{64})$/.exec(pathname)
+        const match = /^\/api\/library\/([0-9a-f]{64})(?:\/(sync))?$/.exec(pathname)
         if (!match) {
           error(res, 404, '同步游戏不存在。')
           return
         }
         const gameId = match[1]
+        const part = match[2]
         if (req.method === 'GET') {
           const item = findLibraryItem.get(user.id, gameId)
           if (!item) {
             error(res, 404, '同步游戏不存在。')
             return
           }
-          const body = Buffer.from(item.data)
+          const body = Buffer.from(part === 'sync' ? (item.sync_data ?? item.data) : item.data)
+          const sha256 = part === 'sync' ? (item.sync_sha256 ?? item.sha256) : item.sha256
           res.writeHead(200, {
             'Content-Type': 'application/zip',
             'Content-Length': body.length,
             'Cache-Control': 'no-store',
-            ETag: `"${item.sha256}"`,
+            ETag: `"${sha256}"`,
             'X-Advance-Revision': String(item.revision),
             'X-Advance-Updated-At': String(item.updated_at),
+            ...(part === 'sync' && item.sync_data === null
+              ? { 'X-Advance-Sync-Fallback': 'legacy' }
+              : {}),
           })
           res.end(body)
           return
@@ -491,6 +523,53 @@ export function createAccountApi(options = {}) {
           }
           const sha256 = createHash('sha256').update(body).digest('hex')
           const existing = findLibraryItem.get(user.id, gameId)
+          if (part === 'sync') {
+            if (!existing) {
+              error(res, 409, '请先上传游戏 ROM，再上传同步数据。')
+              return
+            }
+            if (existing.sync_sha256 === sha256) {
+              const current = findLibraryRevision.get(user.id)
+              json(res, 200, {
+                revision: Number(current?.revision || existing.revision),
+                updatedAt: Number(existing.updated_at),
+                size: Number(existing.sync_size),
+                sha256: existing.sync_sha256,
+              })
+              return
+            }
+            const usage = libraryUsage.get(user.id)
+            const nextSize = Number(usage.size) - Number(existing.sync_size || 0) + body.length
+            if (nextSize > MAX_LIBRARY_BYTES) {
+              error(res, 413, '账号游戏库总容量不能超过 2 GiB。')
+              return
+            }
+            const updatedAt = Date.now()
+            database.exec('BEGIN IMMEDIATE')
+            try {
+              const next = bumpLibraryRevision.get(user.id, updatedAt)
+              saveLibrarySync.run(
+                next.revision,
+                updatedAt,
+                body.length,
+                sha256,
+                body,
+                user.id,
+                gameId,
+              )
+              database.exec('COMMIT')
+              json(res, 200, {
+                revision: Number(next.revision),
+                updatedAt,
+                size: body.length,
+                sha256,
+              })
+            } catch (cause) {
+              database.exec('ROLLBACK')
+              throw cause
+            }
+            return
+          }
           if (existing?.sha256 === sha256) {
             const current = findLibraryRevision.get(user.id)
             json(res, 200, {
@@ -503,7 +582,11 @@ export function createAccountApi(options = {}) {
           }
           const usage = libraryUsage.get(user.id)
           const nextCount = Number(usage.count) + (existing ? 0 : 1)
-          const nextSize = Number(usage.size) - Number(existing?.size || 0) + body.length
+          const nextSize =
+            Number(usage.size) -
+            Number(existing?.size || 0) -
+            Number(existing?.sync_size || 0) +
+            body.length
           if (nextCount > MAX_LIBRARY_ITEMS) {
             error(res, 413, `账号游戏库最多保存 ${MAX_LIBRARY_ITEMS} 个游戏。`)
             return
@@ -540,6 +623,10 @@ export function createAccountApi(options = {}) {
         }
         if (req.method === 'DELETE') {
           assertSameOrigin(req)
+          if (part) {
+            error(res, 405, '不能单独删除游戏同步数据。')
+            return
+          }
           const existing = findLibraryItem.get(user.id, gameId)
           const current = findLibraryRevision.get(user.id)
           if (!existing) {
