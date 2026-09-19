@@ -33,22 +33,23 @@ pnpm dev
 
 ## 代码分工
 
-| 路径 | 职责 |
-| --- | --- |
-| `src/App.tsx` | 游戏库、播放器、设置与存档交互 |
-| `src/styles.css` | 响应式布局、主题与触屏样式 |
-| `src/emulator/index.ts` | mGBA 生命周期、输入、音频与存档接口 |
-| `src/emulator/battery-snapshot.ts` | 从核心原生快照提取电池存档，校验边界与解压大小 |
-| `src/hooks/useGamepads.ts`、`src/lib/gamepad.ts` | 手柄轮询、按设备配置、录入与输入聚合 |
-| `src/lib/input.ts`、`src/lib/touch.ts` | 输入来源管理、触屏配置与多指按键 |
-| `src/components/TouchControls.tsx`、`src/components/TouchSettings.tsx` | 触屏控件、布局与设置 |
-| `src/lib/storage.ts` | IndexedDB 数据与存档持久化 |
-| `src/lib/backup-format.ts` | 版本化备份 ZIP、边界检查、引用关系与 SHA-256 校验 |
-| `src/components/BackupManager.tsx` | 批量导出、只读预览、冲突选择与存储整理 |
-| `src/lib/import-roms.ts` | ROM / ZIP 校验、解压与大小限制 |
-| `src/lib/preferences.ts` | 用户偏好与默认按键 |
-| `scripts/` | 自制 ROM 生成和浏览器集成检查 |
-| `public/emulator/` | 随应用分发的第三方核心及许可证 |
+| 路径                                                                   | 职责                                               |
+| ---------------------------------------------------------------------- | -------------------------------------------------- |
+| `src/App.tsx`                                                          | 游戏库、播放器、设置与存档交互                     |
+| `src/styles.css`                                                       | 响应式布局、主题与触屏样式                         |
+| `src/emulator/index.ts`                                                | mGBA 生命周期、输入、音频与存档接口                |
+| `src/emulator/battery-snapshot.ts`                                     | 从核心原生快照提取电池存档，校验边界与解压大小     |
+| `src/hooks/useGamepads.ts`、`src/lib/gamepad.ts`                       | 手柄轮询、按设备配置、录入与输入聚合               |
+| `src/lib/input.ts`、`src/lib/touch.ts`                                 | 输入来源管理、触屏配置与多指按键                   |
+| `src/components/TouchControls.tsx`、`src/components/TouchSettings.tsx` | 触屏控件、布局与设置                               |
+| `src/lib/platforms.ts`                                                 | 平台标识、扩展名、分辨率、大小限制与输入能力注册表 |
+| `src/lib/storage.ts`                                                   | IndexedDB 数据与存档持久化                         |
+| `src/lib/backup-format.ts`                                             | 版本化备份 ZIP、边界检查、引用关系与 SHA-256 校验  |
+| `src/components/BackupManager.tsx`                                     | 批量导出、只读预览、冲突选择与存储整理             |
+| `src/lib/import-roms.ts`                                               | ROM / ZIP 校验、解压与大小限制                     |
+| `src/lib/preferences.ts`                                               | 用户偏好与默认按键                                 |
+| `scripts/`                                                             | 自制 ROM 生成和浏览器集成检查                      |
+| `public/emulator/`                                                     | 随应用分发的第三方核心及许可证                     |
 
 沿用周边 TypeScript 与 React 风格，优先小范围、有明确目的的改动。异步存取档、切换游戏、内核启动和释放涉及并发状态，应保留已有的生命周期保护。
 
@@ -75,6 +76,7 @@ Linux 上若缺少浏览器系统依赖，可使用 `pnpm exec playwright instal
 
 ```sh
 pnpm test:engine
+pnpm test:platforms
 pnpm test:ui
 pnpm test:zip
 pnpm test:saves
@@ -85,26 +87,27 @@ pnpm test:startup
 pnpm test:backup
 ```
 
-| 检查 | 适用改动 |
-| --- | --- |
-| `test:engine` | 核心适配、输入、画面、音频、倍速、倒带与资源释放 |
-| `test:ui` | 游戏库、交互、键盘、移动端布局与触屏控件 |
-| `test:zip` | ZIP 导入、错误处理、去重与解压后的游戏启动 |
-| `test:saves` | 自动存档、`.sav` 导入、刷新恢复与多游戏隔离 |
-| `test:keyboard` | 纯键盘导入、启动、暂停、存取档、退出及对话框焦点进入 / 限制 / 恢复 |
-| `test:gamepad` | 模拟 Gamepad API；按键 / 轴录入、死区、配置恢复、共享输入、断连 / 失焦和访问异常 |
-| `test:touch` | 合成指针、多点输入、取消 / 捕获丢失、触屏设置与 320px / 手机 / 横屏布局 |
-| `test:startup` | 环境与存储失败路径、首帧等待、启动超时及加载中释放 |
-| `test:backup` | 下载校验、预览取消、冲突选择、空白环境含 / 不含 ROM 恢复、旧实例隔离、键盘与窄屏 |
+| 检查             | 适用改动                                                                         |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `test:engine`    | 核心适配、输入、画面、音频、倍速、倒带与资源释放                                 |
+| `test:platforms` | GBA / GB / GBC 导入、筛选、原生比例、平台输入与持久化                            |
+| `test:ui`        | 游戏库、交互、键盘、移动端布局与触屏控件                                         |
+| `test:zip`       | ZIP 导入、错误处理、去重与解压后的游戏启动                                       |
+| `test:saves`     | 自动存档、`.sav` 导入、刷新恢复与多游戏隔离                                      |
+| `test:keyboard`  | 纯键盘导入、启动、暂停、存取档、退出及对话框焦点进入 / 限制 / 恢复               |
+| `test:gamepad`   | 模拟 Gamepad API；按键 / 轴录入、死区、配置恢复、共享输入、断连 / 失焦和访问异常 |
+| `test:touch`     | 合成指针、多点输入、取消 / 捕获丢失、触屏设置与 320px / 手机 / 横屏布局          |
+| `test:startup`   | 环境与存储失败路径、首帧等待、启动超时及加载中释放                               |
+| `test:backup`    | 下载校验、预览取消、冲突选择、空白环境含 / 不含 ROM 恢复、旧实例隔离、键盘与窄屏 |
 
 测试默认连接 `http://127.0.0.1:5173`，支持以下可选环境变量：
 
-| 变量 | 用途 |
-| --- | --- |
-| `ENGINE_TEST_URL` | 内核检查的服务地址 |
-| `UI_TEST_URL` | 界面、ZIP、存档、键盘、手柄、触屏与启动流程检查的服务地址 |
-| `BROWSER_EXECUTABLE_PATH` | 使用本机已安装的 Chromium / Chrome / Edge 可执行文件 |
-| `PLAYWRIGHT_MODULE` | 指定 Playwright 模块的文件 URL |
+| 变量                      | 用途                                                      |
+| ------------------------- | --------------------------------------------------------- |
+| `ENGINE_TEST_URL`         | 内核检查的服务地址                                        |
+| `UI_TEST_URL`             | 界面、ZIP、存档、键盘、手柄、触屏与启动流程检查的服务地址 |
+| `BROWSER_EXECUTABLE_PATH` | 使用本机已安装的 Chromium / Chrome / Edge 可执行文件      |
+| `PLAYWRIGHT_MODULE`       | 指定 Playwright 模块的文件 URL                            |
 
 内核检查使用 `src/emulator/verify.html` 开发测试页；手柄和启动检查还会对 Vite 返回的开发模块进行测试插桩，因此这些套件需要连接 `pnpm dev` 服务。测试入口不加入生产构建，也不要把调试全局对象加进应用代码。界面、ZIP 与存档流程则可以检查生产预览服务，例如在 PowerShell 中：
 
@@ -112,6 +115,7 @@ pnpm test:backup
 # 另一终端先运行 pnpm build 和 pnpm preview
 $env:UI_TEST_URL = 'http://127.0.0.1:4173'
 pnpm test:ui
+pnpm test:platforms
 pnpm test:zip
 pnpm test:saves
 ```

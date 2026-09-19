@@ -71,7 +71,7 @@ async function preparedPage(context) {
   return page
 }
 try {
-  for (const failure of ['insecure', 'headers', 'webgl']) {
+  for (const failure of ['insecure', 'headers', 'graphics']) {
     const context = await browser.newContext()
     try {
       const page = await preparedPage(context)
@@ -91,7 +91,9 @@ try {
           else {
             const getContext = HTMLCanvasElement.prototype.getContext
             HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
-              return kind === 'webgl2' ? null : getContext.call(this, kind, ...args)
+              return ['webgl2', 'webgl', 'experimental-webgl', '2d'].includes(kind)
+                ? null
+                : getContext.call(this, kind, ...args)
             }
           }
         }, failure)
@@ -102,7 +104,11 @@ try {
       await error.waitFor()
       assert.match(
         await error.innerText(),
-        failure === 'insecure' ? /HTTPS|localhost/ : failure === 'headers' ? /COOP|COEP/ : /WebGL/,
+        failure === 'insecure'
+          ? /HTTPS|localhost/
+          : failure === 'headers'
+            ? /COOP|COEP/
+            : /WebGL|Canvas 2D|图形/,
       )
       assert.deepEqual(
         await storedSaves(page),
@@ -112,6 +118,41 @@ try {
     } finally {
       await context.close()
     }
+  }
+  const softwareContext = await browser.newContext()
+  try {
+    await softwareContext.addInitScript(() => {
+      const getContext = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
+        if (kind === 'webgl2' || kind === 'webgl' || kind === 'experimental-webgl') return null
+        return getContext.call(this, kind, ...args)
+      }
+    })
+    const page = await preparedPage(softwareContext)
+    await page.getByRole('button', { name: '环境检查', exact: true }).click()
+    const graphics = page.locator('.compatibility-check.warning').filter({ hasText: '图形渲染' })
+    await graphics.waitFor()
+    assert.match(await graphics.innerText(), /Canvas 2D 软件渲染/)
+    await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+    await page.waitForFunction(() => {
+      const pause = document.querySelector('[aria-label="暂停 (Space)"]')
+      return pause && !pause.disabled
+    })
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('canvas[data-render-backend="canvas2d"]')
+      if (!canvas) return false
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+      let min = 255
+      let max = 0
+      for (let index = 0; index < pixels.length; index += 4) {
+        min = Math.min(min, pixels[index], pixels[index + 1], pixels[index + 2])
+        max = Math.max(max, pixels[index], pixels[index + 1], pixels[index + 2])
+      }
+      return max - min > 20
+    })
+    await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
+  } finally {
+    await softwareContext.close()
   }
   const context = await browser.newContext()
   try {
@@ -155,7 +196,8 @@ try {
         checks: [
           'insecure context (injected)',
           'missing isolation headers',
-          'WebGL2 unavailable (injected)',
+          'no drawing context (injected)',
+          'Canvas 2D fallback without WebGL',
           'quota failure preserves progress',
         ],
       },

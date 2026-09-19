@@ -18,7 +18,7 @@ WASM 文件未修改。JavaScript 包装层增加宿主就绪/销毁方法，以
 
 ### ROM 与商标
 
-仓库只包含原创 Star Orbit 试玩，不包含商业 ROM 或 Nintendo BIOS。试玩的标准 GBA 启动识别数据用于格式与硬件兼容。Game Boy Advance / GBA 等名称属于各自权利人，使用名称仅用于说明兼容的平台；本项目与 Nintendo 无隶属、授权或背书关系。
+仓库只包含原创 Star Orbit 试玩和测试时动态生成的原创最小 GB / GBC ROM，不包含商业 ROM 或 Nintendo BIOS。标准启动识别数据仅用于格式与硬件兼容。Game Boy、Game Boy Color、Game Boy Advance、GB、GBC 与 GBA 等名称属于各自权利人，使用名称仅用于说明兼容的平台；本项目与 Nintendo 无隶属、授权或背书关系。
 
 ## 前端运行依赖
 

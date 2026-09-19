@@ -1,10 +1,17 @@
 import { useEffect } from 'react'
 import { Gamepad2, RotateCcw, X } from 'lucide-react'
 import type { GamepadController } from '../hooks/useGamepads'
+import type { GbaButton } from '../emulator'
 import { bindingLabel, gbaButtons } from '../lib/gamepad'
 import './gamepad.css'
 
-export function GamepadSettings({ controller }: { controller: GamepadController }) {
+export function GamepadSettings({
+  controller,
+  buttons = gbaButtons,
+}: {
+  controller: GamepadController
+  buttons?: readonly GbaButton[]
+}) {
   const { selectedDevice, profile, capture, cancelCapture } = controller
   useEffect(() => cancelCapture, [cancelCapture])
 
@@ -50,31 +57,35 @@ export function GamepadSettings({ controller }: { controller: GamepadController 
             个轴。相同设备标识和布局共用设置。
           </p>
           <div className="gamepad-binding-grid">
-            {gbaButtons.map((key) => (
-              <div className="gamepad-binding" key={key}>
-                <span className="gamepad-target">{key}</span>
-                <button
-                  type="button"
-                  className={`gamepad-bind-button ${capture === key ? 'is-capturing' : ''}`}
-                  aria-label={`映射手柄 ${key}`}
-                  disabled={Boolean(capture) && capture !== key}
-                  onClick={() => (capture === key ? cancelCapture() : controller.startCapture(key))}
-                >
-                  {capture === key
-                    ? '等待输入…'
-                    : profile.bindings[key].map(bindingLabel).join(' / ') || '未映射'}
-                </button>
-                <button
-                  type="button"
-                  className="gamepad-clear-button"
-                  aria-label={`清除手柄 ${key} 映射`}
-                  disabled={Boolean(capture) || !profile.bindings[key].length}
-                  onClick={() => controller.clearBinding(key)}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+            {gbaButtons
+              .filter((key) => buttons.includes(key))
+              .map((key) => (
+                <div className="gamepad-binding" key={key}>
+                  <span className="gamepad-target">{key}</span>
+                  <button
+                    type="button"
+                    className={`gamepad-bind-button ${capture === key ? 'is-capturing' : ''}`}
+                    aria-label={`映射手柄 ${key}`}
+                    disabled={Boolean(capture) && capture !== key}
+                    onClick={() =>
+                      capture === key ? cancelCapture() : controller.startCapture(key)
+                    }
+                  >
+                    {capture === key
+                      ? '等待输入…'
+                      : profile.bindings[key].map(bindingLabel).join(' / ') || '未映射'}
+                  </button>
+                  <button
+                    type="button"
+                    className="gamepad-clear-button"
+                    aria-label={`清除手柄 ${key} 映射`}
+                    disabled={Boolean(capture) || !profile.bindings[key].length}
+                    onClick={() => controller.clearBinding(key)}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
           </div>
           {capture ? (
             <div className="gamepad-capture-notice" role="status">

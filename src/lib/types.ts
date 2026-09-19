@@ -1,8 +1,13 @@
+import type { GamePlatform } from './platforms.ts'
+
+export type { GamePlatform } from './platforms.ts'
+
 /** Library metadata. Dates use epoch milliseconds; playTime uses seconds. */
 export interface Game {
   id: string
   title: string
   filename: string
+  platform: GamePlatform
   size: number
   addedAt: number
   lastPlayed: number | null

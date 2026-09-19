@@ -1,7 +1,7 @@
 {
-  "name": "Advance · GBA 游戏空间",
+  "name": "Advance · 掌机游戏空间",
   "short_name": "Advance",
-  "description": "在浏览器中运行 GBA 游戏，游戏与存档保存在本地设备。",
+  "description": "在浏览器中运行 GBA、GB 与 GBC 游戏，游戏与存档保存在本地设备。",
   "lang": "zh-CN",
   "start_url": "/",
   "scope": "/",
