@@ -2,6 +2,7 @@ import { beforeEach, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { IDBDatabase, IDBFactory, IDBObjectStore } from 'fake-indexeddb'
 import {
+  cacheRom,
   deleteGame,
   deleteState,
   getBatterySave,
@@ -20,7 +21,7 @@ import {
 } from './storage.ts'
 import type { RestoreChoices, RestorePreview } from './storage.ts'
 import type { BackupData } from './backup-format.ts'
-import { BUNDLED_CORE_ID } from './core-version.ts'
+import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { PLATFORM_REGISTRY, platformFromFilename } from './platforms.ts'
 
 beforeEach(() => {
@@ -29,6 +30,33 @@ beforeEach(() => {
 
 function rom(name = 'Test_game.gba', seed = 1, size = 1024): File {
   return new File([new Uint8Array(size).fill(seed)], name)
+}
+
+function nesRom(name = 'Console.nes'): File {
+  const bytes = new Uint8Array(PLATFORM_REGISTRY.nes.minRomSize)
+  bytes.set([0x4e, 0x45, 0x53, 0x1a, 1])
+  return new File([bytes], name)
+}
+
+function snesRom(
+  name = '123456.sfc',
+  title = 'ADVANCE SNES TEST',
+  options: { copierHeader?: boolean; hiRom?: boolean } = {},
+): File {
+  const base = options.copierHeader ? 512 : 0
+  const size = options.hiRom ? 64 * 1024 : 32 * 1024
+  const bytes = new Uint8Array(base + size).fill(0xff)
+  const header = base + (options.hiRom ? 0xffc0 : 0x7fc0)
+  bytes.fill(0x20, header, header + 21)
+  bytes.set(new TextEncoder().encode(title).subarray(0, 21), header)
+  bytes[header + 0x15] = options.hiRom ? 0x21 : 0x20
+  bytes[header + 0x1c] = 0xcb
+  bytes[header + 0x1d] = 0xed
+  bytes[header + 0x1e] = 0x34
+  bytes[header + 0x1f] = 0x12
+  bytes[header + 0x3c] = 0x00
+  bytes[header + 0x3d] = 0x80
+  return new File([bytes], name)
 }
 
 async function corrupt(store: string, record: object): Promise<void> {
@@ -88,6 +116,70 @@ test('imports GB and GBC metadata with platform-specific size bounds', async () 
   )
   await assert.rejects(importGame(rom('small.gb', 1, 32 * 1024 - 1)), /GB.*32 KiB.*8 MiB/)
   await assert.rejects(importGame(rom('large.gbc', 1, 8 * 1024 * 1024 + 1)), /GBC.*32 KiB.*8 MiB/)
+})
+
+test('imports FC and SFC metadata, validates headers and records platform core IDs', async () => {
+  assert.equal(platformFromFilename('Mario.NES'), 'nes')
+  assert.equal(platformFromFilename('Zelda.SFC'), 'snes')
+  assert.equal(platformFromFilename('Header.SMC'), 'snes')
+  await assert.rejects(
+    importGame(rom('invalid.nes', 1, PLATFORM_REGISTRY.nes.minRomSize)),
+    /iNES|NES 2\.0/,
+  )
+  const nes = await importGame(nesRom())
+  const snes = await importGame(rom('Super.sfc', 4, PLATFORM_REGISTRY.snes.minRomSize))
+  assert.deepEqual(
+    [nes, snes].map(({ title, platform }) => ({ title, platform })),
+    [
+      { title: 'Console', platform: 'nes' },
+      { title: 'Super', platform: 'snes' },
+    ],
+  )
+  assert.equal(
+    (await saveState(nes.id, 1, new Uint8Array([1]))).coreVersion,
+    coreIdForPlatform('nes'),
+  )
+  assert.equal(
+    (await saveState(snes.id, 1, new Uint8Array([2]))).coreVersion,
+    coreIdForPlatform('snes'),
+  )
+})
+
+test('uses filenames for SFC titles and updates older automatically generated titles on reimport', async () => {
+  const loRom = await importGame(snesRom())
+  const hiRom = await importGame(snesRom('987654.sfc', 'HIROM ADVENTURE', { hiRom: true }))
+  const copierHeader = await importGame(
+    snesRom('000001.smc', 'HEADERED SFC GAME', { copierHeader: true }),
+  )
+  assert.deepEqual(
+    [loRom, hiRom, copierHeader].map((game) => game.title),
+    ['123456', '987654', '000001'],
+  )
+
+  await corrupt('games', { ...loRom, title: 'ADVANCE SNES TEST' })
+  const renamed = await importGame(snesRom('超级马力欧世界[简].sfc'))
+  assert.equal(renamed.title, '超级马力欧世界[简]')
+  assert.equal(renamed.filename, '超级马力欧世界[简].sfc')
+
+  const renamedNumeric = await importGame(
+    snesRom('塞尔达传说[简].sfc', 'HIROM ADVENTURE', { hiRom: true }),
+  )
+  assert.equal(renamedNumeric.id, hiRom.id)
+  assert.equal(renamedNumeric.title, '塞尔达传说[简]')
+
+  await updateGame(loRom.id, { title: '我的自定义标题' })
+  const custom = await importGame(snesRom('另一个文件名.sfc'))
+  assert.equal(custom.title, '我的自定义标题')
+  assert.equal(custom.filename, '另一个文件名.sfc')
+})
+
+test('reimporting a numbered FC ROM adopts the descriptive filename', async () => {
+  const numbered = await importGame(nesRom('019.nes'))
+  assert.equal(numbered.title, '019')
+  const renamed = await importGame(nesRom('阿尔戈斯战士[简].nes'))
+  assert.equal(renamed.id, numbered.id)
+  assert.equal(renamed.title, '阿尔戈斯战士[简]')
+  assert.equal(renamed.filename, '阿尔戈斯战士[简].nes')
 })
 
 test('isolates identical ROM bytes imported for different platforms', async () => {
@@ -380,26 +472,25 @@ test('restores only explicitly selected metadata, battery and slots, retaining e
   )
 })
 
-test('no-ROM restore requires a matching ROM for new games and ignores omitted missing games', async () => {
+test('no-ROM restore creates cloud library entries and ROMs can be cached on demand', async () => {
   const full = await backupFixture()
   const fixture = structuredClone(full)
   for (const entry of fixture.games) delete entry.rom
   globalThis.indexedDB = new IDBFactory()
   const preview = await previewRestore(fixture)
   assert.ok(preview.games.every((entry) => entry.missingRom))
-  const before = await rawLibrary()
-  await assert.rejects(restoreLibrary(fixture, defaultChoices(preview)), /缺少 ROM/)
-  assert.deepEqual(await rawLibrary(), before)
+  await restoreLibrary(fixture, defaultChoices(preview))
+  assert.equal((await getGames()).length, fixture.games.length)
+  assert.equal(await getRom(fixture.games[0].game.id), undefined)
+  assert.equal((await getLibrarySnapshot()).games[0].rom, undefined)
+
   const first = fixture.games[0]
-  first.rom = full.games[0].rom
-  const matched = await previewRestore(fixture)
-  await restoreLibrary(fixture, {
-    fingerprint: matched.fingerprint,
-    games: {
-      [first.game.id]: matched.games.find((entry) => entry.game.id === first.game.id)!.defaults,
-    },
-  })
-  assert.deepEqual((await getLibrarySnapshot(undefined, true)).games, [full.games[0]])
+  await cacheRom(first.game.id, full.games[0].rom!)
+  assert.deepEqual(await getRom(first.game.id), full.games[0].rom)
+  assert.deepEqual((await getLibrarySnapshot([first.game.id], true)).games, [full.games[0]])
+  await assert.rejects(cacheRom(first.game.id, full.games[1].rom!), /不匹配/)
+
+  globalThis.indexedDB = new IDBFactory()
   await assert.rejects(
     restoreLibrary(fixture, {
       fingerprint: (await previewRestore(fixture)).fingerprint,

@@ -2,7 +2,7 @@
  * Advance offline shell. Keep this file dependency-free: it is served from
  * public/ and must be installable before the Vite bundle is available.
  */
-const CACHE_VERSION = 'advance-shell-v2'
+const CACHE_VERSION = 'advance-shell-v4'
 const CACHE_PREFIX = 'advance-'
 const CORE_ASSETS = [
   '/favicon.svg',
@@ -10,11 +10,29 @@ const CORE_ASSETS = [
   '/emulator/mgba.js',
   '/emulator/mgba.wasm',
   '/emulator/host-sync.js',
+  '/emulatorjs/emulator.css',
+  '/emulatorjs/src/emulator.js',
+  '/emulatorjs/src/nipplejs.js',
+  '/emulatorjs/src/shaders.js',
+  '/emulatorjs/src/storage.js',
+  '/emulatorjs/src/gamepad.js',
+  '/emulatorjs/src/GameManager.js',
+  '/emulatorjs/src/socket.io.min.js',
+  '/emulatorjs/src/compression.js',
+  '/emulatorjs/compression/extract7z.js',
+  '/emulatorjs/cores/reports/fceumm.json',
+  '/emulatorjs/cores/reports/snes9x.json',
+  '/emulatorjs/cores/fceumm-legacy-wasm.data',
+  '/emulatorjs/cores/snes9x-legacy-wasm.data',
   '/fonts/dm-sans.ttf',
 ]
 
 const isSameOrigin = (request) => new URL(request.url).origin === self.location.origin
-const isAppAsset = (url) => url.pathname.startsWith('/assets/') || url.pathname.startsWith('/emulator/') || url.pathname.startsWith('/fonts/')
+const isAppAsset = (url) =>
+  url.pathname.startsWith('/assets/') ||
+  url.pathname.startsWith('/emulator/') ||
+  url.pathname.startsWith('/emulatorjs/') ||
+  url.pathname.startsWith('/fonts/')
 
 async function appShellUrls() {
   const urls = ['/']

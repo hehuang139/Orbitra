@@ -588,6 +588,11 @@ main {
   font-size: 11px;
   letter-spacing: 0.4px;
 }
+.import-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
 .button {
   height: 39px;
   padding: 0 17px;
@@ -1041,6 +1046,21 @@ main {
   font-weight: 550;
   letter-spacing: 0.6px;
 }
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.batch-manage-button {
+  height: 29px;
+  padding: 0 10px;
+  font-size: 9px;
+}
+.batch-manage-button.active {
+  color: #d6f3df;
+  border-color: #607866;
+  background: #304037;
+}
 .count-badge {
   font-size: 9px;
   padding: 2px 6px;
@@ -1067,6 +1087,36 @@ main {
   align-items: center;
   gap: 13px;
   margin-bottom: 18px;
+}
+.batch-toolbar {
+  min-height: 47px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 0 18px;
+  padding: 7px 9px 7px 13px;
+  border: 1px solid #3b4841;
+  border-radius: 7px;
+  background: #1b2220;
+}
+.batch-toolbar .button {
+  height: 31px;
+  padding: 0 10px;
+  font-size: 9px;
+}
+.batch-toolbar .button.danger {
+  margin-left: auto;
+}
+.batch-selection-count {
+  min-width: 104px;
+  color: #9eaaa3;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.batch-selection-count strong {
+  color: #d8efe0;
+  font-size: 12px;
+  font-weight: 650;
 }
 .platform-filter {
   height: 35px;
@@ -1178,6 +1228,23 @@ main {
 .game-card.playing {
   border-color: #6eac82;
 }
+.game-card.selection-mode:not(.selection-disabled) {
+  cursor: pointer;
+}
+.game-card.selection-mode:not(.selection-disabled):hover {
+  border-color: #7a9983;
+}
+.game-card.selected {
+  border-color: #94c5a2;
+  box-shadow: 0 0 0 1px #94c5a255;
+}
+.game-card.selection-disabled {
+  border-color: #343a38;
+}
+.game-card.selection-disabled .game-cover:disabled,
+.game-card.selection-disabled .game-title:disabled {
+  opacity: 0.55;
+}
 .game-cover {
   height: 167px;
   display: block;
@@ -1187,6 +1254,33 @@ main {
   position: relative;
   padding: 0;
   text-align: left;
+}
+.selection-mark {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #b7c8bd;
+  border-radius: 5px;
+  background: #171d1bd9;
+  color: #173022;
+  box-shadow: 0 2px 8px #0006;
+}
+.selection-mark.checked {
+  border-color: #bde8c9;
+  background: #bde8c9;
+}
+.selection-mark.disabled {
+  border-style: dashed;
+  border-color: #778079;
+  background: #252a28d9;
+}
+.selection-mode .cover-play {
+  display: none;
 }
 .space-art {
   width: 100%;
@@ -2064,6 +2158,25 @@ main {
   aspect-ratio: var(--screen-aspect, 3 / 2);
   image-rendering: pixelated;
   object-fit: contain;
+}
+.retro-host {
+  width: min(100%, 600px);
+  aspect-ratio: var(--screen-aspect, 4 / 3);
+  flex: 0 1 600px;
+}
+.retro-host .ejs_menu_bar,
+.retro-host .ejs_context_menu,
+.retro-host .ejs_virtualGamepad_parent,
+.retro-host .ejs_popup_container {
+  display: none !important;
+}
+.canvas-wrap > canvas.retro-focus-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 .player-panel.platform-gb .canvas-wrap canvas,
 .player-panel.platform-gbc .canvas-wrap canvas {
@@ -3039,6 +3152,9 @@ kbd {
     height: 35px;
     font-size: 10px;
     padding: 0 12px;
+  }
+  .import-actions {
+    gap: 6px;
   }
   .games-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4062,6 +4178,16 @@ kbd {
     flex-wrap: wrap;
     gap: 8px;
   }
+  .batch-toolbar {
+    flex-wrap: wrap;
+    padding: 9px;
+  }
+  .batch-selection-count {
+    flex: 1;
+  }
+  .batch-toolbar .button.danger {
+    margin-left: 0;
+  }
   .platform-filter {
     width: 100%;
     overflow-x: auto;
@@ -4075,6 +4201,25 @@ kbd {
   .player-panel.platform-gb .touch-main,
   .player-panel.platform-gbc .touch-main {
     margin-top: 3px;
+  }
+}
+@media (max-width: 500px) {
+  .section-heading {
+    height: auto;
+    min-height: 33px;
+    gap: 8px;
+  }
+  .section-actions {
+    gap: 5px;
+  }
+  .batch-manage-button {
+    padding: 0 7px;
+  }
+  .batch-toolbar .button {
+    flex: 1 1 auto;
+  }
+  .batch-toolbar .button.danger {
+    flex-basis: 100%;
   }
 }
 @media (prefers-reduced-motion: reduce) {

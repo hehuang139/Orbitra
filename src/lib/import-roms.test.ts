@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { Zip, ZipDeflate, zipSync } from 'fflate'
-import { extractRomFiles } from './import-roms.ts'
+import { extractRomFiles, importableRomFiles } from './import-roms.ts'
 
 const MiB = 1024 * 1024
 const payload = (seed = 1, size = 1024) => new Uint8Array(size).fill(seed)
@@ -40,6 +40,27 @@ function patchEntry(
   return copy
 }
 
+test('folder scans keep supported ROMs and ZIPs while ignoring unrelated files', () => {
+  const macMetadata = new File([], 'metadata.gba')
+  Object.defineProperty(macMetadata, 'webkitRelativePath', {
+    value: 'Library/__MACOSX/metadata.gba',
+  })
+  const files = [
+    new File([], 'Advance.GBA'),
+    new File([], 'handheld.gb'),
+    new File([], 'collection.ZIP'),
+    new File([], 'Advance.png'),
+    new File([], 'README.txt'),
+    new File([], 'Advance.sav'),
+    new File([], '._metadata.gba'),
+    macMetadata,
+  ]
+  assert.deepEqual(
+    importableRomFiles(files).map((file) => file.name),
+    ['Advance.GBA', 'handheld.gb', 'collection.ZIP'],
+  )
+})
+
 function declaredSize(bytes: Uint8Array, index: number, size: number): Uint8Array {
   return patchEntry(bytes, index, (view, central, local) => {
     view.setUint32(central + 24, size, true)
@@ -47,13 +68,23 @@ function declaredSize(bytes: Uint8Array, index: number, size: number): Uint8Arra
   })
 }
 
-test('direct GBA, GB and GBC files retain identity and leave hardware validation to storage', async () => {
-  for (const name of ['Example.GBA', 'Pocket.GB', 'Color.GBC']) {
+test('direct supported ROM files retain identity and leave hardware validation to storage', async () => {
+  for (const name of [
+    'Example.GBA',
+    'Pocket.GB',
+    'Color.GBC',
+    'Console.NES',
+    'Super.SFC',
+    'Header.SMC',
+  ]) {
     const rom = new File([payload()], name)
     assert.deepEqual(await collect(rom), [rom])
   }
   assert.deepEqual(await collect(new File([], 'small.gba')).then((files) => files[0].size), 0)
-  await assert.rejects(collect(new File([], 'game.7z')), /\.gba.*\.gb.*\.gbc.*\.zip/)
+  await assert.rejects(
+    collect(new File([], 'game.7z')),
+    /\.gba.*\.gb.*\.gbc.*\.nes.*\.sfc.*\.smc.*\.zip/,
+  )
 })
 
 test('stored and deflated ZIPs preserve original bytes and reduce nested names to basenames', async () => {
@@ -73,23 +104,35 @@ test('stored and deflated ZIPs preserve original bytes and reduce nested names t
   }
 })
 
-test('extracts mixed GBA, GB and GBC archives with original platform extensions', async () => {
+test('a single-ROM ZIP uses the archive filename instead of an internal numeric filename', async () => {
+  const files = await collect(
+    archive(zipSync({ '019.nes': payload(7, 16 * 1024 + 16) }), '阿尔戈斯战士[简].zip'),
+  )
+  assert.equal(files.length, 1)
+  assert.equal(files[0].name, '阿尔戈斯战士[简].nes')
+  assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), payload(7, 16 * 1024 + 16))
+})
+
+test('extracts mixed-platform archives with original platform extensions', async () => {
   const files = await collect(
     archive(
       zipSync({
         'advance/game.GBA': payload(1),
         'classic/game.gb': payload(2, 32 * 1024),
         'color/game.GBC': payload(3, 32 * 1024),
+        'console/game.nes': payload(4, 16 * 1024 + 16),
+        'super/game.SFC': payload(5, 32 * 1024),
+        'header/game.smc': payload(6, 32 * 1024 + 512),
       }),
     ),
   )
   assert.deepEqual(
     files.map((file) => file.name),
-    ['game.GBA', 'game.gb', 'game.GBC'],
+    ['game.GBA', 'game.gb', 'game.GBC', 'game.nes', 'game.SFC', 'game.smc'],
   )
   assert.deepEqual(
     files.map((file) => file.size),
-    [1024, 32 * 1024, 32 * 1024],
+    [1024, 32 * 1024, 32 * 1024, 16 * 1024 + 16, 32 * 1024, 32 * 1024 + 512],
   )
 })
 
@@ -120,7 +163,7 @@ test('ignores docs, nested archives and Mac metadata without inflating them', as
   const files = await collect(archive(bytes))
   assert.deepEqual(
     files.map((file) => file.name),
-    ['good.gba'],
+    ['Games.gba'],
   )
   assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), payload(9))
 })

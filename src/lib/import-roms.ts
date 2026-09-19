@@ -14,6 +14,16 @@ const ZIP_ERROR = 'ZIP 文件已损坏或格式不完整，请重新压缩后导
 const ROM_TYPES = ROM_FILE_EXTENSIONS.join('、')
 const ZIP64_ERROR = '暂不支持 ZIP64 压缩包，请解压后导入游戏 ROM，或使用普通 ZIP 重新压缩。'
 
+export function importableRomFiles(files: Iterable<File>): File[] {
+  return Array.from(files).filter((file) => {
+    const path = file.webkitRelativePath || file.name
+    const parts = path.replaceAll('\\', '/').split('/')
+    if (file.name.startsWith('._') || parts.some((part) => part.toLowerCase() === '__macosx'))
+      return false
+    return Boolean(platformFromFilename(file.name)) || /\.zip$/i.test(file.name)
+  })
+}
+
 interface RomEntry {
   name: string
   platform: GamePlatform
@@ -171,6 +181,7 @@ async function extractEntry(
   bytes: Uint8Array,
   entry: RomEntry,
   directoryOffset: number,
+  outputName = entry.name,
 ): Promise<File> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const { offset, name, platform, flags, compressedSize, size } = entry
@@ -232,7 +243,15 @@ async function extractEntry(
   if (written !== size || (crc ^ -1) >>> 0 !== entry.checksum) {
     throw new Error(`「${name}」完整性校验失败，文件可能已损坏，请重新获取或压缩后导入。`)
   }
-  return new File([output], name, { type: 'application/octet-stream' })
+  return new File([output], outputName, { type: 'application/octet-stream' })
+}
+
+function singleRomName(archiveName: string, entry: RomEntry): string {
+  const title = archiveName.replace(/\.zip$/i, '').trim()
+  const extension = PLATFORM_REGISTRY[entry.platform].extensions.find((candidate) =>
+    entry.name.toLowerCase().endsWith(candidate),
+  )
+  return title && extension ? `${title}${extension}` : entry.name
 }
 
 /** Expand one selected file without storing it; callers import each yielded ROM normally. */
@@ -251,5 +270,8 @@ export async function* extractRomFiles(file: File): AsyncGenerator<File> {
     throw new Error('无法读取 ZIP 文件，请重新选择文件后重试。', { cause: error })
   }
   const { entries, directoryOffset } = readDirectory(bytes)
-  for (const entry of entries) yield await extractEntry(bytes, entry, directoryOffset)
+  for (const entry of entries) {
+    const outputName = entries.length === 1 ? singleRomName(file.name, entry) : entry.name
+    yield await extractEntry(bytes, entry, directoryOffset, outputName)
+  }
 }

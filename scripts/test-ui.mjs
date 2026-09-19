@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { mkdir, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({
@@ -19,6 +21,7 @@ const context = await browser.newContext({
 })
 const page = await context.newPage()
 const errors = []
+let folderFixtureRoot = ''
 page.on('pageerror', (error) => errors.push(error.message))
 const screenshot = (name) =>
   page.screenshot({
@@ -35,6 +38,19 @@ try {
     true,
     'desktop must not overflow',
   )
+  await page.getByRole('button', { name: '批量管理' }).click()
+  assert.equal(
+    await page.getByRole('button', { name: 'Star Orbit · 星际漫游 无法选择' }).isDisabled(),
+    true,
+    'the bundled demo must stay protected in batch mode',
+  )
+  await screenshot('desktop-batch-management')
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'batch management must not overflow',
+  )
+  await page.getByRole('button', { name: '完成' }).click()
 
   await page.getByRole('button', { name: '环境检查', exact: true }).click()
   assert.equal(await page.locator('.compatibility-check').count(), 6)
@@ -99,7 +115,7 @@ try {
   for (let i = 0xa0; i < 0xbd; i++) checksum = (checksum - rom[i]) & 255
   rom[0xbd] = (checksum - 0x19) & 255
   await page
-    .locator('input[type=file][accept*=".gba"]')
+    .getByLabel('选择游戏文件', { exact: true })
     .setInputFiles({ name: 'Test-Orbit.gba', mimeType: 'application/octet-stream', buffer: rom })
   await page.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
   assert.equal(await page.locator('.game-card').count(), 2)
@@ -119,6 +135,30 @@ try {
     2,
     'auto and manual states persist across reload',
   )
+
+  folderFixtureRoot = await mkdtemp(join(tmpdir(), 'advance-folder-import-'))
+  const folderPath = join(folderFixtureRoot, 'library')
+  const nestedPath = join(folderPath, 'nested')
+  await mkdir(nestedPath, { recursive: true })
+  const folderRom = Buffer.from(rom)
+  folderRom[0xae] = 0x46
+  checksum = 0
+  for (let i = 0xa0; i < 0xbd; i++) checksum = (checksum - folderRom[i]) & 255
+  folderRom[0xbd] = (checksum - 0x19) & 255
+  await writeFile(join(nestedPath, 'Folder-Orbit.gba'), folderRom)
+  await writeFile(join(folderPath, 'README.txt'), 'This file must be ignored.')
+  await writeFile(join(folderPath, 'cover.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+
+  const folderContext = await browser.newContext({ viewport: { width: 1440, height: 1024 } })
+  const folderPage = await folderContext.newPage()
+  folderPage.on('pageerror', (error) => errors.push(error.message))
+  await folderPage.goto(url)
+  await folderPage.getByRole('button', { name: '导入文件夹', exact: true }).waitFor()
+  await folderPage.locator('input[webkitdirectory]').setInputFiles(folderPath)
+  await folderPage.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
+  assert.equal(await folderPage.locator('.game-card').count(), 2)
+  await folderPage.getByRole('button', { name: 'Folder-Orbit', exact: true }).waitFor()
+  await folderContext.close()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: '打开导航' }).click()
@@ -198,6 +238,7 @@ try {
         passed: true,
         checks: [
           'initial library',
+          'protected batch management',
           'favorites',
           'search',
           'real ROM launch',
@@ -207,6 +248,7 @@ try {
           'key remapping',
           'CRT filter',
           'game import',
+          'recursive folder import',
           'reload persistence',
           'mobile navigation',
           'touch controls',
@@ -226,4 +268,5 @@ try {
   throw error
 } finally {
   await browser.close()
+  if (folderFixtureRoot) await rm(folderFixtureRoot, { recursive: true, force: true })
 }

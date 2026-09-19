@@ -20,6 +20,7 @@ import {
   Keyboard,
   LayoutGrid,
   List,
+  ListChecks,
   LoaderCircle,
   Menu,
   MoreHorizontal,
@@ -37,6 +38,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  UserRound,
   Volume2,
   VolumeX,
   X,
@@ -45,7 +47,7 @@ import { HandheldArt, SpaceArt } from './components/Artwork'
 import { createEmulator } from './emulator'
 import type { Emulator, EmulatorButton, EmulatorStatus } from './emulator'
 import * as db from './lib/storage'
-import { extractRomFiles } from './lib/import-roms'
+import { extractRomFiles, importableRomFiles } from './lib/import-roms'
 import {
   PLATFORM_LIST,
   PLATFORM_REGISTRY,
@@ -61,6 +63,8 @@ import { TouchControls } from './components/TouchControls'
 import { TouchSettings } from './components/TouchSettings'
 import { BackupManager } from './components/BackupManager'
 import { OfflineStatus } from './components/OfflineStatus'
+import { AccountPanel } from './components/AccountPanel'
+import { useAccountSync } from './hooks/useAccountSync'
 import { createBackup } from './lib/backup-format'
 import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
@@ -68,7 +72,7 @@ import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
 
 type Page = 'library' | 'recent' | 'favorites' | 'states'
-type Modal = 'settings' | 'controls' | 'help' | 'states' | 'backup' | null
+type Modal = 'settings' | 'controls' | 'help' | 'states' | 'backup' | 'account' | null
 type PlatformFilter = 'all' | GamePlatform
 const pages: Record<Page, string> = {
   library: '游戏库',
@@ -83,6 +87,8 @@ const buttonNames: Record<EmulatorButton, string> = {
   Right: '右',
   A: 'A 按钮',
   B: 'B 按钮',
+  X: 'X 按钮',
+  Y: 'Y 按钮',
   L: 'L 肩键',
   R: 'R 肩键',
   Start: '开始',
@@ -194,6 +200,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [gameMenu, setGameMenu] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Game | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(() => new Set())
+  const [batchDeleteTargets, setBatchDeleteTargets] = useState<Game[] | null>(null)
   const compatibilityRenderingWarning =
     compatibility?.checks.some((check) => check.id === 'webgl' && check.status === 'warning') ??
     false
@@ -206,6 +215,7 @@ export default function App() {
   const maintenanceRef = useRef(false)
   const pendingWrites = useRef(new Set<Promise<unknown>>())
   const inputRef = useRef<HTMLInputElement>(null)
+  const directoryInputRef = useRef<HTMLInputElement>(null)
   const saveInputRef = useRef<HTMLInputElement>(null)
   const stateInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
@@ -229,7 +239,9 @@ export default function App() {
     engineRef.current?.setRewind(false)
     engineRef.current?.setSpeed(settingsRef.current.speed)
   }, [input])
-  const inputEnabled = Boolean(active && status === 'running' && !busy && !modal && !deleteTarget)
+  const inputEnabled = Boolean(
+    active && status === 'running' && !busy && !modal && !deleteTarget && !batchDeleteTargets,
+  )
   const gamepads = useGamepads({
     enabled: inputEnabled,
     onPress: (button) => {
@@ -248,6 +260,7 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), error ? 7000 : 3500)
   }, [])
   const refresh = useCallback(async () => setGames(await db.getGames()), [])
+  const account = useAccountSync({ onLibraryChanged: refresh })
   const trackWrite = useCallback(<T,>(promise: Promise<T>): Promise<T> => {
     pendingWrites.current.add(promise)
     void promise.finally(() => pendingWrites.current.delete(promise)).catch(() => {})
@@ -340,8 +353,8 @@ export default function App() {
   }, [makeEngine])
 
   useEffect(() => {
-    if (modal !== 'backup' && !deleteTarget) maintenanceRef.current = false
-  }, [modal, deleteTarget])
+    if (modal !== 'backup' && !deleteTarget && !batchDeleteTargets) maintenanceRef.current = false
+  }, [modal, deleteTarget, batchDeleteTargets])
 
   useEffect(() => {
     if (active || busy || !returnFocusPending.current) return
@@ -480,7 +493,7 @@ export default function App() {
   }, [page, games, states, notify])
 
   useEffect(() => {
-    if (!modal && !deleteTarget) return
+    if (!modal && !deleteTarget && !batchDeleteTargets) return
     releaseInputs()
     const previous =
       modal === 'backup' ? backupTrigger.current : (document.activeElement as HTMLElement | null)
@@ -495,6 +508,7 @@ export default function App() {
       ) {
         setModal(null)
         setDeleteTarget(null)
+        setBatchDeleteTargets(null)
       }
       if (event.key !== 'Tab') return
       if (operationRef.current) {
@@ -536,7 +550,7 @@ export default function App() {
       document.removeEventListener('keydown', trap)
       if (previous?.isConnected) previous.focus()
     }
-  }, [modal, deleteTarget, releaseInputs])
+  }, [modal, deleteTarget, batchDeleteTargets, releaseInputs])
 
   const playGame = useCallback(
     (game: Game, requestedState?: SaveState) =>
@@ -557,8 +571,8 @@ export default function App() {
           const battery = await engine.exportSave()
           if (battery) await db.setBatterySave(activeRef.current.id, battery)
         }
-        const bytes = await db.getRom(game.id)
-        if (!bytes) throw new Error('游戏文件未找到，请重新导入')
+        const bytes = await account.ensureRom(game.id)
+        if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
         const battery = await db.getBatterySave(game.id)
         const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
         const resume =
@@ -570,7 +584,7 @@ export default function App() {
         setActive(currentGame)
         setPage('library')
         setModal(null)
-        setProgress('正在启动 mGBA 内核…')
+        setProgress(`正在启动 ${PLATFORM_REGISTRY[currentGame.platform].label} 模拟核心…`)
         setLaunchError('')
         await engine.loadRom(bytes, currentGame.filename, currentGame.platform)
         activeRef.current = currentGame
@@ -591,7 +605,7 @@ export default function App() {
         canvasRef.current?.focus({ preventScroll: true })
         stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }),
-    [run, snapshot, notify, refresh, releaseInputs],
+    [run, snapshot, notify, refresh, releaseInputs, account],
   )
 
   const closeGame = () =>
@@ -665,7 +679,21 @@ export default function App() {
           ([key, code]) => key !== mapping && code === event.code,
         )
         if (existing) {
-          notify(`此按键已用于「${buttonNames[existing[0] as EmulatorButton]}」`)
+          const existingButton = existing[0] as EmulatorButton
+          const platform = activeRef.current?.platform ?? 'gba'
+          if (platformSupportsButton(platform, existingButton)) {
+            notify(`此按键已用于「${buttonNames[existingButton]}」`)
+            return
+          }
+          setSettings((value) => ({
+            ...value,
+            bindings: {
+              ...value.bindings,
+              [existingButton]: value.bindings[mapping],
+              [mapping]: event.code,
+            },
+          }))
+          setMapping(null)
           return
         }
         setSettings((value) => ({
@@ -678,6 +706,7 @@ export default function App() {
       if (
         modal ||
         deleteTarget ||
+        batchDeleteTargets ||
         !activeRef.current ||
         (event.target instanceof HTMLElement &&
           (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) ||
@@ -854,13 +883,39 @@ export default function App() {
       await refresh()
       notify('游戏及其存档已删除')
     })
+  const deleteSelectedGames = () =>
+    run(async () => {
+      if (!batchDeleteTargets?.length) return
+      const targets = batchDeleteTargets.filter(
+        (game) => !isDemo(game) && activeRef.current?.id !== game.id,
+      )
+      const results = await Promise.allSettled(targets.map((game) => db.deleteGame(game.id)))
+      const failedIds = new Set(
+        targets.filter((_, index) => results[index].status === 'rejected').map((game) => game.id),
+      )
+      const deletedCount = targets.length - failedIds.size
+      setBatchDeleteTargets(null)
+      setGameMenu(null)
+      await refresh()
+      if (failedIds.size) {
+        setSelectedGameIds(failedIds)
+        throw new Error(
+          deletedCount
+            ? `已删除 ${deletedCount} 个游戏，另有 ${failedIds.size} 个删除失败，请重试。`
+            : `${failedIds.size} 个游戏删除失败，请重试。`,
+        )
+      }
+      setSelectedGameIds(new Set())
+      setSelectionMode(false)
+      notify(`已删除 ${deletedCount} 个游戏及其存档`)
+    })
   const exportBattery = () =>
     run(async () => {
       const game = activeRef.current
       if (!game) return
       const bytes = (await engineRef.current?.exportSave()) || (await db.getBatterySave(game.id))
       if (!bytes?.length) throw new Error('此游戏尚未生成游戏内存档。你可以先创建即时存档。')
-      download(bytes, game.filename.replace(/\.(?:gba|gbc?)$/i, '.sav'))
+      download(bytes, game.filename.replace(/\.[^.]+$/i, '.sav'))
       notify('游戏内存档已导出')
     })
   const importBattery = (file?: File) =>
@@ -878,8 +933,8 @@ export default function App() {
   const importSnapshot = (file?: File) =>
     run(async () => {
       if (!file || !activeRef.current) return
-      if (!/\.ss[0-9]?$|\.state$/i.test(file.name) || file.size < 1 || file.size > 16777216)
-        throw new Error('请选择 mGBA 即时存档（.state / .ss0，最大 16 MB）')
+      if (!/\.ss[0-9]?$|\.state$/i.test(file.name) || file.size < 1 || file.size > 32 * 1024 * 1024)
+        throw new Error('请选择当前核心生成的即时存档（.state / .ss0，最大 32 MiB）')
       await engineRef.current?.loadState(new Uint8Array(await file.arrayBuffer()))
       notify('即时存档已恢复')
       setModal(null)
@@ -909,6 +964,48 @@ export default function App() {
         ),
     [pageGames, platformFilter, search, sort],
   )
+  const selectableVisibleGames = useMemo(
+    () => visibleGames.filter((game) => !isDemo(game) && active?.id !== game.id),
+    [visibleGames, active],
+  )
+  const allVisibleSelected =
+    selectableVisibleGames.length > 0 &&
+    selectableVisibleGames.every((game) => selectedGameIds.has(game.id))
+  const toggleGameSelection = (game: Game) => {
+    if (isDemo(game) || activeRef.current?.id === game.id) return
+    setSelectedGameIds((current) => {
+      const next = new Set(current)
+      if (next.has(game.id)) next.delete(game.id)
+      else next.add(game.id)
+      return next
+    })
+  }
+  const toggleVisibleSelection = () =>
+    setSelectedGameIds((current) => {
+      const next = new Set(current)
+      for (const game of selectableVisibleGames) {
+        if (allVisibleSelected) next.delete(game.id)
+        else next.add(game.id)
+      }
+      return next
+    })
+
+  useEffect(() => {
+    if (page === 'library') return
+    setSelectionMode(false)
+    setSelectedGameIds(new Set())
+    setBatchDeleteTargets(null)
+  }, [page])
+
+  useEffect(() => {
+    const availableIds = new Set(
+      games.filter((game) => !isDemo(game) && active?.id !== game.id).map((game) => game.id),
+    )
+    setSelectedGameIds((current) => {
+      const next = new Set(Array.from(current).filter((id) => availableIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [games, active])
   const selectedPlatform = platformFilter === 'all' ? undefined : PLATFORM_REGISTRY[platformFilter]
   const emptyStateCopy = search
     ? {
@@ -977,11 +1074,27 @@ export default function App() {
       <input
         ref={inputRef}
         type="file"
+        aria-label="选择游戏文件"
         accept={acceptedGameFiles}
         multiple
         hidden
         onChange={(event) => {
           void importFiles(Array.from(event.target.files || []))
+          event.target.value = ''
+        }}
+      />
+      <input
+        ref={directoryInputRef}
+        type="file"
+        aria-label="选择游戏文件夹"
+        accept={acceptedGameFiles}
+        multiple
+        hidden
+        webkitdirectory=""
+        onChange={(event) => {
+          const files = importableRomFiles(event.target.files || [])
+          if (files.length) void importFiles(files)
+          else notify(`所选文件夹中没有找到 ${romFormatLabel} / ZIP 游戏文件`, true)
           event.target.value = ''
         }}
       />
@@ -1008,7 +1121,7 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
       <aside
         className={`sidebar ${sidebarOpen ? 'open' : ''}`}
-        inert={Boolean(modal || deleteTarget)}
+        inert={Boolean(modal || deleteTarget || batchDeleteTargets)}
       >
         <a
           href="#"
@@ -1026,7 +1139,7 @@ export default function App() {
           </span>
         </a>
         <div className="workspace-label">
-          你的掌机游戏空间 <span>BETA</span>
+          你的经典游戏空间 <span>BETA</span>
         </div>
         <div className="nav-group-title">工作台</div>
         <nav aria-label="主导航">
@@ -1054,6 +1167,21 @@ export default function App() {
         </nav>
         <div className="nav-group-title second">偏好设置</div>
         <nav aria-label="偏好设置">
+          <button
+            className="nav-item"
+            onClick={() => {
+              setModal('account')
+              setSidebarOpen(false)
+            }}
+          >
+            <UserRound size={18} />
+            <span className="account-nav-label" title={account.user?.username}>
+              {account.user ? account.user.username : '登录与同步'}
+            </span>
+            {account.phase === 'syncing' ? (
+              <LoaderCircle size={14} className="account-spinner" aria-label="正在同步" />
+            ) : null}
+          </button>
           <button className="nav-item" disabled={busy || !ready} onClick={() => void openBackup()}>
             <HardDrive size={18} />
             <span>备份与恢复</span>
@@ -1084,15 +1212,15 @@ export default function App() {
             <div className="local-note-icon">
               <ShieldCheck size={19} />
             </div>
-            <strong>只属于你的游戏时光</strong>
+            <strong>{account.user ? '账号同步已开启' : '只属于你的游戏时光'}</strong>
             <p>
-              游戏与存档保存在此设备，
+              {account.user ? '游戏与存档已保存到账号，' : '游戏与存档保存在此设备，'}
               <br />
-              无需账号，随时开始。
+              {account.user ? '换个浏览器也能继续。' : '登录后可跨浏览器恢复。'}
             </p>
             <span>
               <span className="status-dot" />
-              本地运行 · 隐私优先
+              {account.user ? `已登录 · ${account.user.username}` : '本地运行 · 隐私优先'}
             </span>
           </div>
           <button className="help-link" onClick={() => setModal('help')}>
@@ -1101,16 +1229,18 @@ export default function App() {
             <span className="version">v1.0</span>
           </button>
           <div className="sidebar-footer">
-            <span className="avatar">P</span>
+            <span className="avatar">
+              {account.user?.username.slice(0, 1).toUpperCase() ?? 'P'}
+            </span>
             <div>
-              <strong>Player One</strong>
-              <small>今天也要玩得开心</small>
+              <strong>{account.user?.username ?? 'Player One'}</strong>
+              <small>{account.user ? account.message : '今天也要玩得开心'}</small>
             </div>
             <span className="online-dot" />
           </div>
         </div>
       </aside>
-      <div className="main-shell" inert={Boolean(modal || deleteTarget)}>
+      <div className="main-shell" inert={Boolean(modal || deleteTarget || batchDeleteTargets)}>
         <header className="topbar">
           <div className="breadcrumb">
             <IconButton
@@ -1226,15 +1356,25 @@ export default function App() {
                       : '每一段冒险，都值得好好保存。'}
               </p>
             </div>
-            <button
-              className="button primary import-top"
-              disabled={busy}
-              aria-busy={Boolean(importLabel)}
-              onClick={() => inputRef.current?.click()}
-            >
-              {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
-              {importLabel || '导入游戏'}
-            </button>
+            <div className="import-actions">
+              <button
+                className="button secondary import-top"
+                disabled={busy}
+                onClick={() => directoryInputRef.current?.click()}
+              >
+                <FolderOpen size={18} />
+                导入文件夹
+              </button>
+              <button
+                className="button primary import-top"
+                disabled={busy}
+                aria-busy={Boolean(importLabel)}
+                onClick={() => inputRef.current?.click()}
+              >
+                {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
+                {importLabel || '导入游戏'}
+              </button>
+            </div>
           </div>
 
           <section
@@ -1430,21 +1570,37 @@ export default function App() {
                     <h2>{page === 'library' ? '我的游戏' : pages[page]}</h2>
                     <span className="count-badge">{visibleGames.length}</span>
                   </div>
-                  <div className="view-toggle">
-                    <IconButton
-                      label="网格视图"
-                      className={layout === 'grid' ? 'selected' : ''}
-                      onClick={() => setLayout('grid')}
-                    >
-                      <LayoutGrid size={16} />
-                    </IconButton>
-                    <IconButton
-                      label="列表视图"
-                      className={layout === 'list' ? 'selected' : ''}
-                      onClick={() => setLayout('list')}
-                    >
-                      <List size={17} />
-                    </IconButton>
+                  <div className="section-actions">
+                    {page === 'library' && (
+                      <button
+                        className={`button secondary batch-manage-button ${selectionMode ? 'active' : ''}`}
+                        aria-pressed={selectionMode}
+                        onClick={() => {
+                          setSelectionMode((value) => !value)
+                          setSelectedGameIds(new Set())
+                          setGameMenu(null)
+                        }}
+                      >
+                        <ListChecks size={15} />
+                        {selectionMode ? '完成' : '批量管理'}
+                      </button>
+                    )}
+                    <div className="view-toggle">
+                      <IconButton
+                        label="网格视图"
+                        className={layout === 'grid' ? 'selected' : ''}
+                        onClick={() => setLayout('grid')}
+                      >
+                        <LayoutGrid size={16} />
+                      </IconButton>
+                      <IconButton
+                        label="列表视图"
+                        className={layout === 'list' ? 'selected' : ''}
+                        onClick={() => setLayout('list')}
+                      >
+                        <List size={17} />
+                      </IconButton>
+                    </div>
                   </div>
                 </div>
                 <div className="library-tools">
@@ -1498,6 +1654,38 @@ export default function App() {
                     <ChevronDown size={13} />
                   </div>
                 </div>
+                {selectionMode && page === 'library' && (
+                  <div className="batch-toolbar" role="toolbar" aria-label="批量管理游戏">
+                    <span className="batch-selection-count">
+                      已选择 <strong>{selectedGameIds.size}</strong> 个游戏
+                    </span>
+                    <button
+                      className="button secondary"
+                      disabled={!selectableVisibleGames.length}
+                      onClick={toggleVisibleSelection}
+                    >
+                      <Check size={15} />
+                      {allVisibleSelected ? '取消选择当前结果' : '选择当前结果'}
+                    </button>
+                    <button
+                      className="button ghost"
+                      disabled={!selectedGameIds.size}
+                      onClick={() => setSelectedGameIds(new Set())}
+                    >
+                      清除选择
+                    </button>
+                    <button
+                      className="button danger"
+                      disabled={!selectedGameIds.size || busy}
+                      onClick={() =>
+                        setBatchDeleteTargets(games.filter((game) => selectedGameIds.has(game.id)))
+                      }
+                    >
+                      <Trash2 size={15} />
+                      删除所选
+                    </button>
+                  </div>
+                )}
                 {!ready ? (
                   <div className="empty-state">
                     <LoaderCircle className="spin" />
@@ -1505,128 +1693,163 @@ export default function App() {
                   </div>
                 ) : (
                   <div className={`games-${layout}`}>
-                    {visibleGames.map((game) => (
-                      <article
-                        key={game.id}
-                        className={`game-card ${active?.id === game.id ? 'playing' : ''}`}
-                      >
-                        <button
-                          className="game-cover"
-                          data-platform={game.platform}
-                          aria-label={`开始 ${displayTitle(game)}`}
-                          onClick={() => void playGame(game)}
-                          disabled={busy}
-                          style={{ '--cover-color': game.color || '#7286b0' } as CSSProperties}
+                    {visibleGames.map((game) => {
+                      const selectable = !isDemo(game) && active?.id !== game.id
+                      const selected = selectedGameIds.has(game.id)
+                      return (
+                        <article
+                          key={game.id}
+                          className={`game-card ${active?.id === game.id ? 'playing' : ''} ${selectionMode ? 'selection-mode' : ''} ${selected ? 'selected' : ''} ${selectionMode && !selectable ? 'selection-disabled' : ''}`}
                         >
-                          {isDemo(game) ? (
-                            <>
-                              <SpaceArt id={`cover-${game.id.slice(0, 8)}`} />
-                              <div className="cover-wordmark">
-                                <span>AN ORIGINAL ADVENTURE</span>
-                                <strong>
-                                  STAR
-                                  <br />
-                                  ORBIT<span>✦</span>
-                                </strong>
+                          <button
+                            className="game-cover"
+                            data-platform={game.platform}
+                            aria-label={
+                              selectionMode
+                                ? selectable
+                                  ? `${selected ? '取消选择' : '选择'} ${displayTitle(game)}`
+                                  : `${displayTitle(game)} 无法选择`
+                                : `开始 ${displayTitle(game)}`
+                            }
+                            aria-pressed={selectionMode && selectable ? selected : undefined}
+                            onClick={() =>
+                              selectionMode ? toggleGameSelection(game) : void playGame(game)
+                            }
+                            disabled={busy || (selectionMode && !selectable)}
+                            style={{ '--cover-color': game.color || '#7286b0' } as CSSProperties}
+                          >
+                            {isDemo(game) ? (
+                              <>
+                                <SpaceArt id={`cover-${game.id.slice(0, 8)}`} />
+                                <div className="cover-wordmark">
+                                  <span>AN ORIGINAL ADVENTURE</span>
+                                  <strong>
+                                    STAR
+                                    <br />
+                                    ORBIT<span>✦</span>
+                                  </strong>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="generic-cover">
+                                <div className="cartridge">
+                                  <Gamepad2 size={34} />
+                                  <span>{PLATFORM_REGISTRY[game.platform].name.toUpperCase()}</span>
+                                </div>
+                                <span className="generic-title">{game.title}</span>
                               </div>
-                            </>
-                          ) : (
-                            <div className="generic-cover">
-                              <div className="cartridge">
-                                <Gamepad2 size={34} />
-                                <span>{PLATFORM_REGISTRY[game.platform].name.toUpperCase()}</span>
-                              </div>
-                              <span className="generic-title">{game.title}</span>
-                            </div>
-                          )}
-                          <span className="cover-platform" data-platform={game.platform}>
-                            {PLATFORM_REGISTRY[game.platform].label}
-                          </span>
-                          {isDemo(game) && <span className="demo-badge">原创试玩</span>}
-                          <span className="cover-play">
-                            <Play size={22} fill="currentColor" />
-                          </span>
-                          {active?.id === game.id && (
-                            <span className="now-playing">
-                              <span />
-                              正在游玩
+                            )}
+                            <span className="cover-platform" data-platform={game.platform}>
+                              {PLATFORM_REGISTRY[game.platform].label}
                             </span>
-                          )}
-                        </button>
-                        <div className="game-info">
-                          <div className="game-name-row">
-                            <button
-                              className="game-title"
-                              onClick={() => void playGame(game)}
-                              disabled={busy}
-                            >
-                              {displayTitle(game)}
-                            </button>
-                            <div className="game-menu-wrap">
-                              <IconButton
-                                label={`${game.title} 的更多操作`}
-                                onClick={() => setGameMenu(gameMenu === game.id ? null : game.id)}
+                            {isDemo(game) && <span className="demo-badge">原创试玩</span>}
+                            <span className="cover-play">
+                              <Play size={22} fill="currentColor" />
+                            </span>
+                            {active?.id === game.id && (
+                              <span className="now-playing">
+                                <span />
+                                正在游玩
+                              </span>
+                            )}
+                            {selectionMode && (
+                              <span
+                                className={`selection-mark ${selected ? 'checked' : ''} ${!selectable ? 'disabled' : ''}`}
+                                aria-hidden="true"
                               >
-                                <MoreHorizontal size={18} />
-                              </IconButton>
-                              {gameMenu === game.id && (
-                                <>
-                                  <button
-                                    className="menu-dismiss"
-                                    aria-label="关闭游戏菜单"
-                                    onClick={() => setGameMenu(null)}
-                                  />
-                                  <div className="game-menu">
-                                    <button onClick={() => void favorite(game)}>
-                                      <Heart size={14} />
-                                      {game.favorite ? '取消收藏' : '添加到收藏'}
-                                    </button>
-                                    <button
-                                      className="danger-text"
-                                      disabled={active?.id === game.id || isDemo(game)}
-                                      onClick={() => setDeleteTarget(game)}
-                                    >
-                                      <Trash2 size={14} />
-                                      删除游戏及存档
-                                    </button>
-                                  </div>
-                                </>
+                                {selected && <Check size={15} strokeWidth={3} />}
+                              </span>
+                            )}
+                          </button>
+                          <div className="game-info">
+                            <div className="game-name-row">
+                              <button
+                                className="game-title"
+                                aria-pressed={selectionMode && selectable ? selected : undefined}
+                                onClick={() =>
+                                  selectionMode ? toggleGameSelection(game) : void playGame(game)
+                                }
+                                disabled={busy || (selectionMode && !selectable)}
+                              >
+                                {displayTitle(game)}
+                              </button>
+                              {!selectionMode && (
+                                <div className="game-menu-wrap">
+                                  <IconButton
+                                    label={`${game.title} 的更多操作`}
+                                    onClick={() =>
+                                      setGameMenu(gameMenu === game.id ? null : game.id)
+                                    }
+                                  >
+                                    <MoreHorizontal size={18} />
+                                  </IconButton>
+                                  {gameMenu === game.id && (
+                                    <>
+                                      <button
+                                        className="menu-dismiss"
+                                        aria-label="关闭游戏菜单"
+                                        onClick={() => setGameMenu(null)}
+                                      />
+                                      <div className="game-menu">
+                                        <button onClick={() => void favorite(game)}>
+                                          <Heart size={14} />
+                                          {game.favorite ? '取消收藏' : '添加到收藏'}
+                                        </button>
+                                        <button
+                                          className="danger-text"
+                                          disabled={active?.id === game.id || isDemo(game)}
+                                          onClick={() => setDeleteTarget(game)}
+                                        >
+                                          <Trash2 size={14} />
+                                          删除游戏及存档
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="game-meta">
+                              <span>
+                                {isDemo(game) ? '太空探索' : formatSize(game.size)}
+                                <i />{' '}
+                                {game.lastPlayed ? formatTime(game.playTime) : '等待你的首次冒险'}
+                              </span>
+                              {!selectionMode && (
+                                <button
+                                  className={`favorite-button ${game.favorite ? 'is-favorite' : ''}`}
+                                  aria-label={
+                                    game.favorite ? '取消收藏' : `收藏 ${displayTitle(game)}`
+                                  }
+                                  onClick={() => void favorite(game)}
+                                >
+                                  <Heart size={14} fill={game.favorite ? 'currentColor' : 'none'} />
+                                </button>
                               )}
                             </div>
                           </div>
-                          <div className="game-meta">
-                            <span>
-                              {isDemo(game) ? '太空探索' : formatSize(game.size)}
-                              <i />{' '}
-                              {game.lastPlayed ? formatTime(game.playTime) : '等待你的首次冒险'}
-                            </span>
-                            <button
-                              className={`favorite-button ${game.favorite ? 'is-favorite' : ''}`}
-                              aria-label={game.favorite ? '取消收藏' : `收藏 ${displayTitle(game)}`}
-                              onClick={() => void favorite(game)}
-                            >
-                              <Heart size={14} fill={game.favorite ? 'currentColor' : 'none'} />
-                            </button>
-                          </div>
-                        </div>
-                      </article>
-                    ))}
-                    {page === 'library' && !search && platformFilter === 'all' && (
-                      <button
-                        className="import-card"
-                        disabled={busy}
-                        onClick={() => inputRef.current?.click()}
-                      >
-                        <span className="import-circle">
-                          <Plus size={25} strokeWidth={1.5} />
-                        </span>
-                        <strong>下一场冒险，由你选择</strong>
-                        <p>点击导入，或将游戏文件拖到这里</p>
-                        <span className="file-tag">
-                          {romFormatLabel} / ZIP<span>自动解压</span>
-                        </span>
-                      </button>
-                    )}
+                        </article>
+                      )
+                    })}
+                    {page === 'library' &&
+                      !selectionMode &&
+                      !search &&
+                      platformFilter === 'all' && (
+                        <button
+                          className="import-card"
+                          disabled={busy}
+                          onClick={() => inputRef.current?.click()}
+                        >
+                          <span className="import-circle">
+                            <Plus size={25} strokeWidth={1.5} />
+                          </span>
+                          <strong>下一场冒险，由你选择</strong>
+                          <p>使用上方按钮导入文件或文件夹，也可拖放到这里</p>
+                          <span className="file-tag">
+                            {romFormatLabel} / ZIP<span>自动解压</span>
+                          </span>
+                        </button>
+                      )}
                     {visibleGames.length === 0 &&
                       (page !== 'library' || search || platformFilter !== 'all') && (
                         <div className="empty-state">
@@ -1775,7 +1998,7 @@ export default function App() {
                 </div>
                 <div className="core-status">
                   <span className="status-dot" />
-                  <span>mGBA 引擎</span>
+                  <span>{engineRef.current?.version ?? '多核心引擎'}</span>
                   <span>WASM</span>
                 </div>
               </aside>
@@ -1879,13 +2102,13 @@ export default function App() {
             </span>
             <span>
               <CloudOff size={13} />
-              本地游戏，本地存档，无需账号
+              {account.user ? '本地运行，账号同步已开启' : '本地游戏，本地存档，可选账号同步'}
             </span>
           </footer>
         </main>
       </div>
 
-      {(modal || deleteTarget) && (
+      {(modal || deleteTarget || batchDeleteTargets) && (
         <div
           className="modal-backdrop"
           onMouseDown={(event) => {
@@ -1893,6 +2116,7 @@ export default function App() {
               setModal(null)
               setMapping(null)
               setDeleteTarget(null)
+              setBatchDeleteTargets(null)
             }
           }}
         >
@@ -1900,7 +2124,7 @@ export default function App() {
             className={`modal ${modal === 'states' || modal === 'backup' ? 'wide-modal' : ''}`}
             ref={modalRef}
             tabIndex={-1}
-            role={deleteTarget ? 'alertdialog' : 'dialog'}
+            role={deleteTarget || batchDeleteTargets ? 'alertdialog' : 'dialog'}
             aria-modal="true"
             aria-labelledby="modal-title"
           >
@@ -1908,17 +2132,21 @@ export default function App() {
               <div>
                 <span className="eyebrow">MAKE IT YOURS</span>
                 <h2 id="modal-title">
-                  {deleteTarget
-                    ? '删除这个游戏？'
-                    : modal === 'controls'
-                      ? '找到你的顺手操作'
-                      : modal === 'settings'
-                        ? '你的模拟器，你来定义'
-                        : modal === 'backup'
-                          ? '备份与恢复'
-                          : modal === 'states'
-                            ? '给冒险留个书签'
-                            : '准备好，开始冒险'}
+                  {batchDeleteTargets
+                    ? `删除选中的 ${batchDeleteTargets.length} 个游戏？`
+                    : deleteTarget
+                      ? '删除这个游戏？'
+                      : modal === 'controls'
+                        ? '找到你的顺手操作'
+                        : modal === 'settings'
+                          ? '你的模拟器，你来定义'
+                          : modal === 'backup'
+                            ? '备份与恢复'
+                            : modal === 'account'
+                              ? '账号与游戏同步'
+                              : modal === 'states'
+                                ? '给冒险留个书签'
+                                : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -1928,12 +2156,37 @@ export default function App() {
                   setModal(null)
                   setMapping(null)
                   setDeleteTarget(null)
+                  setBatchDeleteTargets(null)
                 }}
               >
                 <X size={20} />
               </IconButton>
             </div>
-            {deleteTarget ? (
+            {batchDeleteTargets ? (
+              <>
+                <p className="modal-description">
+                  将永久删除选中的 {batchDeleteTargets.length} 个游戏、ROM
+                  及其所有存档，并把删除结果同步到当前账号的其他浏览器。此操作无法撤销。
+                </p>
+                <div className="modal-actions">
+                  <button
+                    className="button secondary"
+                    disabled={busy}
+                    onClick={() => setBatchDeleteTargets(null)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="button danger"
+                    disabled={busy}
+                    onClick={() => void deleteSelectedGames()}
+                  >
+                    <Trash2 size={16} />
+                    删除 {batchDeleteTargets.length} 个游戏
+                  </button>
+                </div>
+              </>
+            ) : deleteTarget ? (
               <>
                 <p className="modal-description">
                   将删除「{displayTitle(deleteTarget)}
@@ -1968,6 +2221,8 @@ export default function App() {
                   setBusy(value)
                 }}
               />
+            ) : modal === 'account' ? (
+              <AccountPanel account={account} />
             ) : modal === 'controls' ? (
               <>
                 <p className="modal-description">
@@ -2201,14 +2456,13 @@ export default function App() {
                   </button>
                 </div>
                 <p className="small-note">
-                  .sav 是游戏内的电池存档；导入后会重启游戏。即时存档请使用当前游戏生成的 mGBA
-                  存档。
+                  .sav 是游戏内存档；导入后会重启游戏。即时存档须由当前游戏和同一模拟核心生成。
                 </p>
               </>
             ) : (
               <>
                 <p className="modal-description">
-                  Advance 是一个在浏览器中运行的掌机游戏空间。导入你的 .gba、.gb、.gbc 或 .zip
+                  Advance 是一个在浏览器中运行的经典游戏空间。导入 {romFormatLabel} 或 .ZIP
                   游戏，或先体验内置的原创游戏 Star Orbit。
                 </p>
                 <div className="help-steps">
@@ -2216,17 +2470,18 @@ export default function App() {
                     <span>01</span>
                     <strong>带上你的游戏</strong>
                     <p>
-                      点击「导入游戏」，或拖入 .gba / .gb / .gbc / .zip 文件。ZIP
-                      中的游戏会自动识别平台并解压，包括子文件夹。GBA ROM 最大 32 MiB，GB / GBC 最大
-                      8 MiB；ZIP 最大 64 MiB，每包最多 32 个游戏、解压合计 128 MiB。
+                      点击「导入游戏」选择文件，或点击「导入文件夹」递归扫描目录。也可拖入
+                      {romFormatLabel} / .ZIP 文件。ZIP 中的游戏会自动识别平台并解压，包括子文件夹。
+                      各平台按独立大小限制校验；ZIP 最大 64 MiB，每包最多 32 个游戏、解压合计 128
+                      MiB。
                     </p>
                   </div>
                   <div>
                     <span>02</span>
                     <strong>用熟悉的方式玩</strong>
                     <p>
-                      点击游戏画面后，方向键移动，X / Z 对应 A / B，A / S 对应肩键，Enter 开始，右
-                      Shift 选择。按 Esc 离开游戏焦点。
+                      点击游戏画面后，方向键移动，X / Z 对应 A / B，C / V 对应 X / Y，A / S
+                      对应肩键，Enter 开始，右 Shift 选择。按 Esc 离开游戏焦点。
                     </p>
                   </div>
                   <div>
@@ -2262,7 +2517,7 @@ export default function App() {
                   </div>
                 </div>
                 <p className="small-note">
-                  基于 mGBA WebAssembly 内核 · 商业游戏需自行提供合法获得的
+                  基于 mGBA、FCEUmm 与 Snes9x WebAssembly 内核 · 商业游戏需自行提供合法获得的
                   ROM。暂不支持联机、作弊码与密码压缩包。
                 </p>
               </>
@@ -2275,7 +2530,7 @@ export default function App() {
           <div>
             <Upload size={40} />
             <h2>放下游戏，开启冒险。</h2>
-            <p>支持 .gba / .gb / .gbc / .zip · 自动识别平台并解压游戏</p>
+            <p>支持 {romFormatLabel} / .ZIP · 自动识别平台并解压游戏</p>
           </div>
         </div>
       )}
