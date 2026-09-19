@@ -1,7 +1,7 @@
 {
   "name": "advance-gba",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.4.0",
   "description": "Advance — a browser-based GBA, GB, GBC, FC/NES and SFC/SNES emulator with local cores, ZIP import, save states, gamepad and touch controls.",
   "license": "MIT",
   "author": "hehuang139",
@@ -40,7 +40,8 @@
     "test:touch": "node scripts/test-touch.mjs",
     "test:startup": "node scripts/test-startup.mjs",
     "test:backup": "node scripts/test-backup.mjs",
-    "test:pwa": "node scripts/test-pwa.mjs"
+    "test:pwa": "node scripts/test-pwa.mjs",
+    "test:deployment": "node scripts/test-deployment.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

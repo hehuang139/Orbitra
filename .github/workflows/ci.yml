@@ -15,6 +15,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deployment:
+    name: Verify container deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build and verify the read-only container
+        shell: bash
+        run: |
+          trap 'docker compose -p advance-deployment-ci logs --no-color; docker compose -p advance-deployment-ci down' EXIT
+          docker compose -p advance-deployment-ci up -d --build --wait --wait-timeout 60
+          test "$(docker compose -p advance-deployment-ci exec -T advance id -u)" -ne 0
+          container_id="$(docker compose -p advance-deployment-ci ps -q advance)"
+          docker inspect "$container_id" | jq -e '
+            .[0].HostConfig.ReadonlyRootfs == true and
+            (.[0].HostConfig.CapDrop | index("ALL")) != null and
+            (.[0].HostConfig.SecurityOpt | index("no-new-privileges:true")) != null and
+            .[0].HostConfig.Tmpfs["/tmp"] != null
+          '
+          DEPLOYMENT_TEST_URL=http://127.0.0.1:8080 node scripts/test-deployment.mjs
+
   verify:
     name: Build and test
     runs-on: ubuntu-latest
@@ -51,7 +82,9 @@ jobs:
         run: pnpm verify:core
 
       - name: Run unit tests
-        run: pnpm test
+        run: |
+          pnpm test
+          pnpm test:account-server
 
       - name: Build production bundle
         run: pnpm build
@@ -91,7 +124,7 @@ jobs:
           # Each suite uses only the original Star Orbit ROM or generated variants.
           # All suites run even when an earlier suite fails, preserving their logs.
           result=0
-          for suite in engine platforms ui zip saves keyboard gamepad touch startup backup; do
+          for suite in engine platforms ui zip saves keyboard gamepad touch startup backup account; do
             # A blocked native call can also block Playwright cleanup. Bound
             # each suite so its failure still leaves time for the other logs.
             timeout --kill-after=10s 180s pnpm "test:$suite" 2>&1 | tee ".artifacts/test-$suite.log" || result=1

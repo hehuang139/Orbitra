@@ -9,7 +9,7 @@
 A modern GBA, GB, GBC, FC / NES and SFC / SNES emulator for the browser, powered by local WebAssembly cores.
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
-[![Core: mGBA WASM](https://img.shields.io/badge/Core-mGBA_WASM-a8f0c4?style=flat-square&labelColor=173227)](public/emulator/NOTICE.md)
+[![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
@@ -21,7 +21,7 @@ A modern GBA, GB, GBC, FC / NES and SFC / SNES emulator for the browser, powered
 
 Advance combines a dark, mint-accented interface with a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm and Snes9x cores run the supported systems locally.
 
-No account or user-supplied BIOS is required. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
+No account or user-supplied BIOS is required for the local library. An optional self-hosted account service can sync ROMs, battery saves and save states for restoration in another browser. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
 ## Screenshots
 
@@ -79,7 +79,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 
 - **Portable backups:** choose games and optionally include ROMs in a versioned ZIP with SHA-256 checksums. Preview before restoring, match missing ROMs by content, select individual conflicts, and roll back the entire restore on failure. Existing progress is kept by default; unknown or different-core states are unchecked.
 - **Real emulation:** bundled mGBA, FCEUmm and Snes9x WASM cores support GBA, GB, GBC, FC / NES and SFC / SNES.
-- **Local library:** file imports, recursive folder scanning and drag-and-drop, platform labels and filters, search, sorting, favorites, recent play, playtime, grid and list views.
+- **Local library:** file imports, recursive folder scanning and drag-and-drop, platform filters, search, sorting, favorites, play history, grid and list views, current-result selection and batch deletion.
 - **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
 - **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
 - **Progress management:** automatic states every 30 seconds and when returning to the library or hiding the page, when enabled; `.sav` import/export.
@@ -135,6 +135,56 @@ The adapter waits for the current game's first completed frame before allowing s
 
 ## Deployment
 
+### Docker image
+
+Install Docker and the Docker Compose plugin, then run from the repository root:
+
+```sh
+docker compose up -d --build
+```
+
+Open [http://localhost:8080](http://localhost:8080). `compose.yaml` builds the local `gba-emu:local` image and starts the `advance` service. To change the host port or stop the service:
+
+```sh
+PORT=8090 docker compose up -d --build
+docker compose down
+```
+
+After changing the port, open [http://localhost:8090](http://localhost:8090). You can also build and run without Compose:
+
+```sh
+docker build -t gba-emu:local .
+docker run -d --name advance -p 8080:8080 \
+  --read-only --tmpfs /tmp --cap-drop ALL \
+  --security-opt no-new-privileges:true --restart unless-stopped \
+  gba-emu:local
+```
+
+The multi-stage build uses Node.js 24 and pnpm 11.19.0. The final image serves only static files through Nginx, running as a non-root user on container port `8080`. Compose enables a read-only filesystem, temporary `/tmp` storage, drops all Linux capabilities, prevents privilege escalation, and uses the `unless-stopped` restart policy.
+
+The image includes cross-origin isolation headers, the `application/wasm` MIME type, SPA route fallback, and a health check (`/healthz` returns `200`). Missing static resources return `404`, not HTML. Only HTTP responses for content-hashed files under `assets/` receive long-lived caching; HTTP responses for entry HTML, the Service Worker, and fixed-path resources such as the emulator core do not. The Service Worker caches core resources with a cache-first strategy. When changing any fixed-path resource, update `public/sw.js` at the same time and increment `CACHE_VERSION` to avoid mixing old and new versions.
+
+For public access, use an HTTPS reverse proxy that forwards the site root to container port `8080` and preserves the image's `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` response headers. Keep the application and core resources on the same origin. Subpath deployment is not recommended, and plain HTTP on a LAN address does not meet the core's requirements.
+
+This Nginx image serves only the static application and does not include the account API, so account login and cross-browser sync are unavailable; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Use the Node.js same-origin production server below and persist its SQLite data directory when account sync is required.
+
+To distribute a built image offline, export it on the build machine, load it on the target machine, then start it with the `docker run` command above:
+
+```sh
+# Build machine
+docker save -o gba-emu.tar gba-emu:local
+# Target machine
+docker load -i gba-emu.tar
+```
+
+The following Node HTTP check needs no browser dependencies. Check a running image's headers, WASM MIME type, caching, missing-resource `404` responses, SPA fallback, and health check:
+
+```sh
+DEPLOYMENT_TEST_URL=http://127.0.0.1:8080 pnpm test:deployment
+```
+
+### Static build and hosting
+
 ```sh
 pnpm build
 pnpm start
@@ -176,9 +226,14 @@ pnpm test:gamepad
 pnpm test:touch
 pnpm test:startup
 pnpm test:backup
+pnpm test:account
+pnpm test:pwa
+
+# Run against an already-started Docker image
+pnpm test:deployment
 ```
 
-Unit tests cover storage, ZIP imports, environment checks, input ownership, preference migration, gamepad / touch configuration and native battery snapshot boundaries and decompression. Browser suites cover real GBA / GB / GBC / FC / SFC core execution, native display ratios, platform filtering, state restoration, rewind, live SRAM, worker cleanup, library / save / backup flows, keyboard focus and navigation, synthetic gamepads, touch pointers and narrow / landscape viewports. Startup regression covers failed prerequisites, storage failures, first-frame readiness, timeout and disposal during loading.
+Unit tests cover storage, ZIP imports, environment checks, input ownership, preference migration, gamepad / touch configuration, account API protection and native battery snapshot boundaries and decompression. Browser suites cover real GBA / GB / GBC / FC / SFC core execution, native display ratios, platform filtering, state restoration, rewind, live SRAM, worker cleanup, library / save / backup / account-sync flows, keyboard focus and navigation, synthetic gamepads, touch pointers and narrow / landscape viewports. Startup regression covers failed prerequisites, storage failures, first-frame readiness, timeout and disposal during loading.
 
 Browser tests default to `http://127.0.0.1:5173`; use `ENGINE_TEST_URL` or `UI_TEST_URL` to override it. The engine, gamepad and startup suites require Vite development pages or module instrumentation. `BROWSER_EXECUTABLE_PATH` can select an installed Chromium / Chrome / Edge binary. Synthetic Gamepad API input and mobile viewports do not certify physical controllers, phones, audio quality or screen-reader usability. The generated GB / GBC fixtures cover MBC1 with 8 KiB battery RAM; other mappers, RTC behavior and broad commercial-ROM compatibility remain unverified.
 

@@ -1,0 +1,32 @@
+# Only send build inputs and distributable runtime files to the builder.
+**
+!Dockerfile
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!index.html
+!tsconfig.json
+!vite.config.ts
+!src/
+!src/**
+!server/
+!server/account-api.mjs
+!public/
+!public/**
+!docker/
+!docker/nginx.conf
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+
+# Do not bake personal ROMs, saves or backups into the image.
+**/.env
+**/.env.*
+**/*.local
+**/*.[sS][aA][vV]
+**/*.[sS][tT][aA][tT][eE]
+**/*.ss[0-9]
+**/*.[zZ][iI][pP]
+**/*.[gG][bB][aA]
+**/*.[gG][bB]
+**/*.[gG][bB][cC]
+!public/demo/star-orbit.gba
