@@ -16,7 +16,6 @@ import {
   updateGame,
   getLibrarySnapshot,
   previewRestore,
-  repairImportedTitles,
   restoreLibrary,
   getStorageSummary,
 } from './storage.ts'
@@ -146,7 +145,7 @@ test('imports FC and SFC metadata, validates headers and records platform core I
   )
 })
 
-test('uses validated SFC internal titles and repairs older filename-derived metadata', async () => {
+test('uses filenames for SFC titles and updates older automatically generated titles on reimport', async () => {
   const loRom = await importGame(snesRom())
   const hiRom = await importGame(snesRom('987654.sfc', 'HIROM ADVENTURE', { hiRom: true }))
   const copierHeader = await importGame(
@@ -154,17 +153,33 @@ test('uses validated SFC internal titles and repairs older filename-derived meta
   )
   assert.deepEqual(
     [loRom, hiRom, copierHeader].map((game) => game.title),
-    ['ADVANCE SNES TEST', 'HIROM ADVENTURE', 'HEADERED SFC GAME'],
+    ['123456', '987654', '000001'],
   )
 
-  await corrupt('games', { ...loRom, title: '123456' })
-  assert.equal(await repairImportedTitles(), 1)
-  assert.equal((await getGames()).find((game) => game.id === loRom.id)?.title, 'ADVANCE SNES TEST')
-  assert.equal(await repairImportedTitles(), 0)
+  await corrupt('games', { ...loRom, title: 'ADVANCE SNES TEST' })
+  const renamed = await importGame(snesRom('超级马力欧世界[简].sfc'))
+  assert.equal(renamed.title, '超级马力欧世界[简]')
+  assert.equal(renamed.filename, '超级马力欧世界[简].sfc')
+
+  const renamedNumeric = await importGame(
+    snesRom('塞尔达传说[简].sfc', 'HIROM ADVENTURE', { hiRom: true }),
+  )
+  assert.equal(renamedNumeric.id, hiRom.id)
+  assert.equal(renamedNumeric.title, '塞尔达传说[简]')
 
   await updateGame(loRom.id, { title: '我的自定义标题' })
-  assert.equal(await repairImportedTitles(), 0)
-  assert.equal((await importGame(snesRom())).title, '我的自定义标题')
+  const custom = await importGame(snesRom('另一个文件名.sfc'))
+  assert.equal(custom.title, '我的自定义标题')
+  assert.equal(custom.filename, '另一个文件名.sfc')
+})
+
+test('reimporting a numbered FC ROM adopts the descriptive filename', async () => {
+  const numbered = await importGame(nesRom('019.nes'))
+  assert.equal(numbered.title, '019')
+  const renamed = await importGame(nesRom('阿尔戈斯战士[简].nes'))
+  assert.equal(renamed.id, numbered.id)
+  assert.equal(renamed.title, '阿尔戈斯战士[简]')
+  assert.equal(renamed.filename, '阿尔戈斯战士[简].nes')
 })
 
 test('isolates identical ROM bytes imported for different platforms', async () => {

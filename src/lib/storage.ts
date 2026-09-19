@@ -230,12 +230,6 @@ function snesTitle(bytes: Uint8Array): string | undefined {
   return best?.title
 }
 
-function importedTitle(platform: GamePlatform, filename: string, bytes: Uint8Array): string {
-  return platform === 'snes'
-    ? (snesTitle(bytes) ?? titleFromFilename(filename))
-    : titleFromFilename(filename)
-}
-
 function gameRecord(value: unknown): Game {
   if (!value || typeof value !== 'object') throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   const game = value as Game
@@ -315,28 +309,6 @@ export async function getGames(): Promise<Game[]> {
   })
 }
 
-/** Upgrade filename-derived SFC titles when a valid internal ROM title is available. */
-export async function repairImportedTitles(): Promise<number> {
-  const repaired = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
-    const games = (await requestResult(tx.objectStore(STORES.games).getAll())).map(gameRecord)
-    const ids: string[] = []
-    for (const game of games) {
-      if (game.platform !== 'snes' || game.title !== titleFromFilename(game.filename)) continue
-      const record = await requestResult(tx.objectStore(STORES.roms).get(game.id))
-      if (record === undefined) continue
-      const bytes = copyBytes(record.data, '游戏 ROM 数据已损坏，请重新导入游戏。')
-      if (bytes.byteLength !== game.size) continue
-      const title = snesTitle(bytes)
-      if (!title || title === game.title) continue
-      await requestResult(tx.objectStore(STORES.games).put({ ...game, title }))
-      ids.push(game.id)
-    }
-    return ids
-  })
-  for (const id of repaired) announceLibraryChange('metadata', id)
-  return repaired.length
-}
-
 export async function importGame(file: File): Promise<Game> {
   const platform = platformFromFilename(file.name)
   if (!platform) throw new Error(`请选择 ${ROM_FILE_EXTENSIONS.join('、')} 格式的游戏文件。`)
@@ -350,8 +322,7 @@ export async function importGame(file: File): Promise<Game> {
   if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
   assertRomContent(platform, bytes)
   const id = await gameIdForRom(platform, bytes)
-  const fallbackTitle = titleFromFilename(file.name)
-  const suggestedTitle = importedTitle(platform, file.name, bytes)
+  const suggestedTitle = titleFromFilename(file.name)
   const game = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const existing = await requestResult(tx.objectStore(STORES.games).get(id))
     const game =
@@ -369,14 +340,23 @@ export async function importGame(file: File): Promise<Game> {
           } satisfies Game)
         : (() => {
             const current = gameRecord(existing)
-            return current.title === fallbackTitle && current.title !== suggestedTitle
-              ? { ...current, title: suggestedTitle }
-              : current
+            const automaticTitles = new Set([
+              titleFromFilename(current.filename),
+              ...(current.platform === 'snes' ? [snesTitle(bytes)] : []),
+            ])
+            return {
+              ...current,
+              filename: file.name,
+              title: automaticTitles.has(current.title) ? suggestedTitle : current.title,
+            }
           })()
     // Reimporting deduplicates metadata while repairing any missing ROM bytes.
     await requestResult(tx.objectStore(STORES.roms).put({ id, data: bytes }))
     if (existing === undefined) await requestResult(tx.objectStore(STORES.games).add(game))
-    else if (game.title !== gameRecord(existing).title)
+    else if (
+      game.title !== gameRecord(existing).title ||
+      game.filename !== gameRecord(existing).filename
+    )
       await requestResult(tx.objectStore(STORES.games).put(game))
     return game
   })

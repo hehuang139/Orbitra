@@ -83,6 +83,15 @@ test('stored and deflated ZIPs preserve original bytes and reduce nested names t
   }
 })
 
+test('a single-ROM ZIP uses the archive filename instead of an internal numeric filename', async () => {
+  const files = await collect(
+    archive(zipSync({ '019.nes': payload(7, 16 * 1024 + 16) }), '阿尔戈斯战士[简].zip'),
+  )
+  assert.equal(files.length, 1)
+  assert.equal(files[0].name, '阿尔戈斯战士[简].nes')
+  assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), payload(7, 16 * 1024 + 16))
+})
+
 test('extracts mixed-platform archives with original platform extensions', async () => {
   const files = await collect(
     archive(
@@ -133,7 +142,7 @@ test('ignores docs, nested archives and Mac metadata without inflating them', as
   const files = await collect(archive(bytes))
   assert.deepEqual(
     files.map((file) => file.name),
-    ['good.gba'],
+    ['Games.gba'],
   )
   assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), payload(9))
 })

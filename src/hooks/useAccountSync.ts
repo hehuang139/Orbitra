@@ -214,7 +214,6 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
             setRevision(index.revision)
             if (index.updatedAt) setLastSyncedAt(index.updatedAt)
             if (restored) {
-              await db.repairImportedTitles()
               await onLibraryChanged()
             }
           } else if (!forceAll && dirtyGameIds.current.size === 0 && !fullUpload.current) {
