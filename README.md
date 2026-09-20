@@ -1,104 +1,97 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="72" height="72" alt="Orbitra 标志" />
+<img src="public/favicon.svg" width="72" height="72" alt="Orbitra logo" />
 
 # Orbitra
 
-**所有经典，都在同一轨道。**
+**Every era, one orbit.**
 
-一个面向多平台的现代浏览器模拟器。真实 WebAssembly 内核、统一游戏库、本地优先的数据管理，当前支持 GBA、GB、GBC、FC / NES、SFC / SNES，以及实验性的 GameCube。
+A modern multi-platform emulator for the browser, powered by local WebAssembly cores and a unified, local-first game library. Currently supports GBA, GB, GBC, FC / NES, SFC / SNES, and experimental GameCube emulation.
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
 [![Cores: mGBA · FCEUmm · Snes9x · Dolphin](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x_·_Dolphin-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [品牌素材](docs/brand.md) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
+[简体中文](README.md) · [Features](#features) · [Quick start](#quick-start) · [Deployment](#deployment) · [Brand assets](docs/brand.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
-![Orbitra 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
+![Orbitra desktop game library](docs/images/desktop-library.png)
 
-Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES、SFC / SNES 与 GameCube 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm、Snes9x 与实验性 Dolphin WebAssembly** 核心实际执行。
+Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin cores run the supported systems locally.
 
-无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可在界面中配置一个独立部署的在线游戏库地址，登录后把经典主机 ROM、游戏内存档与即时存档同步到自托管服务，并在新的浏览器中恢复。在线库不是游戏运行时，Orbitra 不会默认把数据发送到当前站点；GameCube 光盘镜像始终仅保存在导入它的浏览器中。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
+No account or user-supplied BIOS is required. You can optionally configure the address of a separately deployed online game library, sign in, and sync classic-system ROMs and saves across browsers. The online library is not the game runtime, Orbitra never sends data to the current site by default, and GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
-## 效果预览
+## Screenshots
 
-以下均为实际界面截图，游戏画面来自仓库内的原创试玩 ROM。除上方游戏库首页外，还展示存档、控制器、设置、帮助和移动端等主要界面。
+All screenshots show the real application. Game footage comes from the included original homebrew ROM. Alongside the library overview above, the gallery covers saves, controls, settings, help and mobile play.
 
-### 1. 存档管理与即时存档
+### 1. Save manager and save states
 
-存档管理页集中展示各游戏的自动与手动存档，包括画面预览、保存时间，以及继续游戏、导出和删除操作。
+The save manager collects automatic and manual states across games, with screenshot previews, timestamps and actions to resume, export or delete a state.
 
-![存档管理页：自动与手动存档卡片、画面预览、继续游戏和导出操作](docs/images/save-manager.png)
+![Save manager with automatic and manual states, screenshot previews, resume and export actions](docs/images/save-manager.png)
 
-游戏内的即时存档面板提供 **1 个自动槽与 5 个手动槽**，可保存、读取、导入和导出即时存档，也可备份或导入游戏内的 `.sav` 存档。
-
-<p align="center">
-  <a href="docs/images/save-states.png"><img src="docs/images/save-states.png" width="760" alt="即时存档面板：自动槽、手动槽和存档导入导出" /></a>
-</p>
-
-### 2. 控制器与模拟器设置
-
-|                                        控制器设置                                        |                                           模拟器设置                                           |
-| :--------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------: |
-| ![控制器设置：键盘映射、标准手柄说明与触屏按键开关](docs/images/controller-settings.png) | ![模拟器设置：画面显示、运行速度、音量、自动存档与触屏手柄](docs/images/emulator-settings.png) |
-|        配置键盘与手柄映射、摇杆死区，以及触屏布局、大小和不透明度；支持恢复默认。        |              选择画面风格、1× / 2× / 4× 速度、游戏音量与自动存档，偏好自动保存。               |
-
-### 3. 帮助与快捷键
-
-内置使用指南涵盖各支持平台与 ZIP 导入、键盘操作和存档方式，并集中列出暂停、快速存取档、快进、倒带和全屏快捷键。
+The in-game save panel provides **one automatic slot and five manual slots**. Save, load, import and export states, or back up and import a game's battery save (`.sav`).
 
 <p align="center">
-  <a href="docs/images/help-shortcuts.png"><img src="docs/images/help-shortcuts.png" width="760" alt="帮助与快捷键：导入指南、操作说明、存档说明和快捷键速查" /></a>
+  <a href="docs/images/save-states.png"><img src="docs/images/save-states.png" width="760" alt="Save state panel with automatic and manual slots, import and export controls" /></a>
 </p>
 
-### 4. 游戏播放与画面风格
+### 2. Controller and emulator settings
 
-|                                   原生像素                                    |                                   复古 CRT                                   |
-| :---------------------------------------------------------------------------: | :--------------------------------------------------------------------------: |
-| ![桌面播放器与 Star Orbit 的原生像素运行画面](docs/images/desktop-player.png) | ![Star Orbit 播放器启用复古 CRT 扫描线后的画面](docs/images/display-crt.png) |
-|          播放控制、快速存取档、倍速、截图和全屏操作集中在画面下方。           |          在设置中切换 CRT 扫描线，也可选择原生像素或柔和平滑显示。           |
+|                                                          Controller settings                                                           |                                                       Emulator settings                                                       |
+| :------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------: |
+| ![Controller settings with keyboard mappings, standard gamepad guidance and touch control toggle](docs/images/controller-settings.png) | ![Emulator settings with display style, speed, volume, automatic saves and touch controls](docs/images/emulator-settings.png) |
+|         Configure keyboard and gamepad mappings, stick deadzone, touch layout, size and opacity; restore defaults when needed.         |          Choose display style, 1× / 2× / 4× speed, volume and automatic saves. Preferences are saved automatically.           |
 
-### 5. 收藏与游戏库列表
+### 3. Help and keyboard shortcuts
 
-在「我的收藏」中集中查看喜欢的游戏；列表视图显示游戏信息与游玩记录，并保留搜索、排序和启动入口。
-
-![我的收藏列表：游戏信息、游玩记录、搜索、排序与启动入口](docs/images/favorites.png)
-
-### 6. 手机触控
-
-移动端布局按平台提供方向键、A / B、Start / Select、L / R 与 SFC 的 X / Y 触屏控件；播放工具栏也可直接操作。可选择标准或紧凑布局，调整按键大小与不透明度；支持多指同时操作，横竖屏切换会释放当前按键。
+The built-in guide explains supported ROM and ZIP imports, keyboard controls and saves, with a quick reference for pause, quick save/load, fast-forward, rewind and fullscreen.
 
 <p align="center">
-  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Orbitra 手机播放器、播放工具栏与触屏虚拟手柄" /></a>
+  <a href="docs/images/help-shortcuts.png"><img src="docs/images/help-shortcuts.png" width="760" alt="Help guide with import instructions, controls, save guidance and keyboard shortcuts" /></a>
 </p>
 
-## 功能特性
+### 4. Gameplay and display styles
 
-| 模块           | 已实现功能                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| **真实模拟**   | mGBA、FCEUmm、Snes9x 与实验性 Dolphin WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES、GameCube          |
-| **游戏库**     | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
-| **ZIP 导入**   | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
-| **即时存档**   | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
-| **进度管理**   | 开启自动保存后，每 30 秒及返回游戏库、切入后台时保存，并在下次启动恢复；支持 `.sav` 导入 / 导出             |
-| **批量备份**   | 选择游戏导出带校验和的 ZIP，默认不含 ROM；恢复前预览、匹配缺失 ROM、逐项选择冲突，失败整体回滚              |
-| **在线游戏库** | 配置独立服务地址并登录；自动同步 ROM、游戏内存档与即时存档，新浏览器登录后恢复，本机离线数据仍可独立使用    |
-| **播放控制**   | 暂停、继续、重置、全屏；1× / 2× / 4× 速度；按住快进与倒带；音量、静音                                       |
-| **输入方式**   | 可重映射键盘；按设备保存手柄按钮 / 轴方向与死区；标准 / 紧凑触屏布局、大小与不透明度                        |
-| **画面风格**   | 按平台使用原生比例；WebGL 2 优先、Canvas 2D 软件降级；像素、平滑、CRT 扫描线与真实核心截图                  |
-| **本地存储**   | ROM、游戏信息与存档存入 IndexedDB；偏好存入 localStorage；应用运行时不依赖外部 CDN                          |
-| **原创试玩**   | 可复现构建的 ARM 程序，包含双缓冲画面、原生按键、PSG 音效与 SRAM 存档                                       |
+|                                          Native pixels                                           |                                       Retro CRT                                       |
+| :----------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------: |
+| ![Desktop player running Star Orbit with native pixel rendering](docs/images/desktop-player.png) | ![Star Orbit running with the retro CRT scanline filter](docs/images/display-crt.png) |
+|    Playback, quick save/load, speed, screenshot and fullscreen controls sit below the screen.    |    Switch to CRT scanlines in settings, or choose native pixels or smooth scaling.    |
 
-## 快速开始
+### 5. Favorites and library list
 
-在侧栏「备份与恢复」中选择要导出的游戏，可选择是否包含 ROM。打开此面板会暂停当前游戏并保存最新电池进度；完成后可手动继续。恢复预览默认保留已有元数据、电池存档和槽位。缺少 ROM 时先提供内容相同、平台匹配的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc` 或 `.smc` 文件；核心版本不同或来源未知的即时存档默认不选中。恢复成功后回到游戏库，重新启动游戏即可读取恢复结果。
+Keep favorite games together. List view shows game details and play history, with search, sorting and launch controls available.
 
-备份格式与边界见 [备份格式 v1](docs/backup-format.md)，实现和设备验收进度见 [v1.2 roadmap](docs/roadmaps/v1.2.md)。备份只下载到本机，设置、账号信息和未选择的 ROM 不包含在内。
+![Favorites in list view with game details, play history, search, sorting and launch controls](docs/images/favorites.png)
 
-推荐 **Node.js 24** 与 **pnpm 11.19.0**（最低 Node.js 22.18）。如尚未安装 pnpm，先运行 `npm install --global pnpm@11.19.0`。
+### 6. Mobile touch controls
+
+The mobile layout exposes platform-specific controls, including X / Y / L / R for SFC games, alongside an accessible playback toolbar. Choose standard or compact layouts and adjust button size and opacity. Multiple fingers can hold buttons simultaneously; changing orientation releases held inputs.
+
+<p align="center">
+  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Orbitra mobile player with playback toolbar and on-screen gamepad" /></a>
+</p>
+
+## Features
+
+- **Portable backups:** choose games and optionally include ROMs in a versioned ZIP with SHA-256 checksums. Preview before restoring, match missing ROMs by content, select individual conflicts, and roll back the entire restore on failure. Existing progress is kept by default; unknown or different-core states are unchecked.
+- **Real emulation:** bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin WASM cores support GBA, GB, GBC, FC / NES, SFC / SNES, and GameCube.
+- **Local library:** file imports, recursive folder scanning and drag-and-drop, platform filters, search, sorting, favorites, play history, grid and list views, current-result selection and batch deletion.
+- **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
+- **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
+- **Progress management:** automatic states every 30 seconds and when returning to the library or hiding the page, when enabled; `.sav` import/export.
+- **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
+- **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
+- **Display:** platform-native aspect ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
+- **Local data and online library:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. An optional, separately hosted online library syncs ROMs and saves so a fresh browser can restore them. Runtime assets are bundled without an external CDN dependency.
+- **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
+
+## Quick start
+
+Recommended: **Node.js 24** and **pnpm 11.19.0**. Minimum Node.js version: 22.18. If pnpm is not installed, run `npm install --global pnpm@11.19.0` first.
 
 ```sh
 git clone https://github.com/hehuang139/orbitra.git
@@ -107,75 +100,57 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)，点击「开始试玩」，或导入自己的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc`、`.smc`、`.iso`、`.gcm` / `.zip` 文件；也可以选择包含这些文件的文件夹，应用会递归扫描子目录。GameCube 目前仅面向满足跨源隔离和 OffscreenCanvas 要求的桌面 Chromium，核心约需 1.5 GiB 内存。
+Open [http://localhost:5173](http://localhost:5173). Click **「开始试玩」** to start the demo, import your own `.gba`, `.gb`, `.gbc`, `.nes`, `.sfc`, `.smc`, `.iso`, `.gcm`, or `.zip` file, or select a folder to scan its subdirectories recursively. GameCube currently requires a cross-origin-isolated desktop Chromium environment with OffscreenCanvas and roughly 1.5 GiB of memory.
 
-**Star Orbit 玩法**：方向键移动飞船，靠近金色信标得分；`X` 推进、`Z` 发出脉冲、`Enter` 清零并重新开始。它运行在模拟器内核中；[试玩说明与构建源码](public/demo/README.md)可以帮助你了解一个最小 GBA 程序如何工作。
+In Star Orbit, move toward the gold beacons to collect points. Hold `X` to boost, press `Z` to emit a pulse, and press `Enter` to reset. See the [demo documentation](public/demo/README.md) for its source and build instructions.
 
-## 默认操作
+## Controls
 
-启动游戏后画面自动获得键盘焦点，也可点击画面重新聚焦。游戏按键与快捷操作仅在画面聚焦时生效；按 `Esc` 或 `Shift + Tab` 可离开游戏焦点，用正常的 `Tab`、`Enter` 和 `Space` 操作界面。对话框关闭后恢复原入口焦点，返回游戏库后恢复启动入口焦点。模拟按键可在「控制器设置」中重新映射，录入时按 `Esc` 取消；暂停、快进等快捷键保留给模拟器。
+Launching a game focuses its screen; clicking the screen restores that focus. Gameplay keys and shortcuts apply only while the screen is focused. Use `Esc` or `Shift + Tab` to leave it, then navigate the interface with normal `Tab`, `Enter` and `Space` behavior. Closing a dialog restores its trigger's focus, and exiting a game restores the launch control. Change emulated-button mappings in controller settings and press `Esc` to cancel capture. Emulator shortcuts remain reserved.
 
-| 操作                  | 默认按键             |
-| --------------------- | -------------------- |
-| 方向                  | `↑` `↓` `←` `→`      |
-| A / B                 | `X` / `Z`            |
-| X / Y（SFC、GC）      | `C` / `V`            |
-| L / R（GBA、SFC、GC） | `A` / `S`            |
-| Z（仅 GC）            | `D`                  |
-| Start / Select        | `Enter` / 右 `Shift` |
-| 暂停 / 继续           | `Space`              |
-| 保存 / 读取手动槽 1   | `F5` / `F8`          |
-| 临时 2× 快进          | 按住 `Tab`           |
-| 倒带                  | 按住 `Backspace`     |
-| 全屏                  | `F11`                |
+| Action                    | Default key             |
+| ------------------------- | ----------------------- |
+| D-pad                     | Arrow keys              |
+| A / B                     | `X` / `Z`               |
+| X / Y (SFC only)          | `C` / `V`               |
+| L / R (GBA and SFC)       | `A` / `S`               |
+| Start / Select            | `Enter` / Right `Shift` |
+| Pause / resume            | `Space`                 |
+| Save / load manual slot 1 | `F5` / `F8`             |
+| Temporary 2× speed        | Hold `Tab`              |
+| Rewind                    | Hold `Backspace`        |
+| Fullscreen                | `F11`                   |
 
-标准手柄默认支持 A / B / X / Y、L / R、Start / Select、十字键和左摇杆；界面会按当前平台隐藏无效按键。浏览器通常需要先按一次手柄按钮才能识别。在「控制器设置」选择设备后，点击某个模拟按键，再按手柄按钮或推动摇杆即可录入；可取消、清除单项、恢复默认，并在 10%–90% 范围调整摇杆死区。非标准手柄初始为空映射，需要自行设置。配置按浏览器提供的设备标识和布局保存，重新连接后的插槽变化不影响配置；相同标识和布局的设备共用配置。
+Standard gamepads retain default face / shoulder / menu buttons, D-pad and left-stick mappings; the UI hides buttons that the active platform does not use. Press a gamepad button once to make it visible to the browser. In controller settings, select the device, choose an emulated button, then press a physical button or move an axis. Capture can be cancelled, individual mappings cleared and defaults restored. Stick deadzone ranges from 10% to 90%. Nonstandard devices start with no guessed mappings. Profiles persist by browser-provided device identity and layout, independent of connection slot; devices with the same identity and layout share a profile.
 
-触屏配置提供标准 / 紧凑布局、80%–130% 按键大小和 40%–100% 不透明度，刷新后保留；旧配置自动补齐默认值。窄屏会限制实际按键尺寸，样式预留安全区。手柄断连、窗口失焦、弹窗、触控取消和暂停会释放相应输入；多个输入来源共同按住同一按键时，释放其中一个不会中断其余来源。实体手机、手柄和辅助技术的验证范围见 [兼容性记录](docs/compatibility-matrix.md)。
+Touch settings offer standard / compact layouts, 80%–130% button size and 40%–100% opacity. Settings persist across reloads and older preferences receive safe defaults. Narrow screens constrain actual button size, and styles reserve safe-area spacing. Disconnection, blur, dialogs, pointer cancellation and pause release the relevant input. A key held by several input sources remains pressed until every source releases it. Physical phone, controller and assistive-technology coverage is documented in the [compatibility record](docs/compatibility-matrix.md).
 
-## ROM 与存档
+## Import and save limits
 
-### 支持的导入格式
+Single `.gba` files must be between 192 bytes and 32 MiB; `.gb` and `.gbc` files between 32 KiB and 8 MiB; `.nes` files between 16 KiB + 16 bytes and 8 MiB with an iNES header; and `.sfc` / `.smc` files between 32 KiB and 16 MiB. GameCube `.iso` / `.gcm` images are header-checked, stored as IndexedDB blobs, and must be imported directly rather than from ZIP. ZIP files may be up to 64 MiB, contain up to 32 games and expand to at most 128 MiB of ROM data. Stored and Deflate compression are supported; encrypted, ZIP64, split and nested ZIP archives are not.
 
-| 项目                 | 当前范围                                                            |
-| -------------------- | ------------------------------------------------------------------- |
-| 单个 `.gba`          | 192 B–32 MiB                                                        |
-| 单个 `.gb` / `.gbc`  | 32 KiB–8 MiB                                                        |
-| 单个 `.nes`          | 16 KiB + 16 B–8 MiB；校验 iNES 文件头                               |
-| 单个 `.sfc` / `.smc` | 32 KiB–16 MiB                                                       |
-| 单个 `.iso` / `.gcm` | 32 KiB–1,459,978,240 B；校验 GameCube 光盘头；仅支持直接导入        |
-| `.zip` 文件          | 最大 64 MiB；支持 Stored / Deflate                                  |
-| ZIP 内游戏           | 最多 32 个；解压后的 ROM 总大小不超过 128 MiB                       |
-| 子目录与重复文件     | 递归识别支持的 ROM，忽略说明文档与 macOS 元数据；同内容游戏自动合并 |
-| 不支持的压缩格式     | 加密 ZIP、ZIP64、分卷与嵌套 ZIP；其他格式请先在本机解压             |
+Battery saves (`.sav`) contain a game's own saved progress. Save states capture the full emulation state and require the matching game, platform and compatible core version. Clearing site data, ending an incognito session or browser storage eviction can delete unsynced local files. Sign in or export important saves so they can be restored in a new browser. Force-closing the browser can lose progress since the last automatic save or sync.
 
-ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏、游戏时长与存档会保留。
+The adapter waits for the current game's first completed frame before allowing save operations. Battery export reads live cartridge save data from a native state snapshot, avoiding stale SRAM when the core has not yet flushed its virtual filesystem. This change does not upgrade the bundled mGBA core or change public `.sav` / save-state formats.
 
-### 两种存档有什么区别？
+## Deployment
 
-- **游戏内存档 `.sav`**：游戏自身的保存进度，例如在游戏菜单选择「保存」产生的数据。导入后会重新启动游戏，并刷新自动存档。
-- **即时存档**：包含画面对应时刻的完整模拟状态，可从任意时刻继续。请使用同一游戏、同一平台兼容核心版本生成的文件。
+### Docker image
 
-浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；连接在线游戏库并登录，或导出备份，可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
-
-## 构建与部署
-
-### Docker 镜像部署
-
-安装 Docker 和 Docker Compose 插件后，在仓库根目录执行：
+Install Docker and the Docker Compose plugin, then run from the repository root:
 
 ```sh
 docker compose up -d --build
 ```
 
-打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `orbitra:local` 并启动 `orbitra` 服务；修改宿主机端口或停止服务：
+Open [http://localhost:8080](http://localhost:8080). `compose.yaml` builds the local `orbitra:local` image and starts the `orbitra` service. To change the host port or stop the service:
 
 ```sh
 PORT=8090 docker compose up -d --build
 docker compose down
 ```
 
-修改端口后访问 [http://localhost:8090](http://localhost:8090)。也可不使用 Compose，独立构建与运行：
+After changing the port, open [http://localhost:8090](http://localhost:8090). You can also build and run without Compose:
 
 ```sh
 docker build -t orbitra:local .
@@ -185,128 +160,62 @@ docker run -d --name orbitra -p 8080:8080 \
   orbitra:local
 ```
 
-镜像使用 Node.js 24 与 pnpm 11.19.0 多阶段构建，最终仅通过 Nginx 提供静态文件，以非 root 用户监听容器 `8080` 端口。Compose 默认启用只读文件系统、`/tmp` 临时目录、移除全部 Linux capabilities、禁止获取新权限和 `unless-stopped` 重启策略。
+The multi-stage build uses Node.js 24 and pnpm 11.19.0. The final image serves only static files through Nginx, running as a non-root user on container port `8080`. Compose enables a read-only filesystem, temporary `/tmp` storage, drops all Linux capabilities, prevents privilege escalation, and uses the `unless-stopped` restart policy.
 
-镜像已配置跨源隔离响应头、`application/wasm` MIME、SPA 路由回退和健康检查（`/healthz` 返回 `200`）；不存在的静态资源返回 `404`，不会返回 HTML。只有带内容哈希的 `assets/` 资源的 HTTP 响应使用长期缓存，入口 HTML、Service Worker 和内核等固定路径资源的 HTTP 响应不长期缓存。Service Worker 会以 cache-first 策略缓存内核资源；变更任何固定路径资源时，必须同时更新 `public/sw.js` 并递增 `CACHE_VERSION`，避免新旧版本混用。
+The image includes cross-origin isolation headers, the `application/wasm` MIME type, SPA route fallback, and a health check (`/healthz` returns `200`). Missing static resources return `404`, not HTML. Only HTTP responses for content-hashed files under `assets/` receive long-lived caching; HTTP responses for entry HTML, the Service Worker, and fixed-path resources such as the emulator core do not. The Service Worker caches core resources with a cache-first strategy. When changing any fixed-path resource, update `public/sw.js` at the same time and increment `CACHE_VERSION` to avoid mixing old and new versions.
 
-对外部署时，应由 HTTPS 反向代理将站点根目录转发到容器 `8080` 端口，并保留镜像返回的 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。请将应用和内核资源放在同一源下，不建议部署到子路径；普通 HTTP 局域网访问不满足内核运行要求。
+For public access, use an HTTPS reverse proxy that forwards the site root to container port `8080` and preserves the image's `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` response headers. Keep the application and core resources on the same origin. Subpath deployment is not recommended, and plain HTTP on a LAN address does not meet the core's requirements.
 
-此 Nginx 镜像只提供静态应用，不包含在线游戏库；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。需要登录与跨浏览器同步时，请另行启动下文所述的在线游戏库。
+This Nginx image serves only the static application and does not include the online game library; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Run the separate online game library described below when sign-in and cross-browser sync are required.
 
-如需离线分发构建好的镜像，可导出镜像文件，在目标机器加载后使用上面的 `docker run` 命令启动：
+To distribute a built image offline, export it on the build machine, load it on the target machine, then start it with the `docker run` command above:
 
 ```sh
-# 构建镜像的机器
+# Build machine
 docker save -o orbitra.tar orbitra:local
-# 目标机器
+# Target machine
 docker load -i orbitra.tar
 ```
 
-以下检查使用 Node HTTP，无需浏览器依赖；对已运行的镜像检查响应头、WASM MIME、缓存策略、资源 `404`、SPA 回退与健康检查：
+The following Node HTTP check needs no browser dependencies. Check a running image's headers, WASM MIME type, caching, missing-resource `404` responses, SPA fallback, and health check:
 
 ```sh
 DEPLOYMENT_TEST_URL=http://127.0.0.1:8080 pnpm test:deployment
 ```
 
-### 静态构建与托管
+### Static build and hosting
 
 ```sh
 pnpm build
 pnpm start
 ```
 
-构建结果位于 `dist/`；`pnpm start` 只启动游戏运行时，默认地址为 [http://localhost:4173](http://localhost:4173)。可通过 `HOST` 和 `PORT` 修改监听地址与端口。游戏、ROM 和存档仍保存在浏览器本地，运行时不包含账号或同步 API。
+The output is in `dist/`. `pnpm start` serves only the game runtime at [http://localhost:4173](http://localhost:4173) by default; configure `HOST` and `PORT` as needed. Games, ROMs and saves remain in the browser, and the runtime does not include account or sync APIs.
 
-运行时可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
+The runtime can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
 
-在线游戏库必须作为另一个服务单独启动。在第二个终端运行：
+Run the online game library as a separate service in another terminal:
 
 ```sh
 ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
 ```
 
-在线库默认监听 [http://localhost:4174](http://localhost:4174)。打开 Orbitra 侧栏中的「在线游戏库」，填入该地址后登录。通过 `ADVANCE_LIBRARY_HOST`、`ADVANCE_LIBRARY_PORT`、`ADVANCE_LIBRARY_DATA_DIR` 和逗号分隔的 `ADVANCE_LIBRARY_ALLOWED_ORIGINS` 配置监听、SQLite 数据目录与允许连接的 Orbitra 来源；默认数据库为 `.data/online-library/advance.sqlite`。对外部署时同时设置 `ADVANCE_LIBRARY_TLS_CERT_PATH` 和 `ADVANCE_LIBRARY_TLS_KEY_PATH`，并定期备份数据目录。
+It listens at [http://localhost:4174](http://localhost:4174) by default. Open “Online game library” in Orbitra and enter that address before signing in. Configure its bind address, port, SQLite directory and comma-separated runtime origin allowlist with `ADVANCE_LIBRARY_HOST`, `ADVANCE_LIBRARY_PORT`, `ADVANCE_LIBRARY_DATA_DIR` and `ADVANCE_LIBRARY_ALLOWED_ORIGINS`. The default database is `.data/online-library/advance.sqlite`. For public deployments, set both `ADVANCE_LIBRARY_TLS_CERT_PATH` and `ADVANCE_LIBRARY_TLS_KEY_PATH`, and back up the data directory.
 
-`pnpm dev`、`pnpm preview` 和静态托管都只提供游戏运行时，不会隐式启动在线库。在线库单个传输最大 72 MiB，总库上限 2 GiB；服务端数据并非端到端加密。HTTPS Orbitra 只能连接 HTTPS 在线库；会话 token 保存在浏览器 localStorage，不要在不受信任的设备上登录。
+`pnpm dev`, `pnpm preview` and static hosting serve only the game runtime; none implicitly starts an online library. A single library transfer is capped at 72 MiB and each account at 2 GiB. Server-side data is not end-to-end encrypted. An HTTPS runtime can only connect to an HTTPS library. Session tokens are kept in browser localStorage, so do not sign in on untrusted devices.
 
-**mGBA 使用 WebAssembly 线程，部署必须满足跨源隔离要求。** 使用 HTTPS（本地开发可用 localhost），并在响应中添加：
+**The threaded WASM core requires HTTPS or localhost and cross-origin isolation.** Serve these response headers:
 
 ```http
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Embedder-Policy: require-corp
 ```
 
-Vite 开发与预览服务已配置上述响应头；`public/_headers` 会随构建输出，适用于支持该格式的 Netlify / Cloudflare Pages 静态部署。其他服务需要自行配置响应头，并将内核资源与应用放在同一源下。
+Vite development and preview servers already set them. The included `public/_headers` supports compatible Netlify / Cloudflare Pages deployments. Other hosts must configure the headers explicitly. Serve the core and application from the same origin; the current build assumes a site-root deployment.
 
-<details>
-<summary>Nginx 配置示例</summary>
+Plain HTTP on a LAN address and hosts without the required headers will not run the core. Default GitHub Pages hosting does not support these custom response headers and is not a direct deployment target for this version. Browsers need SharedArrayBuffer, WebAssembly threads, Canvas 2D and IndexedDB. The application prefers WebGL 2 and automatically uses a slower Canvas 2D software renderer when WebGL 2 cannot be created. The production build includes a versioned PWA shell and user-controlled offline cache updates; real mobile installation still needs validation.
 
-```nginx
-server {
-    listen 443 ssl;
-    # 在此配置你的域名和 TLS 证书
-    root /var/www/orbitra/dist;
-
-    add_header Cross-Origin-Opener-Policy same-origin always;
-    add_header Cross-Origin-Embedder-Policy require-corp always;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-</details>
-
-目前默认部署在站点根目录。普通 HTTP 局域网地址、缺少隔离响应头的静态托管不能启动内核；默认 GitHub Pages 无法配置此处所需的自定义响应头，不适合直接部署当前版本。
-
-浏览器需支持 SharedArrayBuffer、WebAssembly 线程、Canvas 2D 和 IndexedDB。应用优先使用 WebGL 2；无法创建 WebGL 2 时会自动改用 Canvas 2D 软件渲染，并在「环境检查」中提示性能可能较低。首次访问需要联网缓存应用壳；之后可在已缓存资源范围内离线打开，并通过 Service Worker 的用户确认流程更新资源。
-
-## 工作原理
-
-```mermaid
-flowchart LR
-    A[React 界面<br/>游戏库 · 播放器 · 设置] --> B[TypeScript 内核适配层]
-    B --> C[mGBA · FCEUmm · Snes9x · Dolphin<br/>WebAssembly 核心]
-    A --> D[本地存储<br/>IndexedDB · localStorage]
-    A -. 配置独立地址 .-> G[在线游戏库<br/>账号 · SQLite 快照]
-    B --> D
-    E[支持的 ROM / ZIP 文件] --> F[平台识别 · 校验 · 解压 · 内容去重]
-    F --> D
-```
-
-应用负责交互、资源管理与存档持久化，各 WebAssembly 核心负责硬件模拟。内核文件随仓库分发，版本、校验值及本地修改见 [mGBA 来源说明](public/emulator/NOTICE.md)、[EmulatorJS 来源说明](public/emulatorjs/NOTICE.md)与 [Dolphin 来源说明](public/dolphin/NOTICE.md)。
-
-适配层在当前游戏完成首帧后才允许存取档，避免线程已创建但 ROM 尚未初始化时读取空进度。导出电池存档时，从核心生成的原生即时快照提取当前存档数据，避免暂停后读到尚未写回虚拟文件系统的旧 SRAM。本轮未升级 mGBA 核心，也未更改对外的 `.sav` 或即时存档格式。
-
-<details>
-<summary>项目结构</summary>
-
-```text
-src/App.tsx                 游戏库、播放器、设置与存档界面
-src/styles.css              桌面与移动端样式
-src/components/Artwork.tsx  原创掌机与封面插画
-src/emulator/index.ts       内核适配、生命周期与输入
-src/emulator/battery-snapshot.ts 原生快照中的电池存档提取与边界校验
-src/hooks/useGamepads.ts    手柄轮询、映射录入与断连处理
-src/lib/input.ts            键盘、手柄与触控的按键来源管理
-src/lib/gamepad.ts          手柄配置校验、默认映射与录入逻辑
-src/lib/touch.ts            触屏配置校验与多指输入
-src/lib/platforms.ts        平台能力、文件格式与原生分辨率注册表
-src/lib/storage.ts          IndexedDB 存储与去重
-src/lib/import-roms.ts      ZIP 校验与限额解压
-src/lib/preferences.ts      偏好与默认按键
-public/emulator/            固定版本核心、许可证与来源
-public/demo/                原创试玩 ROM、截图与说明
-public/fonts/               本地字体与许可证
-scripts/create-demo.mjs     ARM 指令生成与试玩 ROM 构建
-scripts/test-*.mjs          真实浏览器集成检查
-docs/images/                项目首页截图
-```
-
-</details>
-
-## 验证与开发
+## Development and testing
 
 ```sh
 pnpm test
@@ -314,7 +223,7 @@ pnpm test:library-server
 pnpm build
 pnpm exec playwright install chromium
 
-# 保持另一终端中的 pnpm dev 运行
+# Keep pnpm dev running in another terminal
 pnpm test:engine
 pnpm test:platforms
 pnpm test:ui
@@ -328,66 +237,26 @@ pnpm test:startup
 pnpm test:backup
 pnpm test:pwa
 
-# 对已经运行的 Docker 镜像执行部署检查
+# Run against an already-started Docker image
 pnpm test:deployment
 ```
 
-| 检查         | 覆盖范围                                                                                          |
-| ------------ | ------------------------------------------------------------------------------------------------- |
-| 单元测试     | 存储、ZIP、环境探测、输入来源、配置迁移、手柄与触控；原生电池快照的边界、大小和解压校验           |
-| 真实内核检查 | ROM 画面、输入位移、状态恢复、倒带、倍速、SRAM 与 worker 释放                                     |
-| 多平台流程   | GBA / GB / GBC / FC / SFC 导入、真实核心启动、存档、筛选、平台输入与刷新恢复                      |
-| 界面流程     | 收藏、搜索、试玩、快速存取档、下载、键位设置、导入、刷新恢复与移动触控                            |
-| ZIP 导入流程 | 多游戏、子目录、去重、拖放、错误提示与解压后的游戏启动                                            |
-| 存档流程     | `.sav` 导入后立即刷新、自动存档一致性与跨游戏存档隔离                                             |
-| 键盘流程     | 导入、对话框焦点限制 / 恢复、取消映射、启动、暂停、存取档与退出                                   |
-| 手柄流程     | 模拟 Gamepad API；按钮 / 轴映射、死区、取消 / 重置、刷新 / 重连、共享按键、断连 / 失焦与 API 异常 |
-| 触屏流程     | 模拟指针与视口；多指、取消 / 捕获丢失、配置持久化、320px / 手机 / 横屏布局与按键可达性            |
-| 启动失败流程 | 运行前提与存储异常、首帧等待、启动超时及加载期间释放；失败不覆盖已有存档                          |
-| 备份恢复流程 | 含 / 不含 ROM 的导出恢复、冲突选择、损坏输入、事务回滚、旧实例隔离与窄屏布局                      |
-| 账号同步流程 | 登录、分片上传、按需下载、跨浏览器合并、批量删除同步、退出后保留本地游戏及服务端接口保护          |
-| PWA 与部署   | 离线应用壳、更新流程、核心缓存完整性；容器响应头、MIME、缓存、路由、健康检查与静态资源 404        |
+Unit tests cover storage, ZIP imports, environment checks, input ownership, preference migration, gamepad / touch configuration, account API protection and native battery snapshot boundaries and decompression. Browser suites cover real GBA / GB / GBC / FC / SFC core execution, native display ratios, platform filtering, state restoration, rewind, live SRAM, worker cleanup, library / save / backup / account-sync flows, keyboard focus and navigation, synthetic gamepads, touch pointers and narrow / landscape viewports. Startup regression covers failed prerequisites, storage failures, first-frame readiness, timeout and disposal during loading.
 
-浏览器测试默认连接 `http://127.0.0.1:5173`。内核、手柄与启动套件使用 Vite 开发测试页或模块插桩，需要 `pnpm dev`。环境变量、测试约定与贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。模拟输入和手机视口只提供自动化证据，不能替代实体设备、音频试听或屏幕阅读器检查。测试使用原创试玩 ROM 与运行时生成的原创最小 GB / GBC / NES / SNES ROM；它们验证基础流程，不代表全部 mapper、RTC、增强芯片或商业 ROM 兼容性。
+Browser tests default to `http://127.0.0.1:5173`; use `ENGINE_TEST_URL` or `UI_TEST_URL` to override it. The engine, gamepad and startup suites require Vite development pages or module instrumentation. `BROWSER_EXECUTABLE_PATH` can select an installed Chromium / Chrome / Edge binary. Synthetic Gamepad API input and mobile viewports do not certify physical controllers, phones, audio quality or screen-reader usability. The generated GB / GBC fixtures cover MBC1 with 8 KiB battery RAM; other mappers, RTC behavior and broad commercial-ROM compatibility remain unverified.
 
-## Roadmap
+The [contributing guide](CONTRIBUTING.md) describes the project structure and test workflow in more detail. English Issues and PRs are welcome.
 
-当前版本已提供 GBA / GB / GBC / FC / SFC 导入、实际模拟、存取档、备份恢复与多种输入方式。下面同时列出已交付基础和仍待完成的验证：
+## Roadmap and compatibility
 
-- [ ] 增加浏览器与移动设备兼容性矩阵，以及可复现的性能检查。
-- [ ] 在真实手柄、手机与屏幕阅读器上复测已实现的输入配置和键盘焦点流程。
-- [x] 提供游戏库及存档批量备份 / 恢复（真实低内存设备仍待验证）。
-- [x] 探索具备跨源隔离支持的 PWA 安装与离线体验（真实移动设备仍待验证）。
-- [ ] 增加界面国际化与更多可合法分发的自制 ROM 测试。
+Gamepad and touch customization and keyboard focus improvements are implemented. Remaining work includes physical-device and screen-reader verification, broader browser / low-end-device evidence, UI localization and more redistributable homebrew tests. Backup and restore software is implemented; its remaining device and memory validation is tracked in the [v1.2 roadmap](docs/roadmaps/v1.2.md). See the [full roadmap](ROADMAP.md) for scope and acceptance goals and the [changelog](CHANGELOG.md) for release history. The v1.1 validation work remains open where devices or manual evidence are missing; unchecked items are not release-date commitments.
 
-优先级、验收方向与待评估功能见 [完整 Roadmap](ROADMAP.md)，已发布版本的变化见 [更新日志](CHANGELOG.md)。FC / SFC 当前为单人基础支持，尚未覆盖双人输入、所有 mapper / 增强芯片和实体设备；联机、作弊码和托管式第三方云服务仍不支持，自托管在线游戏库需要单独部署。
+FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play and cheats are not supported. A separately deployed self-hosted online library is available; concurrent conflict resolution and a hosted third-party cloud service are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
 
-## 参与贡献
+## Acknowledgments and license
 
-欢迎提交 Bug、改进交互、完善文档或增加测试。请先阅读 [贡献指南](CONTRIBUTING.md)，提交问题时附上浏览器版本、复现步骤与错误信息。可通过 [Issues](https://github.com/hehuang139/orbitra/issues) 讨论建议，通过 [Pull requests](https://github.com/hehuang139/orbitra/pulls) 提交改动。
+Thanks to [mGBA](https://mgba.io/), the [mgba-wasm port](https://github.com/thenick775/mgba), [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS), FCEUmm, Snes9x, [wasm-dolphin](https://github.com/dougchansan/wasm-dolphin), and Dolphin contributors for making the emulator possible. The interface and tooling also use [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vite.dev/), [Lucide](https://lucide.dev/), [fflate](https://github.com/101arrowz/fflate), [DM Sans](https://github.com/googlefonts/dm-fonts), [Playwright](https://playwright.dev/) and [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB).
 
-请勿在 Issue、PR 或测试资源中上传无权分发的游戏 ROM、BIOS 或素材。原创试玩及有明确再分发许可的自制游戏更适合用于复现和测试。
+Application code and original demo content are licensed under [MIT](LICENSE). **Third-party components retain their own licenses:** mGBA / mgba-wasm use MPL-2.0; EmulatorJS, FCEUmm and Snes9x use the licenses bundled with their local runtime; wasm-dolphin / Dolphin uses GPL-2.0-or-later; DM Sans uses SIL OFL 1.1. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [mGBA provenance](public/emulator/NOTICE.md), [EmulatorJS provenance](public/emulatorjs/NOTICE.md), and [Dolphin provenance](public/dolphin/NOTICE.md) before redistributing.
 
-## 鸣谢
-
-Orbitra 建立在以下开源项目与创作者的工作之上：
-
-| 项目                                                                                                    | 用途                                 |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| [mGBA](https://mgba.io/) · Jeffrey Pfau 与贡献者                                                        | GBA、GB 与 GBC 硬件模拟核心          |
-| [mgba-wasm](https://github.com/thenick775/mgba) · Nicholas VanCise 与贡献者                             | mGBA 的 WebAssembly 移植与浏览器接口 |
-| [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 与 FCEUmm / Snes9x 贡献者                        | FC / NES 与 SFC / SNES 浏览器运行时  |
-| [wasm-dolphin](https://github.com/dougchansan/wasm-dolphin) 与 Dolphin 贡献者                           | 实验性 GameCube 浏览器运行时         |
-| [React](https://react.dev/) · [TypeScript](https://www.typescriptlang.org/) · [Vite](https://vite.dev/) | 应用界面、类型系统与构建工具         |
-| [Lucide](https://lucide.dev/)                                                                           | 界面图标                             |
-| [fflate](https://github.com/101arrowz/fflate)                                                           | ZIP 解压                             |
-| [DM Sans](https://github.com/googlefonts/dm-fonts)                                                      | 界面字体                             |
-| [Playwright](https://playwright.dev/) · [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB)   | 浏览器集成检查与存储测试             |
-
-也感谢为掌机模拟、自制游戏与浏览器开放技术作出贡献的开发者。
-
-## 许可证
-
-应用代码与原创试玩采用 [MIT 许可证](LICENSE)。**第三方组件保留各自许可证**：mGBA / mgba-wasm 使用 MPL-2.0；EmulatorJS、FCEUmm 与 Snes9x 使用各自随仓库附带的许可证；wasm-dolphin / Dolphin 使用 GPL-2.0-or-later；DM Sans 字体采用 SIL OFL 1.1。分发时应保留相应许可证与来源说明，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
-
-Game Boy、Game Boy Color 与 Game Boy Advance 是 Nintendo 的商标。本项目是独立开源项目，与 Nintendo 无关联，也未获其背书。
+Game Boy, Game Boy Color and Game Boy Advance are trademarks of Nintendo. This independent project is not affiliated with or endorsed by Nintendo.
