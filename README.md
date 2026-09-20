@@ -6,7 +6,7 @@
 
 **Every era, one orbit.**
 
-A modern multi-platform emulator for the browser, powered by local WebAssembly cores and a unified, local-first game library. Currently supports GBA, GB, GBC, FC / NES, SFC / SNES, and experimental GameCube emulation.
+Orbitra is a local-first browser emulator for retro games: GBA (Game Boy Advance), Game Boy, Game Boy Color, NES, SNES, and experimental GameCube emulation. It is powered by local WebAssembly cores and a unified game library for ROMs, save states, gamepad input, and touch controls.
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
 [![Cores: mGBA · FCEUmm · Snes9x · Dolphin](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x_·_Dolphin-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
@@ -78,7 +78,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 ## Features
 
 - **Portable backups:** choose games and optionally include ROMs in a versioned ZIP with SHA-256 checksums. Preview before restoring, match missing ROMs by content, select individual conflicts, and roll back the entire restore on failure. Existing progress is kept by default; unknown or different-core states are unchecked.
-- **Real emulation:** bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin WASM cores support GBA, GB, GBC, FC / NES, SFC / SNES, and GameCube.
+- **Real emulation:** bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin WebAssembly cores support Game Boy Advance (GBA), Game Boy (GB), Game Boy Color (GBC), Nintendo Entertainment System (NES), Super Nintendo (SNES), and GameCube.
 - **Local library:** file imports, recursive folder scanning and drag-and-drop, platform filters, search, sorting, favorites, play history, grid and list views, current-result selection and batch deletion.
 - **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
 - **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
