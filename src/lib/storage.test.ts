@@ -21,6 +21,7 @@ import {
 } from './storage.ts'
 import type { RestoreChoices, RestorePreview } from './storage.ts'
 import type { BackupData } from './backup-format.ts'
+import { gameIdForRom } from './backup-format.ts'
 import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { PLATFORM_REGISTRY, platformFromFilename } from './platforms.ts'
 
@@ -57,6 +58,12 @@ function snesRom(
   bytes[header + 0x3c] = 0x00
   bytes[header + 0x3d] = 0x80
   return new File([bytes], name)
+}
+
+function gameCubeRom(name = 'Homebrew.iso', seed = 7): File {
+  const bytes = new Uint8Array(PLATFORM_REGISTRY.gamecube.minRomSize).fill(seed)
+  bytes.set([0xc2, 0x33, 0x9f, 0x3d], 0x1c)
+  return new File([bytes], name, { type: 'application/octet-stream' })
 }
 
 async function corrupt(store: string, record: object): Promise<void> {
@@ -143,6 +150,38 @@ test('imports FC and SFC metadata, validates headers and records platform core I
     (await saveState(snes.id, 1, new Uint8Array([2]))).coreVersion,
     coreIdForPlatform('snes'),
   )
+})
+
+test('imports GameCube images as blobs with header validation, platform IDs and deduplication', async () => {
+  assert.equal(platformFromFilename('Disc.ISO'), 'gamecube')
+  assert.equal(platformFromFilename('Disc.gCm'), 'gamecube')
+  const file = gameCubeRom()
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const game = await importGame(file)
+  assert.equal(game.platform, 'gamecube')
+  assert.equal(game.id, await gameIdForRom('gamecube', bytes))
+  const stored = await getRom(game.id)
+  assert.ok(stored instanceof Blob)
+  assert.equal(stored.size, file.size)
+  assert.deepEqual(new Uint8Array(await stored.arrayBuffer()), bytes)
+  const renamed = await importGame(gameCubeRom('Renamed.gcm'))
+  assert.equal(renamed.id, game.id)
+  assert.equal((await getGames()).length, 1)
+  assert.equal(
+    (await saveState(game.id, 1, new Uint8Array([1]))).coreVersion,
+    coreIdForPlatform('gamecube'),
+  )
+
+  const invalid = new Uint8Array(PLATFORM_REGISTRY.gamecube.minRomSize)
+  await assert.rejects(importGame(new File([invalid], 'Broken.iso')), /GameCube.*文件头/)
+})
+
+test('keeps GameCube images local while allowing metadata-only snapshots', async () => {
+  const game = await importGame(gameCubeRom())
+  const metadata = await getLibrarySnapshot([game.id], false)
+  assert.equal(metadata.games[0].game.platform, 'gamecube')
+  assert.equal(metadata.games[0].rom, undefined)
+  await assert.rejects(getLibrarySnapshot([game.id], true), /GameCube.*不写入备份/)
 })
 
 test('uses filenames for SFC titles and updates older automatically generated titles on reimport', async () => {

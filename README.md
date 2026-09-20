@@ -6,10 +6,10 @@
 
 **所有经典，都在同一轨道。**
 
-一个面向多平台的现代浏览器模拟器。真实 WebAssembly 内核、统一游戏库、本地优先的数据管理，当前支持 GBA、GB、GBC、FC / NES 与 SFC / SNES。
+一个面向多平台的现代浏览器模拟器。真实 WebAssembly 内核、统一游戏库、本地优先的数据管理，当前支持 GBA、GB、GBC、FC / NES、SFC / SNES，以及实验性的 GameCube。
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
-[![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
+[![Cores: mGBA · FCEUmm · Snes9x · Dolphin](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x_·_Dolphin-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
@@ -19,9 +19,9 @@
 
 ![Orbitra 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
 
-Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm 与 Snes9x WebAssembly** 核心实际执行。
+Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES、SFC / SNES 与 GameCube 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm、Snes9x 与实验性 Dolphin WebAssembly** 核心实际执行。
 
-无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可选账号会把 ROM、游戏内存档与即时存档同步到自托管服务，登录后可在新的浏览器中恢复。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
+无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可选账号会把经典主机 ROM、游戏内存档与即时存档同步到自托管服务，登录后可在新的浏览器中恢复；GameCube 光盘镜像始终仅保存在导入它的浏览器中。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
 
 ## 效果预览
 
@@ -79,7 +79,7 @@ Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中
 
 | 模块         | 已实现功能                                                                                                  |
 | ------------ | ----------------------------------------------------------------------------------------------------------- |
-| **真实模拟** | mGBA、FCEUmm 与 Snes9x WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES                                   |
+| **真实模拟** | mGBA、FCEUmm、Snes9x 与实验性 Dolphin WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES、GameCube          |
 | **游戏库**   | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
 | **ZIP 导入** | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
 | **即时存档** | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
@@ -107,7 +107,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)，点击「开始试玩」，或导入自己的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc`、`.smc` / `.zip` 文件；也可以选择包含这些文件的文件夹，应用会递归扫描子目录。
+打开 [http://localhost:5173](http://localhost:5173)，点击「开始试玩」，或导入自己的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc`、`.smc`、`.iso`、`.gcm` / `.zip` 文件；也可以选择包含这些文件的文件夹，应用会递归扫描子目录。GameCube 目前仅面向满足跨源隔离和 OffscreenCanvas 要求的桌面 Chromium，核心约需 1.5 GiB 内存。
 
 **Star Orbit 玩法**：方向键移动飞船，靠近金色信标得分；`X` 推进、`Z` 发出脉冲、`Enter` 清零并重新开始。它运行在模拟器内核中；[试玩说明与构建源码](public/demo/README.md)可以帮助你了解一个最小 GBA 程序如何工作。
 
@@ -115,18 +115,19 @@ pnpm dev
 
 启动游戏后画面自动获得键盘焦点，也可点击画面重新聚焦。游戏按键与快捷操作仅在画面聚焦时生效；按 `Esc` 或 `Shift + Tab` 可离开游戏焦点，用正常的 `Tab`、`Enter` 和 `Space` 操作界面。对话框关闭后恢复原入口焦点，返回游戏库后恢复启动入口焦点。模拟按键可在「控制器设置」中重新映射，录入时按 `Esc` 取消；暂停、快进等快捷键保留给模拟器。
 
-| 操作                | 默认按键             |
-| ------------------- | -------------------- |
-| 方向                | `↑` `↓` `←` `→`      |
-| A / B               | `X` / `Z`            |
-| X / Y（仅 SFC）     | `C` / `V`            |
-| L / R（GBA、SFC）   | `A` / `S`            |
-| Start / Select      | `Enter` / 右 `Shift` |
-| 暂停 / 继续         | `Space`              |
-| 保存 / 读取手动槽 1 | `F5` / `F8`          |
-| 临时 2× 快进        | 按住 `Tab`           |
-| 倒带                | 按住 `Backspace`     |
-| 全屏                | `F11`                |
+| 操作                  | 默认按键             |
+| --------------------- | -------------------- |
+| 方向                  | `↑` `↓` `←` `→`      |
+| A / B                 | `X` / `Z`            |
+| X / Y（SFC、GC）      | `C` / `V`            |
+| L / R（GBA、SFC、GC） | `A` / `S`            |
+| Z（仅 GC）            | `D`                  |
+| Start / Select        | `Enter` / 右 `Shift` |
+| 暂停 / 继续           | `Space`              |
+| 保存 / 读取手动槽 1   | `F5` / `F8`          |
+| 临时 2× 快进          | 按住 `Tab`           |
+| 倒带                  | 按住 `Backspace`     |
+| 全屏                  | `F11`                |
 
 标准手柄默认支持 A / B / X / Y、L / R、Start / Select、十字键和左摇杆；界面会按当前平台隐藏无效按键。浏览器通常需要先按一次手柄按钮才能识别。在「控制器设置」选择设备后，点击某个模拟按键，再按手柄按钮或推动摇杆即可录入；可取消、清除单项、恢复默认，并在 10%–90% 范围调整摇杆死区。非标准手柄初始为空映射，需要自行设置。配置按浏览器提供的设备标识和布局保存，重新连接后的插槽变化不影响配置；相同标识和布局的设备共用配置。
 
@@ -142,6 +143,7 @@ pnpm dev
 | 单个 `.gb` / `.gbc`  | 32 KiB–8 MiB                                                        |
 | 单个 `.nes`          | 16 KiB + 16 B–8 MiB；校验 iNES 文件头                               |
 | 单个 `.sfc` / `.smc` | 32 KiB–16 MiB                                                       |
+| 单个 `.iso` / `.gcm` | 32 KiB–1,459,978,240 B；校验 GameCube 光盘头；仅支持直接导入        |
 | `.zip` 文件          | 最大 64 MiB；支持 Stored / Deflate                                  |
 | ZIP 内游戏           | 最多 32 个；解压后的 ROM 总大小不超过 128 MiB                       |
 | 子目录与重复文件     | 递归识别支持的 ROM，忽略说明文档与 macOS 元数据；同内容游戏自动合并 |
@@ -257,7 +259,7 @@ server {
 ```mermaid
 flowchart LR
     A[React 界面<br/>游戏库 · 播放器 · 设置] --> B[TypeScript 内核适配层]
-    B --> C[mGBA · FCEUmm · Snes9x<br/>WebAssembly 核心]
+    B --> C[mGBA · FCEUmm · Snes9x · Dolphin<br/>WebAssembly 核心]
     A --> D[本地存储<br/>IndexedDB · localStorage]
     A --> G[账号同步 API<br/>SQLite 快照]
     B --> D
@@ -265,7 +267,7 @@ flowchart LR
     F --> D
 ```
 
-应用负责交互、资源管理与存档持久化，各 WebAssembly 核心负责硬件模拟。内核文件随仓库分发，版本、校验值及本地修改见 [mGBA 来源说明](public/emulator/NOTICE.md)与 [EmulatorJS 来源说明](public/emulatorjs/NOTICE.md)。
+应用负责交互、资源管理与存档持久化，各 WebAssembly 核心负责硬件模拟。内核文件随仓库分发，版本、校验值及本地修改见 [mGBA 来源说明](public/emulator/NOTICE.md)、[EmulatorJS 来源说明](public/emulatorjs/NOTICE.md)与 [Dolphin 来源说明](public/dolphin/NOTICE.md)。
 
 适配层在当前游戏完成首帧后才允许存取档，避免线程已创建但 ROM 尚未初始化时读取空进度。导出电池存档时，从核心生成的原生即时快照提取当前存档数据，避免暂停后读到尚未写回虚拟文件系统的旧 SRAM。本轮未升级 mGBA 核心，也未更改对外的 `.sav` 或即时存档格式。
 
@@ -367,6 +369,7 @@ Orbitra 建立在以下开源项目与创作者的工作之上：
 | [mGBA](https://mgba.io/) · Jeffrey Pfau 与贡献者                                                        | GBA、GB 与 GBC 硬件模拟核心          |
 | [mgba-wasm](https://github.com/thenick775/mgba) · Nicholas VanCise 与贡献者                             | mGBA 的 WebAssembly 移植与浏览器接口 |
 | [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 与 FCEUmm / Snes9x 贡献者                        | FC / NES 与 SFC / SNES 浏览器运行时  |
+| [wasm-dolphin](https://github.com/dougchansan/wasm-dolphin) 与 Dolphin 贡献者                           | 实验性 GameCube 浏览器运行时         |
 | [React](https://react.dev/) · [TypeScript](https://www.typescriptlang.org/) · [Vite](https://vite.dev/) | 应用界面、类型系统与构建工具         |
 | [Lucide](https://lucide.dev/)                                                                           | 界面图标                             |
 | [fflate](https://github.com/101arrowz/fflate)                                                           | ZIP 解压                             |
@@ -377,6 +380,6 @@ Orbitra 建立在以下开源项目与创作者的工作之上：
 
 ## 许可证
 
-应用代码与原创试玩采用 [MIT 许可证](LICENSE)。**第三方组件保留各自许可证**：mGBA / mgba-wasm 使用 MPL-2.0；EmulatorJS、FCEUmm 与 Snes9x 使用各自随仓库附带的许可证；DM Sans 字体采用 SIL OFL 1.1。分发时应保留相应许可证与来源说明，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+应用代码与原创试玩采用 [MIT 许可证](LICENSE)。**第三方组件保留各自许可证**：mGBA / mgba-wasm 使用 MPL-2.0；EmulatorJS、FCEUmm 与 Snes9x 使用各自随仓库附带的许可证；wasm-dolphin / Dolphin 使用 GPL-2.0-or-later；DM Sans 字体采用 SIL OFL 1.1。分发时应保留相应许可证与来源说明，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
 
 Game Boy、Game Boy Color 与 Game Boy Advance 是 Nintendo 的商标。本项目是独立开源项目，与 Nintendo 无关联，也未获其背书。

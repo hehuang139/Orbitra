@@ -8,7 +8,7 @@
 
 - [x] 定义 `gba`、`gb`、`gbc` 平台标识，在游戏库、播放器和存档界面使用对应主机名称、标签与原生画面比例。
 - [x] 定义 `nes`、`snes` 标识；FC 对应 NES，SFC 对应 SNES。
-- [ ] 在实际接入时定义 `nds`、`3ds`、`gamecube`、`wii`、`wiiu`、`arcade`、`ps1`、`psp`、`switch`、`switch2`、`ps2` 等后续标识。New Nintendo 3DS 以 `3ds` 平台下的必需硬件档位记录，街机另需包含硬件系列与 ROM set / 核心版本。
+- [x] 定义 `gamecube` 平台标识和显式核心能力；`nds`、`3ds`、`wii`、`wiiu`、`arcade`、`ps1`、`psp`、`switch`、`switch2`、`ps2` 等后续标识在实际接入时补充。New Nintendo 3DS 以 `3ds` 平台下的必需硬件档位记录，街机另需包含硬件系列与 ROM set / 核心版本。
 - [x] 将当前 mGBA 会话接口改为平台无关命名，并由调用方传入 GBA / GB / GBC 平台与动态 ROM 路径。
 - [x] 抽出多核心会话适配，统一加载、暂停、重置、输入、音频、游戏内存档、即时存档、倒带、截图和释放入口。
 - [x] 按平台延迟加载本地核心资源，并记录精确版本、源码、许可证和资源校验值；切换核心时释放监听器、音频、图形上下文和输入状态。
@@ -58,8 +58,10 @@
 
 三个平台共享大体积光盘、复杂图形和系统数据问题，但输入、存档与显示模型不同，必须分别验收。火焰纹章兼容目标为 GameCube《苍炎之轨迹》、Wii《晓之女神》和 Wii U《幻影异闻录♯FE》；Wii U Virtual Console 旧作不替代对应原始平台的验收。
 
-- [ ] 评估候选核心的许可证、WebAssembly 移植成本、CPU 执行方式、线程、SIMD 和 WebGL / WebGPU 后端；分别建立 GameCube / Wii 与 Wii U 的最小浏览器原型，记录下载体积、启动耗时和至少 15 分钟持续运行结果。
-- [ ] 为光盘和多文件资源设计按需读取、校验与 OPFS / IndexedDB 缓存，避免完整镜像的重复内存复制；按实际核心能力确定 ISO、GCM、RVZ、WUD / WUX 或其他格式范围，不预先宣称未验证格式。
+GameCube 已接入固定版本的 `wasm-dolphin` 研究原型，状态为实验性：支持桌面 Chromium 下直接导入 `.iso` / `.gcm`、本地 Blob 存储、基础手柄输入、音频和版本隔离的即时存档。核心需要跨源隔离、SharedArrayBuffer、OffscreenCanvas 和约 1.5 GiB 内存；光盘镜像仅保存在本机，不进入 ZIP 备份或账号同步。记忆卡、截图、倍速、倒带、移动端和广泛兼容性尚未支持或验收。
+
+- [x] 固定 GameCube 原型核心、许可证、源码 commit 和 WASM 哈希；Wii / Wii U 原型、GameCube 启动耗时及至少 15 分钟持续运行结果仍待记录。
+- [x] GameCube `.iso` / `.gcm` 使用增量哈希和 IndexedDB Blob，挂载时不复制完整镜像；RVZ、Wii / Wii U 格式与 OPFS 仍待独立评估。
 - [ ] 接入 GameCube 手柄、记忆卡和多控制器；为 Wii 单独设计 Wii Remote、指针、体感、Nunchuk 与经典手柄能力；为 Wii U 处理 GamePad 双屏、触控及 Pro Controller，无法映射的外设功能明确列为不支持。
 - [ ] 区分 GameCube 记忆卡、Wii / Wii U NAND 与即时存档，记录地区、标题 ID、核心及系统版本；需要系统文件、固件或用户密钥时提供本地选择和校验流程，不纳入应用分发或默认备份。
 - [ ] 覆盖平台切换、控制器断连、后台恢复、图形上下文丢失、音频同步、存档导入导出和资源释放；根据实际结果分别确定桌面和移动端支持范围。

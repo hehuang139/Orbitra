@@ -91,6 +91,7 @@ const buttonNames: Record<EmulatorButton, string> = {
   Y: 'Y 按钮',
   L: 'L 肩键',
   R: 'R 肩键',
+  Z: 'Z 按钮',
   Start: '开始',
   Select: '选择',
 }
@@ -740,8 +741,9 @@ export default function App() {
       if (event.code === 'Space') togglePause()
       if (event.code === 'F5') void run(() => snapshot(1))
       if (event.code === 'F8') void loadSlot(1)
-      if (event.code === 'Tab') engineRef.current?.setSpeed(2)
-      if (event.code === 'Backspace') engineRef.current?.setRewind(true)
+      const capabilities = PLATFORM_REGISTRY[activeRef.current.platform].capabilities
+      if (event.code === 'Tab' && capabilities.speedControl) engineRef.current?.setSpeed(2)
+      if (event.code === 'Backspace' && capabilities.rewind) engineRef.current?.setRewind(true)
       if (event.code === 'F11') void fullscreen()
     }
     const keyup = (event: KeyboardEvent) => {
@@ -749,8 +751,11 @@ export default function App() {
         ([, code]) => code === event.code,
       )?.[0]
       if (button) input.release('keyboard', button)
-      if (event.code === 'Tab') engineRef.current?.setSpeed(settings.speed)
-      if (event.code === 'Backspace') engineRef.current?.setRewind(false)
+      const platform = activeRef.current?.platform
+      if (event.code === 'Tab' && platform && PLATFORM_REGISTRY[platform].capabilities.speedControl)
+        engineRef.current?.setSpeed(settings.speed)
+      if (event.code === 'Backspace' && platform && PLATFORM_REGISTRY[platform].capabilities.rewind)
+        engineRef.current?.setRewind(false)
     }
     window.addEventListener('keydown', keydown)
     window.addEventListener('keyup', keyup)
@@ -1038,6 +1043,7 @@ export default function App() {
           }
   const demo = games.find(isDemo)
   const activePlatform = PLATFORM_REGISTRY[active?.platform ?? 'gba']
+  const effectiveSpeed = activePlatform.capabilities.speedControl ? settings.speed : 1
   const canControl = Boolean(active && ['running', 'paused'].includes(status) && !busy)
   const setSetting = <K extends keyof Settings>(key: K, value: Settings[K]) =>
     setSettings((previous) => ({ ...previous, [key]: value }))
@@ -1475,7 +1481,7 @@ export default function App() {
                 </IconButton>
                 <IconButton
                   label="保存截图"
-                  disabled={!canControl}
+                  disabled={!canControl || !activePlatform.capabilities.screenshots}
                   onClick={() => void screenshot()}
                 >
                   <ScanLine size={18} />
@@ -1483,14 +1489,15 @@ export default function App() {
               </div>
               <div className="toolbar-group">
                 <button
-                  className={`speed-button ${settings.speed !== 1 ? 'accelerated' : ''}`}
+                  className={`speed-button ${effectiveSpeed !== 1 ? 'accelerated' : ''}`}
+                  disabled={!activePlatform.capabilities.speedControl}
                   onClick={() =>
                     setSetting('speed', settings.speed === 1 ? 2 : settings.speed === 2 ? 4 : 1)
                   }
                   title="切换运行速度"
                 >
                   <FastForward size={16} />
-                  {settings.speed}×
+                  {effectiveSpeed}×
                 </button>
                 <span className="fps">
                   <span className="status-dot" />
@@ -1937,7 +1944,8 @@ export default function App() {
                     {([1, 2, 4] as const).map((speed) => (
                       <button
                         key={speed}
-                        className={settings.speed === speed ? 'active' : ''}
+                        className={effectiveSpeed === speed ? 'active' : ''}
+                        disabled={!activePlatform.capabilities.speedControl}
                         onClick={() => setSetting('speed', speed)}
                       >
                         {speed}×{speed === 1 && <span>正常</span>}
@@ -2325,7 +2333,8 @@ export default function App() {
                   </div>
                   <select
                     aria-label="设置运行速度"
-                    value={settings.speed}
+                    value={effectiveSpeed}
+                    disabled={!activePlatform.capabilities.speedControl}
                     onChange={(event) =>
                       setSetting('speed', Number(event.target.value) as Settings['speed'])
                     }
@@ -2438,7 +2447,7 @@ export default function App() {
                   </button>
                   <button
                     className="button secondary"
-                    disabled={!canControl}
+                    disabled={!canControl || !activePlatform.capabilities.batterySaves}
                     onClick={() => void exportBattery()}
                   >
                     <ArrowDownToLine size={15} />
@@ -2446,7 +2455,7 @@ export default function App() {
                   </button>
                   <button
                     className="button secondary"
-                    disabled={!canControl}
+                    disabled={!canControl || !activePlatform.capabilities.batterySaves}
                     onClick={() => saveInputRef.current?.click()}
                   >
                     <ArrowUpFromLine size={15} />
@@ -2454,7 +2463,9 @@ export default function App() {
                   </button>
                 </div>
                 <p className="small-note">
-                  .sav 是游戏内存档；导入后会重启游戏。即时存档须由当前游戏和同一模拟核心生成。
+                  {activePlatform.capabilities.batterySaves
+                    ? '.sav 是游戏内存档；导入后会重启游戏。即时存档须由当前游戏和同一模拟核心生成。'
+                    : 'GameCube 目前使用本地即时存档；暂不支持独立记忆卡导入导出。'}
                 </p>
               </>
             ) : (

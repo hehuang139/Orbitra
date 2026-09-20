@@ -9,6 +9,9 @@ import type { Game, SaveState } from './types.ts'
 import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { BACKUP_LIMITS, gameIdForRom, sha256, validateBackupData } from './backup-format.ts'
 import type { BackupData, BackupGame } from './backup-format.ts'
+import { sha256 as incrementalSha256 } from '@noble/hashes/sha256'
+
+export type RomData = Uint8Array | Blob
 
 const DATABASE_NAME = 'advance-gba'
 const DATABASE_VERSION = 1
@@ -169,6 +172,31 @@ function assertRomContent(platform: GamePlatform, bytes: Uint8Array): void {
   if (platform === 'snes' && bytes.byteLength % 0x8000 !== 0 && bytes.byteLength % 0x8000 !== 512) {
     throw new Error('无法识别 SFC / SNES ROM：文件大小不符合卡带映像或 512 字节头格式。')
   }
+  if (
+    platform === 'gamecube' &&
+    (bytes[0x1c] !== 0xc2 || bytes[0x1d] !== 0x33 || bytes[0x1e] !== 0x9f || bytes[0x1f] !== 0x3d)
+  ) {
+    throw new Error('无法识别 GameCube 光盘镜像：缺少有效的光盘文件头。')
+  }
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function gameIdForFile(platform: GamePlatform, file: Blob): Promise<string> {
+  const hash = incrementalSha256.create()
+  const chunkSize = 4 * 1024 * 1024
+  for (let offset = 0; offset < file.size; offset += chunkSize) {
+    hash.update(new Uint8Array(await file.slice(offset, offset + chunkSize).arrayBuffer()))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+  const contentDigest = hash.digest()
+  const domain = new TextEncoder().encode(`advance-game-id:v1\0${platform}\0`)
+  const identity = new Uint8Array(domain.length + contentDigest.length)
+  identity.set(domain)
+  identity.set(contentDigest, domain.length)
+  return hex(incrementalSha256(identity))
 }
 
 function titleFromFilename(filename: string): string {
@@ -313,15 +341,26 @@ export async function importGame(file: File): Promise<Game> {
   const platform = platformFromFilename(file.name)
   if (!platform) throw new Error(`请选择 ${ROM_FILE_EXTENSIONS.join('、')} 格式的游戏文件。`)
   assertRomSize(platform, file.size)
-  let bytes: Uint8Array
+  let data: RomData
+  let bytes: Uint8Array | undefined
+  let id: string
   try {
-    bytes = new Uint8Array(await file.arrayBuffer())
-  } catch {
-    throw new Error('无法读取游戏文件，请重新选择后重试。')
+    if (platform === 'gamecube') {
+      const header = new Uint8Array(await file.slice(0, 0x40).arrayBuffer())
+      assertRomContent(platform, header)
+      id = await gameIdForFile(platform, file)
+      data = file.slice(0, file.size, 'application/octet-stream')
+    } else {
+      bytes = new Uint8Array(await file.arrayBuffer())
+      if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
+      assertRomContent(platform, bytes)
+      id = await gameIdForRom(platform, bytes)
+      data = bytes
+    }
+  } catch (error) {
+    if (error instanceof Error && /无法识别|读取不完整/.test(error.message)) throw error
+    throw new Error('无法读取游戏文件，请重新选择后重试。', { cause: error })
   }
-  if (bytes.byteLength !== file.size) throw new Error('游戏文件读取不完整，请重新选择后重试。')
-  assertRomContent(platform, bytes)
-  const id = await gameIdForRom(platform, bytes)
   const suggestedTitle = titleFromFilename(file.name)
   const game = await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const existing = await requestResult(tx.objectStore(STORES.games).get(id))
@@ -332,7 +371,7 @@ export async function importGame(file: File): Promise<Game> {
             title: suggestedTitle,
             filename: file.name,
             platform,
-            size: bytes.byteLength,
+            size: file.size,
             addedAt: Date.now(),
             lastPlayed: null,
             playTime: 0,
@@ -342,7 +381,7 @@ export async function importGame(file: File): Promise<Game> {
             const current = gameRecord(existing)
             const automaticTitles = new Set([
               titleFromFilename(current.filename),
-              ...(current.platform === 'snes' ? [snesTitle(bytes)] : []),
+              ...(current.platform === 'snes' && bytes ? [snesTitle(bytes)] : []),
             ])
             return {
               ...current,
@@ -351,7 +390,7 @@ export async function importGame(file: File): Promise<Game> {
             }
           })()
     // Reimporting deduplicates metadata while repairing any missing ROM bytes.
-    await requestResult(tx.objectStore(STORES.roms).put({ id, data: bytes }))
+    await requestResult(tx.objectStore(STORES.roms).put({ id, data }))
     if (existing === undefined) await requestResult(tx.objectStore(STORES.games).add(game))
     else if (
       game.title !== gameRecord(existing).title ||
@@ -387,11 +426,16 @@ export async function updateGame(id: string, changes: GameChanges): Promise<Game
   return game
 }
 
-export async function getRom(id: string): Promise<Uint8Array | undefined> {
+export async function getRom(id: string): Promise<RomData | undefined> {
   return transaction([STORES.games, STORES.roms], 'readonly', async (tx) => {
     const record = await requestResult(tx.objectStore(STORES.roms).get(id))
     if (record === undefined) return undefined
     const game = await requireGame(tx, id)
+    if (game.platform === 'gamecube') {
+      if (!(record.data instanceof Blob) || record.data.size !== game.size)
+        throw new Error('游戏 ROM 数据已损坏，请重新导入游戏。')
+      return record.data.slice(0, record.data.size, 'application/octet-stream')
+    }
     const bytes = copyBytes(record.data, '游戏 ROM 数据已损坏，请重新导入游戏。')
     if (bytes.byteLength !== game.size) throw new Error('游戏 ROM 数据已损坏，请重新导入游戏。')
     return bytes
@@ -402,6 +446,7 @@ export async function getRom(id: string): Promise<Uint8Array | undefined> {
 export async function cacheRom(id: string, data: Uint8Array): Promise<Uint8Array> {
   const bytes = copyBytes(data, '下载的游戏 ROM 数据无效，请重试。')
   const game = await transaction([STORES.games], 'readonly', (tx) => requireGame(tx, id))
+  if (game.platform === 'gamecube') throw new Error('GameCube 光盘镜像仅保存在导入它的浏览器中。')
   if (bytes.byteLength !== game.size || (await gameIdForRom(game.platform, bytes)) !== id)
     throw new Error('下载的游戏 ROM 与云端游戏清单不匹配。')
   await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
@@ -572,6 +617,8 @@ async function readLibrary(
   ) {
     throw new Error('所选本地 ROM 总大小超过 64 MiB，请减少选择，或导出时不包含 ROM。')
   }
+  if (includeRoms && parsed.some((game) => game?.platform === 'gamecube'))
+    throw new Error('GameCube 光盘镜像不写入备份，请关闭“包含 ROM”后导出游戏信息与即时存档。')
   const records: LibraryRecord[] = []
   let totalBytes = 0
   for (let index = 0; index < ordered.length; index++) {

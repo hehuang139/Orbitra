@@ -16,6 +16,7 @@ import type { AccountUser, CloudLibraryItem } from '../lib/account-api.ts'
 import { createBackup, parseBackup } from '../lib/backup-format.ts'
 import * as db from '../lib/storage.ts'
 import type { LibraryChange, RestoreChoices, RestorePreview } from '../lib/storage.ts'
+import type { RomData } from '../lib/storage.ts'
 
 export type AccountPhase = 'checking' | 'signed-out' | 'idle' | 'syncing' | 'error'
 
@@ -29,7 +30,7 @@ export interface AccountSyncController {
   signUp(username: string, password: string): Promise<void>
   signOut(): Promise<void>
   syncNow(): Promise<void>
-  ensureRom(gameId: string): Promise<Uint8Array | undefined>
+  ensureRom(gameId: string): Promise<RomData | undefined>
 }
 
 interface AccountSyncOptions {
@@ -237,6 +238,14 @@ export function useAccountSync({ onLibraryChanged }: AccountSyncOptions): Accoun
         }
         for (const id of dirtyGameIds.current) {
           if (gameIds.has(id)) uploadIds.add(id)
+        }
+
+        const localOnlyIds = new Set(
+          games.filter((game) => game.platform === 'gamecube').map((game) => game.id),
+        )
+        for (const id of localOnlyIds) {
+          uploadIds.delete(id)
+          dirtyGameIds.current.delete(id)
         }
 
         for (const id of [...dirtyGameIds.current]) {

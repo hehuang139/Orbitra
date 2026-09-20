@@ -10,6 +10,7 @@ const dependencies = [
   ['scheduler', reactRequire],
   ['lucide-react', require],
   ['fflate', require],
+  ['@noble/hashes', require],
 ]
 const sections = [
   'Orbitra — Runtime dependency licenses\n\nGenerated from installed packages. Regenerate after updating dependencies with pnpm licenses:generate.\nSee THIRD_PARTY_NOTICES.md for separately bundled mGBA and font licenses.',

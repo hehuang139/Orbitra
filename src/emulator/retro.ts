@@ -68,6 +68,7 @@ const BUTTON_INDEX: Record<EmulatorButton, number> = {
   X: 9,
   L: 10,
   R: 11,
+  Z: 12,
 }
 
 const CORE_NAMES: Record<'nes' | 'snes', string> = {
@@ -247,6 +248,7 @@ export function createRetroEmulator(
         throw new Error('此核心仅支持 FC / NES 与 SFC / SNES 游戏。')
       const definition = PLATFORM_REGISTRY[nextPlatform]
       if (
+        !(data instanceof Uint8Array) ||
         platformFromFilename(name) !== nextPlatform ||
         data.byteLength < definition.minRomSize ||
         data.byteLength > definition.maxRomSize

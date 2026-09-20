@@ -3,6 +3,7 @@ import { checkRuntimePrerequisites } from '../lib/compatibility'
 import { batteryFromState } from './battery-snapshot'
 import { installCanvas2DRenderer } from './canvas2d-renderer'
 import { createRetroEmulator } from './retro'
+import { createDolphinEmulator } from './dolphin'
 
 /** Browser adapter for the locally bundled mGBA WebAssembly core. */
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms.ts'
@@ -11,6 +12,7 @@ import type { EmulatorButton as PlatformButton, GamePlatform } from '../lib/plat
 export type EmulatorButton = PlatformButton
 export type GbaButton = EmulatorButton
 export type EmulatorStatus = 'idle' | 'loading' | 'running' | 'paused' | 'error' | 'disposed'
+export type RomSource = Uint8Array | Blob
 
 export interface EmulatorOptions {
   onStatus?: (status: EmulatorStatus) => void
@@ -25,7 +27,7 @@ export interface Emulator {
   readonly romName: string | null
   readonly platform: GamePlatform | null
   readonly version: string
-  loadRom(data: Uint8Array, name: string, platform: GamePlatform): Promise<void>
+  loadRom(data: RomSource, name: string, platform: GamePlatform): Promise<void>
   start(): void
   resume(): void
   pause(): void
@@ -390,6 +392,7 @@ export function createMgbaEmulator(
       assertAlive()
       const definition = PLATFORM_REGISTRY[nextPlatform]
       if (
+        !(data instanceof Uint8Array) ||
         !definition ||
         definition.core !== 'mgba' ||
         platformFromFilename(name) !== nextPlatform
@@ -665,7 +668,9 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
       backend =
         definition.core === 'mgba'
           ? createMgbaEmulator(canvas, scopedOptions(ticket))
-          : createRetroEmulator(canvas, scopedOptions(ticket))
+          : definition.core === 'dolphin'
+            ? createDolphinEmulator(canvas, scopedOptions(ticket))
+            : createRetroEmulator(canvas, scopedOptions(ticket))
       backend.setVolume(volume)
       backend.setSpeed(speed)
       await backend.loadRom(data, name, platform)

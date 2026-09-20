@@ -6,10 +6,10 @@
 
 **Every era, one orbit.**
 
-A modern multi-platform emulator for the browser, powered by local WebAssembly cores and a unified, local-first game library. Currently supports GBA, GB, GBC, FC / NES and SFC / SNES.
+A modern multi-platform emulator for the browser, powered by local WebAssembly cores and a unified, local-first game library. Currently supports GBA, GB, GBC, FC / NES, SFC / SNES, and experimental GameCube emulation.
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
-[![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
+[![Cores: mGBA · FCEUmm · Snes9x · Dolphin](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x_·_Dolphin-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
@@ -19,9 +19,9 @@ A modern multi-platform emulator for the browser, powered by local WebAssembly c
 
 ![Orbitra desktop game library](docs/images/desktop-library.png)
 
-Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm and Snes9x cores run the supported systems locally.
+Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin cores run the supported systems locally.
 
-No account or user-supplied BIOS is required for the local library. An optional self-hosted account service can sync ROMs, battery saves and save states for restoration in another browser. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
+No account or user-supplied BIOS is required for the local library. An optional self-hosted account service can sync classic-system ROMs and saves for restoration in another browser; GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
 ## Screenshots
 
@@ -78,7 +78,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 ## Features
 
 - **Portable backups:** choose games and optionally include ROMs in a versioned ZIP with SHA-256 checksums. Preview before restoring, match missing ROMs by content, select individual conflicts, and roll back the entire restore on failure. Existing progress is kept by default; unknown or different-core states are unchecked.
-- **Real emulation:** bundled mGBA, FCEUmm and Snes9x WASM cores support GBA, GB, GBC, FC / NES and SFC / SNES.
+- **Real emulation:** bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin WASM cores support GBA, GB, GBC, FC / NES, SFC / SNES, and GameCube.
 - **Local library:** file imports, recursive folder scanning and drag-and-drop, platform filters, search, sorting, favorites, play history, grid and list views, current-result selection and batch deletion.
 - **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
 - **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
@@ -100,7 +100,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Click **「开始试玩」** to start the demo, import your own `.gba`, `.gb`, `.gbc`, `.nes`, `.sfc`, `.smc` or `.zip` file, or select a folder to scan its subdirectories recursively.
+Open [http://localhost:5173](http://localhost:5173). Click **「开始试玩」** to start the demo, import your own `.gba`, `.gb`, `.gbc`, `.nes`, `.sfc`, `.smc`, `.iso`, `.gcm`, or `.zip` file, or select a folder to scan its subdirectories recursively. GameCube currently requires a cross-origin-isolated desktop Chromium environment with OffscreenCanvas and roughly 1.5 GiB of memory.
 
 In Star Orbit, move toward the gold beacons to collect points. Hold `X` to boost, press `Z` to emit a pulse, and press `Enter` to reset. See the [demo documentation](public/demo/README.md) for its source and build instructions.
 
@@ -127,7 +127,7 @@ Touch settings offer standard / compact layouts, 80%–130% button size and 40%�
 
 ## Import and save limits
 
-Single `.gba` files must be between 192 bytes and 32 MiB; `.gb` and `.gbc` files between 32 KiB and 8 MiB; `.nes` files between 16 KiB + 16 bytes and 8 MiB with an iNES header; and `.sfc` / `.smc` files between 32 KiB and 16 MiB. ZIP files may be up to 64 MiB, contain up to 32 games and expand to at most 128 MiB of ROM data. Stored and Deflate compression are supported; encrypted, ZIP64, split and nested ZIP archives are not. Imports verify platform-specific sizes and CRC values and ignore documentation and macOS metadata.
+Single `.gba` files must be between 192 bytes and 32 MiB; `.gb` and `.gbc` files between 32 KiB and 8 MiB; `.nes` files between 16 KiB + 16 bytes and 8 MiB with an iNES header; and `.sfc` / `.smc` files between 32 KiB and 16 MiB. GameCube `.iso` / `.gcm` images are header-checked, stored as IndexedDB blobs, and must be imported directly rather than from ZIP. ZIP files may be up to 64 MiB, contain up to 32 games and expand to at most 128 MiB of ROM data. Stored and Deflate compression are supported; encrypted, ZIP64, split and nested ZIP archives are not.
 
 Battery saves (`.sav`) contain a game's own saved progress. Save states capture the full emulation state and require the matching game, platform and compatible core version. Clearing site data, ending an incognito session or browser storage eviction can delete unsynced local files. Sign in or export important saves so they can be restored in a new browser. Force-closing the browser can lose progress since the last automatic save or sync.
 
@@ -247,8 +247,8 @@ FC / NES and SFC / SNES currently provide single-player baseline support. Two-pl
 
 ## Acknowledgments and license
 
-Thanks to [mGBA](https://mgba.io/), the [mgba-wasm port](https://github.com/thenick775/mgba), [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS), FCEUmm and Snes9x contributors for making the emulator possible. The interface and tooling also use [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vite.dev/), [Lucide](https://lucide.dev/), [fflate](https://github.com/101arrowz/fflate), [DM Sans](https://github.com/googlefonts/dm-fonts), [Playwright](https://playwright.dev/) and [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB).
+Thanks to [mGBA](https://mgba.io/), the [mgba-wasm port](https://github.com/thenick775/mgba), [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS), FCEUmm, Snes9x, [wasm-dolphin](https://github.com/dougchansan/wasm-dolphin), and Dolphin contributors for making the emulator possible. The interface and tooling also use [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Vite](https://vite.dev/), [Lucide](https://lucide.dev/), [fflate](https://github.com/101arrowz/fflate), [DM Sans](https://github.com/googlefonts/dm-fonts), [Playwright](https://playwright.dev/) and [fake-indexeddb](https://github.com/dumbmatter/fakeIndexedDB).
 
-Application code and original demo content are licensed under [MIT](LICENSE). **Third-party components retain their own licenses:** mGBA / mgba-wasm use MPL-2.0; EmulatorJS, FCEUmm and Snes9x use the licenses bundled with their local runtime; DM Sans uses SIL OFL 1.1. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [mGBA provenance](public/emulator/NOTICE.md) and [EmulatorJS provenance](public/emulatorjs/NOTICE.md) before redistributing.
+Application code and original demo content are licensed under [MIT](LICENSE). **Third-party components retain their own licenses:** mGBA / mgba-wasm use MPL-2.0; EmulatorJS, FCEUmm and Snes9x use the licenses bundled with their local runtime; wasm-dolphin / Dolphin uses GPL-2.0-or-later; DM Sans uses SIL OFL 1.1. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [mGBA provenance](public/emulator/NOTICE.md), [EmulatorJS provenance](public/emulatorjs/NOTICE.md), and [Dolphin provenance](public/dolphin/NOTICE.md) before redistributing.
 
 Game Boy, Game Boy Color and Game Boy Advance are trademarks of Nintendo. This independent project is not affiliated with or endorsed by Nintendo.

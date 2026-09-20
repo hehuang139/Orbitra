@@ -1,0 +1,1200 @@
+:root {
+  --aspect-w: 4;
+  --aspect-h: 3;
+  color-scheme: dark;
+  --bg: #111312;
+  --surface: #1d201b;
+  --surface-2: #252923;
+  --cabinet: #3a3d36;
+  --cabinet-dark: #232722;
+  --glass: #050706;
+  --line: #46493f;
+  --line-soft: rgba(255, 255, 255, 0.1);
+  --text: #f2eee2;
+  --muted: #aaa79a;
+  --dim: #737064;
+  --green: #73d18b;
+  --amber: #e7b75a;
+  --red: #e2655d;
+  --blue: #8ab8d9;
+  --button: #2e312b;
+  --button-hover: #3b4036;
+  --focus: #e7b75a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    linear-gradient(180deg, #181a16 0%, var(--bg) 38%, #0f1110 100%);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+.file-button,
+select {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--button);
+  color: var(--text);
+}
+
+button,
+.file-button {
+  cursor: pointer;
+  min-height: 38px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+button:hover,
+.file-button:hover,
+select:hover {
+  background: var(--button-hover);
+  border-color: #69604f;
+}
+
+button:active,
+.file-button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible,
+.file-button:focus-within,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button.active {
+  border-color: rgba(115, 209, 139, 0.65);
+  color: var(--green);
+  background: rgba(115, 209, 139, 0.11);
+}
+
+select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+code {
+  color: var(--amber);
+  font-size: 0.92em;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.topbar {
+  min-height: 66px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(17, 19, 18, 0.96);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, transparent 48%, rgba(0, 0, 0, 0.3) 49% 51%, transparent 52%),
+    linear-gradient(135deg, var(--green), var(--amber));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  flex: 0 0 auto;
+}
+
+h1 {
+  font-size: 1.34rem;
+  line-height: 1.05;
+}
+
+.brand p {
+  color: var(--muted);
+  margin-top: 3px;
+  font-size: 0.86rem;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pill {
+  border: 1px solid rgba(115, 209, 139, 0.36);
+  border-radius: 999px;
+  color: var(--green);
+  background: rgba(115, 209, 139, 0.08);
+  padding: 7px 12px;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.status-pill.paused {
+  color: var(--amber);
+  border-color: rgba(231, 183, 90, 0.36);
+  background: rgba(231, 183, 90, 0.1);
+}
+
+.status-pill.error {
+  color: var(--red);
+  border-color: rgba(226, 101, 93, 0.42);
+  background: rgba(226, 101, 93, 0.12);
+}
+
+.icon-button {
+  min-width: 46px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 372px;
+  min-height: 0;
+}
+
+.play-area {
+  min-width: 0;
+  min-height: 0;
+  align-self: start;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  padding: 20px 24px 18px;
+}
+
+.crt-set {
+  position: relative;
+  align-self: start;
+  justify-self: center;
+  /* Fit to whichever dimension runs out first, live: the width the available
+     height allows at the chosen ratio, or the column width. Both terms are
+     relative units, so dragging the window resizes the console continuously
+     with no JS. The 1.32 fudge this replaced was 4:3 baked in, which meant
+     16:9 could not use the extra width. --crt-chrome is the header, LCD strip
+     and footer that sit outside the picture. */
+  width: min(100%, calc((100dvh - var(--crt-chrome, 210px)) * var(--aspect-w, 4) / var(--aspect-h, 3)));
+  /* No fixed cap: at 16:9 the console should be free to fill a wide window. */
+  max-width: 100%;
+  min-width: min(100%, 360px);
+  border: 1px solid #56503f;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 20%),
+    var(--cabinet);
+  box-shadow:
+    0 22px 70px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(0, 0, 0, 0.4) inset;
+  padding: 18px 18px 12px;
+}
+
+.crt-set.dragging {
+  border-color: var(--amber);
+  box-shadow:
+    0 22px 70px rgba(0, 0, 0, 0.42),
+    0 0 0 2px rgba(231, 183, 90, 0.38) inset;
+}
+
+.crt-bezel {
+  border: 1px solid #181814;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 18%),
+    var(--cabinet-dark);
+  padding: 18px;
+}
+
+.screen-viewport {
+  position: relative;
+  /* Driven by the aspect selector; fullscreen reuses the same numbers to
+     compute a fit against the real display. */
+  aspect-ratio: var(--aspect-w, 4) / var(--aspect-h, 3);
+  border: 2px solid #080908;
+  border-radius: 8px;
+  background: var(--glass);
+  overflow: hidden;
+  box-shadow:
+    0 0 34px rgba(0, 0, 0, 0.55) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
+  background: #050505;
+}
+
+.blank-probe-notice {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(76%, 560px);
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(231, 183, 90, 0.72);
+  border-radius: 8px;
+  background: rgba(20, 16, 7, 0.92);
+  color: var(--amber);
+  padding: 14px 18px;
+  font-size: clamp(0.82rem, 2vw, 1.05rem);
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  pointer-events: none;
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 18%, rgba(0, 0, 0, 0.12)),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.018) 0,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 6px
+    );
+  opacity: 0.12;
+  mix-blend-mode: screen;
+}
+
+.screen-osd {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 2;
+  max-width: calc(100% - 20px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.screen-osd span {
+  min-height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  background: rgba(4, 6, 5, 0.68);
+  color: #dfe8d7;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.screen-osd strong {
+  color: var(--green);
+}
+
+.drop-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(4, 6, 5, 0.74);
+  color: var(--muted);
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  pointer-events: none;
+}
+
+/* The transport now lives in this row, between the power light and the volume
+   dial, so the keys read as part of the console rather than a toolbar parked
+   under it. The speaker grille is gone -- the keys occupy that span. */
+.crt-footer {
+  min-height: 42px;
+  display: grid;
+  /* power light | transport (flexes) | aspect | volume dial */
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding-top: 11px;
+}
+
+.power-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(115, 209, 139, 0.75);
+  justify-self: center;
+}
+
+.speaker-grille {
+  height: 20px;
+  border-radius: 5px;
+  opacity: 0.72;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.42) 0,
+      rgba(0, 0, 0, 0.42) 2px,
+      transparent 2px,
+      transparent 9px
+    );
+}
+
+.control-knobs {
+  display: inline-flex;
+  gap: 9px;
+}
+
+.control-knobs i {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #181814;
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent 45%, rgba(0, 0, 0, 0.38) 45% 55%, transparent 55%),
+    #4a4d43;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
+}
+
+/* Was a 6-column grid sized for text labels, which stretched the icon keys
+   across the full width. Icons want intrinsic width; only the labelled
+   "Open disc" key earns extra room. */
+.transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.file-button {
+  position: relative;
+  /* No overflow:hidden -- it clipped the hover tooltip, which is why the
+     upload-state key had no bubble. The file input inside is already
+     absolutely positioned at opacity 0, so nothing needs clipping. */
+  white-space: nowrap;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.touch-controls {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.touch-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 48px);
+  gap: 6px;
+}
+
+.touch-dpad button[data-touch-button="D_UP"] {
+  grid-column: 2;
+}
+
+.touch-dpad button[data-touch-button="D_LEFT"] {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.touch-dpad button[data-touch-button="D_RIGHT"] {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.touch-dpad button[data-touch-button="D_DOWN"] {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.touch-face {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.touch-face button {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.keyboard-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.control-panel {
+  border-left: 1px solid var(--line);
+  background: rgba(32, 31, 26, 0.96);
+  padding: 18px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.panel-block,
+.settings-panel {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+
+.debug-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.debug-panel .panel-block:last-child,
+.control-panel > .panel-block:last-child,
+.settings-panel:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+h2 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.section-heading span {
+  color: var(--blue);
+  font-size: 0.78rem;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.game-title {
+  font-size: 1.02rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--muted);
+  margin-top: 8px;
+  line-height: 1.45;
+}
+
+.compact {
+  font-size: 0.88rem;
+}
+
+.setting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.setting-grid label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.setting-grid label > span,
+.switch-line span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.toggle-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.switch-line {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 0 10px;
+}
+
+.switch-line input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.metric-row {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.metric-row span {
+  color: var(--muted);
+}
+
+.metric-row strong {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+  max-width: 62%;
+}
+
+.root-entry-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.root-entry,
+.root-entry-empty {
+  min-height: 30px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px;
+  font-size: 0.82rem;
+}
+
+.root-entry span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.root-entry strong {
+  color: var(--blue);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.control-chip {
+  min-height: 34px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.control-chip.active {
+  color: #08120b;
+  background: var(--green);
+  border-color: var(--green);
+}
+
+@media (max-width: 1120px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .control-panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .debug-panel {
+    grid-column: 1 / -1;
+  }
+
+  .crt-set {
+    width: min(100%, 900px);
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+
+  .topbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .play-area {
+    padding: 12px;
+  }
+
+  .crt-set {
+    min-width: 0;
+    padding: 10px 10px 8px;
+  }
+
+  .crt-bezel {
+    padding: 10px;
+  }
+
+  .screen-osd {
+    top: 7px;
+    left: 7px;
+  }
+
+  .screen-osd span {
+    min-height: 22px;
+    padding: 2px 6px;
+    font-size: 0.68rem;
+  }
+
+  .transport {
+    grid-template-columns: repeat(3, minmax(74px, 1fr));
+  }
+
+  .touch-controls {
+    display: grid;
+  }
+
+  .control-panel {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .setting-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .control-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 470px) {
+  h1 {
+    font-size: 1.1rem;
+  }
+
+  .brand {
+    gap: 9px;
+  }
+
+  .mark {
+    width: 30px;
+    height: 30px;
+  }
+
+  .status-pill {
+    max-width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .icon-button {
+    min-width: 40px;
+    padding-inline: 8px;
+  }
+
+  .transport,
+  .settings-actions,
+  .toggle-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .touch-controls {
+    gap: 8px;
+  }
+
+  .touch-dpad {
+    grid-template-columns: repeat(3, 42px);
+    grid-template-rows: repeat(3, 42px);
+  }
+
+  .touch-dpad button,
+  .touch-face button {
+    min-height: 42px;
+    padding: 0;
+    font-size: 0.78rem;
+  }
+}
+
+/* ---- Retro transport: icon buttons, hover tooltips ------------------ */
+
+/* The transport reads as console hardware rather than a web toolbar:
+   inset well, chunky keys, warm amber legends. Icons carry the meaning and
+   every control keeps an accessible name, so screen readers are unaffected. */
+.transport {
+  background: linear-gradient(180deg, var(--cabinet-dark), #1a1d18);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+  gap: 8px;
+  align-items: center;
+}
+
+.transport button,
+.transport .file-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid #14170f;
+  background: linear-gradient(180deg, #3c4137, #2b2f27);
+  box-shadow: 0 2px 0 #14170f, inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 80ms ease, box-shadow 80ms ease, background 120ms ease;
+}
+
+.transport button:hover,
+.transport .file-button:hover {
+  background: linear-gradient(180deg, #474d40, #33382e);
+}
+
+/* Keys physically depress rather than just changing colour. */
+.transport button:active,
+.transport .file-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #14170f, inset 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.transport button:focus-visible,
+.transport .file-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.transport .glyph {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 6px rgba(231, 183, 90, 0.35);
+}
+
+.transport .btn-text {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Divider between machine controls and save-state controls. */
+.transport-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: linear-gradient(180deg, transparent, var(--line), transparent);
+}
+
+/* ---- Tooltips ------------------------------------------------------- */
+
+/* CSS-only, driven by data-tip. Hidden from assistive tech (aria-label
+   already carries the name) and suppressed for touch, where there is no
+   hover and the bubble would stick after a tap. */
+.tip {
+  position: relative;
+}
+
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #0d0f0c;
+  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 110ms ease, transform 110ms ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+
+.tip:hover::after,
+.tip:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (hover: none) {
+  .tip::after { display: none; }
+}
+
+/* ---- Collapsible settings ------------------------------------------ */
+
+.section-heading {
+  align-items: center;
+}
+
+.collapse-toggle {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--button);
+  color: var(--muted);
+  cursor: pointer;
+  transition: transform 140ms ease, color 120ms ease, background 120ms ease;
+}
+
+.collapse-toggle:hover {
+  background: var(--button-hover);
+  color: var(--text);
+}
+
+.collapse-toggle.collapsed .glyph {
+  transform: rotate(-90deg);
+}
+
+.collapse-toggle .glyph {
+  display: block;
+  line-height: 1;
+  transition: transform 140ms ease;
+}
+
+.collapse-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- Bezel LCD strip ------------------------------------------------ */
+
+/* Segment-display readout moulded into the top of the bezel. Carries the
+   game identity so the side panel can be hidden entirely. Monospace with
+   wide tracking reads as a calculator/VCR display; the faint underlay is the
+   unlit-segment glow those panels always have. */
+.lcd-strip {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 0 auto 10px;
+  padding: 6px 14px;
+  max-width: calc(100% - 24px);
+  border: 1px solid #0c0f0a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #14180f, #0d1009);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.04);
+  font-family: "DSEG14", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  overflow: hidden;
+}
+
+.lcd-title {
+  color: #9fe6a6;
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 7px rgba(159, 230, 166, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lcd-meta {
+  margin-left: auto;
+  color: #5f8f64;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+/* ---- Volume dial ---------------------------------------------------- */
+
+/* A real range input under a drawn face: keyboard, screen-reader and drag
+   behaviour come free, and the knob rotation is driven from its value. The
+   input is transparent rather than display:none so it stays focusable. */
+.volume-dial {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.volume-dial input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ns-resize;
+  z-index: 2;
+}
+
+.dial-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #4a5044, #23271f 62%, #171a14);
+  border: 1px solid #0e110b;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: rotate(var(--angle, 135deg));
+  transition: transform 90ms ease;
+}
+
+/* The pointer line. */
+.dial-face i {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 2px;
+  height: 11px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--amber);
+  box-shadow: 0 0 5px rgba(231, 183, 90, 0.6);
+}
+
+.volume-dial input:focus-visible + .dial-face {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ---- Panel hidden --------------------------------------------------- */
+
+/* With the panel gone the workspace collapses to a single column so the CRT
+   takes the reclaimed width. */
+body.panel-hidden .workspace {
+  grid-template-columns: 1fr;
+}
+
+#panelToggle.active {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* ---- Transport condensed into the console footer -------------------- */
+
+/* Inside the footer the transport loses its own well and border: the bezel is
+   already the container. Keys shrink to icon size and the row scrolls rather
+   than wrapping, so the footer stays one line at narrow widths. */
+.crt-footer .transport {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.crt-footer .transport::-webkit-scrollbar { display: none; }
+
+.crt-footer .transport button,
+.crt-footer .transport .file-button {
+  min-width: 34px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+}
+
+.crt-footer .transport .glyph {
+  font-size: 14px;
+}
+
+/* The disc key keeps its word; at narrow widths the icon alone is enough. */
+.crt-footer .transport .btn-text {
+  font-size: 10px;
+}
+
+@media (max-width: 900px) {
+  .crt-footer .transport .btn-text { display: none; }
+}
+
+.crt-footer .transport-sep {
+  margin: 2px;
+}
+
+/* ---- Aspect selector ------------------------------------------------ */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.aspect-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.aspect-select select {
+  min-height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid #14170f;
+  background: linear-gradient(180deg, #3c4137, #2b2f27);
+  color: var(--amber);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.aspect-select select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- Fullscreen ----------------------------------------------------- */
+
+/* The bezel fills the display and the screen is fitted inside it rather than
+   stretched: width is the smaller of the display width and the width implied
+   by the display height at the chosen ratio, so it letterboxes or pillarboxes
+   correctly on any monitor instead of assuming 16:9. dvh, not vh, so mobile
+   browser chrome does not push the bottom off-screen. */
+.crt-set:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100dvh;
+  padding: 0;
+  border-radius: 0;
+  background: #000;
+}
+
+.crt-set:fullscreen .crt-bezel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+}
+
+.crt-set:fullscreen .screen-viewport {
+  width: min(100vw, calc(100dvh * var(--aspect-w) / var(--aspect-h)));
+  height: auto;
+  max-width: 100vw;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Chrome is hidden in fullscreen so the picture gets the whole display. */
+.crt-set:fullscreen .lcd-strip,
+.crt-set:fullscreen .crt-footer {
+  display: none;
+}

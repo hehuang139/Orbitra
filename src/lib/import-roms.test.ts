@@ -87,6 +87,15 @@ test('direct supported ROM files retain identity and leave hardware validation t
   )
 })
 
+test('accepts direct GameCube images but rejects them inside ZIP archives', async () => {
+  const bytes = new Uint8Array(32 * 1024)
+  bytes.set([0xc2, 0x33, 0x9f, 0x3d], 0x1c)
+  const direct = new File([bytes], 'Homebrew.iso')
+  assert.deepEqual(await collect(direct), [direct])
+  const zipped = archive(zipSync({ 'Homebrew.gcm': bytes }))
+  await assert.rejects(collect(zipped), /GameCube.*解压后直接导入/)
+})
+
 test('stored and deflated ZIPs preserve original bytes and reduce nested names to basenames', async () => {
   for (const level of [0, 6] as const) {
     const files = await collect(
