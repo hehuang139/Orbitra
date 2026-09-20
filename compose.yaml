@@ -1,0 +1,15 @@
+services:
+  advance:
+    image: gba-emu:local
+    build:
+      context: .
+    ports:
+      - '${PORT:-8080}:8080'
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

@@ -190,7 +190,7 @@ try {
   const source = await newPage()
   phase = 'seed real core and progress'
   console.log(phase)
-  await source.locator('input[type="file"][accept*=".gba"]').setInputFiles(romFile)
+  await source.getByLabel('选择游戏文件', { exact: true }).setInputFiles(romFile)
   await source.getByText('已导入 1 个游戏，准备开始吧', { exact: true }).waitFor()
   await launch(source)
   await importScore(source, 7)

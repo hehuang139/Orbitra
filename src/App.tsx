@@ -1234,7 +1234,7 @@ export default function App() {
           <button className="help-link" onClick={() => setModal('help')}>
             <CircleHelp size={17} />
             <span>帮助与快捷键</span>
-            <span className="version">v1.0</span>
+            <span className="version">v1.4</span>
           </button>
           <div className="sidebar-footer">
             <span className="avatar">

@@ -31,7 +31,7 @@ const variant = (index) => {
 }
 const upload = async (name, buffer) => {
   await page
-    .locator('input[type=file][accept*=".gba"]')
+    .getByLabel('选择游戏文件', { exact: true })
     .setInputFiles({ name, mimeType: 'application/zip', buffer: Buffer.from(buffer) })
   await page.waitForFunction(() => !document.querySelector('.import-top')?.disabled)
 }
@@ -51,7 +51,7 @@ try {
   await page.goto(process.env.UI_TEST_URL || 'http://127.0.0.1:5173')
   await count(1)
   assert.match(
-    await page.locator('input[type=file][accept*=".gba"]').getAttribute('accept'),
+    await page.getByLabel('选择游戏文件', { exact: true }).getAttribute('accept'),
     /\.zip/,
   )
   const multi = zipSync({
@@ -109,7 +109,7 @@ try {
   await upload('broken.zip', new Uint8Array([80, 75, 1, 2, 3]))
   assert.equal(await notice().getAttribute('role'), 'alert')
   await count(4)
-  await page.locator('input[type=file][accept*=".gba"]').setInputFiles([
+  await page.getByLabel('选择游戏文件', { exact: true }).setInputFiles([
     { name: 'still-broken.zip', mimeType: 'application/zip', buffer: Buffer.from([1, 2, 3]) },
     {
       name: 'Zip-Delta.gba',
