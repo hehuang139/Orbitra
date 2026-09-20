@@ -32,8 +32,8 @@ is redistributed with five host integration changes, visibly marked with `Orbitr
 
 Modified source SHA-256 values:
 
-- `src/emulator.js`: `d86d7d0edc790cf09fd48b8d204ca8f1249e2c14ba95e9f1f7381007f86ae3d1`
-- `src/GameManager.js`: `5445c09645d5d79068481b49f0f4594ab35705dafc82acdcc34cba7984e93635`
+- `src/emulator.js`: `58d1d3b3b57f2bf1a4a00ede9a9af3a1261d2d93c62d3e325dd7e57d9adb1566`
+- `src/GameManager.js`: `799f4d56af7a5d5fdcb88aebeac938f5e7cf10c27ab555fb0651b01a97cc962f`
 
 Unmodified core archive SHA-256 values:
 
