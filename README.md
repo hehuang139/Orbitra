@@ -13,7 +13,7 @@ A modern multi-platform emulator for the browser, powered by local WebAssembly c
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[简体中文](README.md) · [Features](#features) · [Quick start](#quick-start) · [Deployment](#deployment) · [Brand assets](docs/brand.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+[简体中文](README.zh-CN.md) · [Features](#features) · [Quick start](#quick-start) · [Deployment](#deployment) · [Brand assets](docs/brand.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 

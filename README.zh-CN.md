@@ -13,7 +13,7 @@
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [品牌素材](docs/brand.md) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
+[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [品牌素材](docs/brand.md) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.md)
 
 </div>
 
