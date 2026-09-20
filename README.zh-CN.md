@@ -21,7 +21,7 @@
 
 Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES、SFC / SNES 与 GameCube 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm、Snes9x 与实验性 Dolphin WebAssembly** 核心实际执行。
 
-无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可在界面中配置一个独立部署的在线游戏库地址，登录后把经典主机 ROM、游戏内存档与即时存档同步到自托管服务，并在新的浏览器中恢复。在线库不是游戏运行时，Orbitra 不会默认把数据发送到当前站点；GameCube 光盘镜像始终仅保存在导入它的浏览器中。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
+无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。用户账号负责单个用户自己的游戏、ROM 与存档同步，可在新浏览器登录后恢复；另行配置的在线游戏库只负责公开目录中的游戏分发、查看和导入，不接收用户账号或个人存档。GameCube 光盘镜像始终仅保存在导入它的浏览器中。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
 
 ## 效果预览
 
@@ -85,7 +85,8 @@ Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中
 | **即时存档**   | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
 | **进度管理**   | 开启自动保存后，每 30 秒及返回游戏库、切入后台时保存，并在下次启动恢复；支持 `.sav` 导入 / 导出             |
 | **批量备份**   | 选择游戏导出带校验和的 ZIP，默认不含 ROM；恢复前预览、匹配缺失 ROM、逐项选择冲突，失败整体回滚              |
-| **在线游戏库** | 配置独立服务地址并登录；自动同步 ROM、游戏内存档与即时存档，新浏览器登录后恢复，本机离线数据仍可独立使用    |
+| **账号同步**   | 可选登录；同步单个用户自己的游戏清单、ROM、游戏内存档与即时存档，新浏览器登录后恢复                         |
+| **在线游戏库** | 配置独立分发地址；浏览和导入公开目录，管理员可用独立令牌发布或下架 ROM，不接收个人存档                      |
 | **播放控制**   | 暂停、继续、重置、全屏；1× / 2× / 4× 速度；按住快进与倒带；音量、静音                                       |
 | **输入方式**   | 可重映射键盘；按设备保存手柄按钮 / 轴方向与死区；标准 / 紧凑触屏布局、大小与不透明度                        |
 | **画面风格**   | 按平台使用原生比例；WebGL 2 优先、Canvas 2D 软件降级；像素、平滑、CRT 扫描线与真实核心截图                  |
@@ -156,7 +157,7 @@ ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏
 - **游戏内存档 `.sav`**：游戏自身的保存进度，例如在游戏菜单选择「保存」产生的数据。导入后会重新启动游戏，并刷新自动存档。
 - **即时存档**：包含画面对应时刻的完整模拟状态，可从任意时刻继续。请使用同一游戏、同一平台兼容核心版本生成的文件。
 
-浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；连接在线游戏库并登录，或导出备份，可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
+浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；登录用户账号同步个人库，或导出备份，可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
 
 ## 构建与部署
 
@@ -191,7 +192,7 @@ docker run -d --name orbitra -p 8080:8080 \
 
 对外部署时，应由 HTTPS 反向代理将站点根目录转发到容器 `8080` 端口，并保留镜像返回的 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。请将应用和内核资源放在同一源下，不建议部署到子路径；普通 HTTP 局域网访问不满足内核运行要求。
 
-此 Nginx 镜像只提供静态应用，不包含在线游戏库；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。需要登录与跨浏览器同步时，请另行启动下文所述的在线游戏库。
+此 Nginx 镜像只提供静态应用，不包含 Node.js 账号 API 或在线游戏分发库；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。
 
 如需离线分发构建好的镜像，可导出镜像文件，在目标机器加载后使用上面的 `docker run` 命令启动：
 
@@ -215,19 +216,21 @@ pnpm build
 pnpm start
 ```
 
-构建结果位于 `dist/`；`pnpm start` 只启动游戏运行时，默认地址为 [http://localhost:4173](http://localhost:4173)。可通过 `HOST` 和 `PORT` 修改监听地址与端口。游戏、ROM 和存档仍保存在浏览器本地，运行时不包含账号或同步 API。
+构建结果位于 `dist/`；`pnpm start` 启动游戏运行时及其同源账号 API，默认地址为 [http://localhost:4173](http://localhost:4173)。可通过 `HOST`、`PORT` 与 `ORBITRA_DATA_DIR` 修改监听地址、端口和账号 SQLite 数据目录。未登录时游戏、ROM 和存档仍保存在浏览器本地。
 
 运行时可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
 
 在线游戏库必须作为另一个服务单独启动。在第二个终端运行：
 
 ```sh
-ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
+ONLINE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 \
+ONLINE_LIBRARY_ADMIN_TOKEN=replace-with-a-long-random-token \
+pnpm start:library
 ```
 
-在线库默认监听 [http://localhost:4174](http://localhost:4174)。打开 Orbitra 侧栏中的「在线游戏库」，填入该地址后登录。通过 `ADVANCE_LIBRARY_HOST`、`ADVANCE_LIBRARY_PORT`、`ADVANCE_LIBRARY_DATA_DIR` 和逗号分隔的 `ADVANCE_LIBRARY_ALLOWED_ORIGINS` 配置监听、SQLite 数据目录与允许连接的 Orbitra 来源；默认数据库为 `.data/online-library/advance.sqlite`。对外部署时同时设置 `ADVANCE_LIBRARY_TLS_CERT_PATH` 和 `ADVANCE_LIBRARY_TLS_KEY_PATH`，并定期备份数据目录。
+在线库默认监听 [http://localhost:4174](http://localhost:4174)，并从 `public/demo` 生成公开分发目录。侧栏「在线游戏库」包含“浏览与导入”和“管理分发”两个视图；后者使用 `ONLINE_LIBRARY_ADMIN_TOKEN` 发布或下架 ROM。通过 `ONLINE_LIBRARY_HOST`、`ONLINE_LIBRARY_PORT`、`ONLINE_LIBRARY_ROOT`、`ONLINE_LIBRARY_NAME` 和 `ONLINE_LIBRARY_ALLOWED_ORIGINS` 配置服务；HTTPS 使用 `ONLINE_LIBRARY_TLS_CERT_PATH` 与 `ONLINE_LIBRARY_TLS_KEY_PATH`。请定期备份分发目录。
 
-`pnpm dev`、`pnpm preview` 和静态托管都只提供游戏运行时，不会隐式启动在线库。在线库单个传输最大 72 MiB，总库上限 2 GiB；服务端数据并非端到端加密。HTTPS Orbitra 只能连接 HTTPS 在线库；会话 token 保存在浏览器 localStorage，不要在不受信任的设备上登录。
+账号与在线游戏库是两条独立链路：前者走运行时同源 `/api` 管理个人数据，后者的公开目录和 ROM 请求不携带凭证，只有发布/下架使用独立管理员令牌。`pnpm dev`、`pnpm preview` 与 `pnpm start` 不会隐式启动分发服务；HTTPS Orbitra 只能连接 HTTPS 在线库。
 
 **mGBA 使用 WebAssembly 线程，部署必须满足跨源隔离要求。** 使用 HTTPS（本地开发可用 localhost），并在响应中添加：
 
@@ -269,7 +272,8 @@ flowchart LR
     A[React 界面<br/>游戏库 · 播放器 · 设置] --> B[TypeScript 内核适配层]
     B --> C[mGBA · FCEUmm · Snes9x · Dolphin<br/>WebAssembly 核心]
     A --> D[本地存储<br/>IndexedDB · localStorage]
-    A -. 配置独立地址 .-> G[在线游戏库<br/>账号 · SQLite 快照]
+    A --> U[用户账号<br/>同源 API · SQLite 个人库]
+    A -. 配置独立地址 .-> G[在线游戏库<br/>公开目录 · ROM 分发]
     B --> D
     E[支持的 ROM / ZIP 文件] --> F[平台识别 · 校验 · 解压 · 内容去重]
     F --> D
@@ -310,7 +314,8 @@ docs/images/                项目首页截图
 
 ```sh
 pnpm test
-pnpm test:library-server
+pnpm test:account-server
+pnpm test:online-library-server
 pnpm build
 pnpm exec playwright install chromium
 
@@ -323,7 +328,8 @@ pnpm test:saves
 pnpm test:keyboard
 pnpm test:gamepad
 pnpm test:touch
-pnpm test:library-sync
+pnpm test:account
+pnpm test:online-library
 pnpm test:startup
 pnpm test:backup
 pnpm test:pwa

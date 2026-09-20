@@ -10,7 +10,6 @@ const browser = await chromium.launch({
   args: ['--enable-unsafe-swiftshader'],
 })
 const url = process.env.UI_TEST_URL || 'http://127.0.0.1:5173'
-const libraryUrl = process.env.ONLINE_LIBRARY_TEST_URL || 'http://127.0.0.1:4174'
 const username = `sync-${Date.now().toString(36)}`
 const password = 'account-test-password'
 const importedCount = 20
@@ -31,20 +30,13 @@ async function openPage() {
 }
 
 async function openAccount(page) {
-  await page.getByRole('button', { name: '在线游戏库' }).click()
-  await page.getByRole('heading', { name: '在线游戏库' }).waitFor()
-}
-
-async function connectLibrary(page) {
-  await openAccount(page)
-  await page.getByLabel('在线游戏库地址').fill(libraryUrl)
-  await page.getByRole('button', { name: '连接在线库' }).click()
-  await page.getByRole('tab', { name: '登录' }).waitFor()
+  await page.getByRole('button', { name: /登录与同步|sync-/ }).click()
+  await page.getByRole('heading', { name: '账号与游戏同步' }).waitFor()
 }
 
 try {
   const first = await openPage()
-  await connectLibrary(first.page)
+  await openAccount(first.page)
   await first.page.getByRole('tab', { name: '注册' }).click()
   await first.page.getByLabel('用户名').fill(username)
   await first.page.getByLabel('密码', { exact: true }).fill(password)
@@ -57,7 +49,7 @@ try {
   await first.page.getByRole('button', { name: '关闭对话框' }).click()
 
   const second = await openPage()
-  await connectLibrary(second.page)
+  await openAccount(second.page)
   await second.page.getByLabel('用户名').fill(username)
   await second.page.getByLabel('密码', { exact: true }).fill(password)
   await second.page.getByRole('button', { name: '登录并恢复' }).click()
@@ -115,11 +107,7 @@ try {
   )
   await second.page.getByRole('button', { name: `开始 ${titles.at(-1)}` }).click()
   await second.page.getByText('正在游玩', { exact: true }).waitFor()
-  assert.equal(
-    await romCount(second.page),
-    2,
-    'playing should cache only the requested online-library ROM',
-  )
+  assert.equal(await romCount(second.page), 2, 'playing should cache only the requested cloud ROM')
   await second.page.getByRole('button', { name: '批量管理' }).click()
   assert.equal(
     await second.page.getByRole('button', { name: 'Star Orbit · 星际漫游 无法选择' }).isDisabled(),
@@ -160,17 +148,14 @@ try {
 
   await openAccount(second.page)
   await second.page.getByRole('button', { name: '退出登录' }).click()
-  await second.page
-    .locator('.account-panel .account-feedback')
-    .filter({ hasText: '已退出在线库账号。本地游戏仍保留在此浏览器。' })
-    .waitFor()
+  await second.page.getByText('已退出账号。本地游戏仍保留在此浏览器。').waitFor()
   await second.page.getByRole('button', { name: '关闭对话框' }).click()
   await second.page.locator('.game-title', { hasText: titles.at(-1) }).waitFor()
   await second.context.close()
 
-  assert.deepEqual(errors, [], 'online library flow should not produce uncaught browser errors')
+  assert.deepEqual(errors, [], 'account flow should not produce uncaught browser errors')
   console.log(
-    `Online library flow passed: ${importedCount} automatic item uploads, protected batch selection, live cross-browser batch delete, logout retention.`,
+    `Account sync flow passed: ${importedCount} automatic item uploads, protected batch selection, live cross-browser batch delete, logout retention.`,
   )
 } finally {
   await browser.close()

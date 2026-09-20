@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createAccountApi } from './account-api.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = path.join(root, 'dist')
@@ -10,6 +11,7 @@ const port = Number(process.env.PORT || 4173)
 const host = process.env.HOST || '0.0.0.0'
 const tlsCertificatePath = process.env.TLS_CERT_PATH
 const tlsKeyPath = process.env.TLS_KEY_PATH
+const api = createAccountApi()
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -77,9 +79,14 @@ const tls =
   tlsCertificatePath && tlsKeyPath
     ? { cert: readFileSync(tlsCertificatePath), key: readFileSync(tlsKeyPath) }
     : null
-const server = tls ? createSecureServer(tls, staticFile) : createServer(staticFile)
+const handler = (request, response) => {
+  if (request.url?.startsWith('/api/')) void api(request, response)
+  else staticFile(request, response)
+}
+const server = tls ? createSecureServer(tls, handler) : createServer(handler)
 const protocol = tls ? 'https' : 'http'
 
+server.on('close', api.close)
 server.listen(port, host, () => {
-  console.log(`Orbitra runtime: ${protocol}://${host}:${port}`)
+  console.log(`Orbitra runtime and account service: ${protocol}://${host}:${port}`)
 })

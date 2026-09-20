@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
+  CloudDownload,
   CloudOff,
   Download,
   Expand,
@@ -64,7 +65,9 @@ import { TouchSettings } from './components/TouchSettings'
 import { BackupManager } from './components/BackupManager'
 import { OfflineStatus } from './components/OfflineStatus'
 import { AccountPanel } from './components/AccountPanel'
+import { OnlineLibraryPanel } from './components/OnlineLibraryPanel'
 import { useAccountSync } from './hooks/useAccountSync'
+import { useOnlineLibrary } from './hooks/useOnlineLibrary'
 import { createBackup } from './lib/backup-format'
 import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
@@ -72,7 +75,8 @@ import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
 
 type Page = 'library' | 'recent' | 'favorites' | 'states'
-type Modal = 'settings' | 'controls' | 'help' | 'states' | 'backup' | 'account' | null
+type Modal =
+  'settings' | 'controls' | 'help' | 'states' | 'backup' | 'account' | 'online-library' | null
 type PlatformFilter = 'all' | GamePlatform
 const pages: Record<Page, string> = {
   library: '游戏库',
@@ -262,6 +266,7 @@ export default function App() {
   }, [])
   const refresh = useCallback(async () => setGames(await db.getGames()), [])
   const account = useAccountSync({ onLibraryChanged: refresh })
+  const onlineLibrary = useOnlineLibrary({ onLibraryChanged: refresh })
   const trackWrite = useCallback(<T,>(promise: Promise<T>): Promise<T> => {
     pendingWrites.current.add(promise)
     void promise.finally(() => pendingWrites.current.delete(promise)).catch(() => {})
@@ -1179,11 +1184,24 @@ export default function App() {
             }}
           >
             <UserRound size={18} />
-            <span className="account-nav-label" title={account.serverUrl ?? undefined}>
-              在线游戏库
+            <span className="account-nav-label" title={account.user?.username}>
+              {account.user ? account.user.username : '登录与同步'}
             </span>
             {account.phase === 'syncing' ? (
               <LoaderCircle size={14} className="account-spinner" aria-label="正在同步" />
+            ) : null}
+          </button>
+          <button
+            className="nav-item"
+            onClick={() => {
+              setModal('online-library')
+              setSidebarOpen(false)
+            }}
+          >
+            <CloudDownload size={18} />
+            <span>在线游戏库</span>
+            {onlineLibrary.phase === 'loading' || onlineLibrary.phase === 'importing' ? (
+              <LoaderCircle size={14} className="account-spinner" aria-label="正在读取在线游戏库" />
             ) : null}
           </button>
           <button className="nav-item" disabled={busy || !ready} onClick={() => void openBackup()}>
@@ -1216,23 +1234,15 @@ export default function App() {
             <div className="local-note-icon">
               <ShieldCheck size={19} />
             </div>
-            <strong>{account.user ? '在线库同步已开启' : '只属于你的游戏时光'}</strong>
+            <strong>{account.user ? '账号同步已开启' : '只属于你的游戏时光'}</strong>
             <p>
-              {account.user ? '游戏与存档已保存到在线库，' : '游戏与存档保存在此设备，'}
+              {account.user ? '游戏与存档已保存到账号，' : '游戏与存档保存在此设备，'}
               <br />
-              {account.user
-                ? '换个浏览器也能继续。'
-                : account.serverUrl
-                  ? '登录在线库后可同步。'
-                  : '可连接独立在线库同步。'}
+              {account.user ? '换个浏览器也能继续。' : '登录后可跨浏览器恢复。'}
             </p>
             <span>
               <span className="status-dot" />
-              {account.user
-                ? `在线库 · ${account.user.username}`
-                : account.serverUrl
-                  ? '在线库已连接'
-                  : '本地运行 · 隐私优先'}
+              {account.user ? `已登录 · ${account.user.username}` : '本地运行 · 隐私优先'}
             </span>
           </div>
           <button className="help-link" onClick={() => setModal('help')}>
@@ -1246,7 +1256,7 @@ export default function App() {
             </span>
             <div>
               <strong>{account.user?.username ?? 'Player One'}</strong>
-              <small>{account.serverUrl ? account.message : '今天也要玩得开心'}</small>
+              <small>{account.user ? account.message : '今天也要玩得开心'}</small>
             </div>
             <span className="online-dot" />
           </div>
@@ -2116,9 +2126,7 @@ export default function App() {
             </span>
             <span>
               <CloudOff size={13} />
-              {account.user
-                ? '本地运行，在线游戏库同步已开启'
-                : '本地游戏，本地存档，可选在线游戏库'}
+              {account.user ? '本地运行，账号同步已开启' : '本地游戏，本地存档，可选账号同步'}
             </span>
           </footer>
         </main>
@@ -2137,7 +2145,7 @@ export default function App() {
           }}
         >
           <div
-            className={`modal ${modal === 'states' || modal === 'backup' ? 'wide-modal' : ''}`}
+            className={`modal ${modal === 'states' || modal === 'backup' || modal === 'online-library' ? 'wide-modal' : ''}`}
             ref={modalRef}
             tabIndex={-1}
             role={deleteTarget || batchDeleteTargets ? 'alertdialog' : 'dialog'}
@@ -2159,10 +2167,12 @@ export default function App() {
                           : modal === 'backup'
                             ? '备份与恢复'
                             : modal === 'account'
-                              ? '在线游戏库'
-                              : modal === 'states'
-                                ? '给冒险留个书签'
-                                : '准备好，开始冒险'}
+                              ? '账号与游戏同步'
+                              : modal === 'online-library'
+                                ? '在线游戏库'
+                                : modal === 'states'
+                                  ? '给冒险留个书签'
+                                  : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -2239,6 +2249,8 @@ export default function App() {
               />
             ) : modal === 'account' ? (
               <AccountPanel account={account} />
+            ) : modal === 'online-library' ? (
+              <OnlineLibraryPanel library={onlineLibrary} />
             ) : modal === 'controls' ? (
               <>
                 <p className="modal-description">
