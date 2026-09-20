@@ -90,7 +90,7 @@ class EmulatorJS {
             data[i].elem.removeEventListener(data[i].listener, data[i].cb);
         }
     }
-    // Advance host lifecycle addition: EmulatorJS does not expose teardown for
+    // Orbitra host lifecycle addition: EmulatorJS does not expose teardown for
     // single-page applications, so release every registered DOM listener here.
     destroy() {
         if (this.destroyed) return;
@@ -228,7 +228,7 @@ class EmulatorJS {
         this.eventListeners = [];
         this.initControlVars();
         this.debug = (window.EJS_DEBUG_XX === true);
-        // Advance uses pinned local assets and never performs an update check at runtime.
+        // Orbitra uses pinned local assets and never performs an update check at runtime.
         if (this.debug) this.checkForUpdates();
         this.netplayEnabled = (window.EJS_DEBUG_XX === true) && (window.EJS_EXPERIMENTAL_NETPLAY === true);
         this.config = config;

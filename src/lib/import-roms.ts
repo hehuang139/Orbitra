@@ -132,6 +132,8 @@ function readDirectory(bytes: Uint8Array): { entries: RomEntry[]; directoryOffse
       !name.startsWith('._') &&
       !parts.some((part) => part.toLowerCase() === '__macosx')
     ) {
+      if (platform === 'gamecube')
+        throw new Error(`「${name}」是 GameCube 光盘镜像，请解压后直接导入 .iso 或 .gcm 文件。`)
       if (flags & 0x2041) throw new Error(`「${name}」已加密，请先用密码解压，再导入游戏 ROM。`)
       const method = view.getUint16(cursor + 10, true)
       if (method !== 0 && method !== 8)

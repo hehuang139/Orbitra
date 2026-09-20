@@ -162,7 +162,7 @@ async function exportZip(page) {
   const pending = page.waitForEvent('download')
   await activate(page, button(page, '导出所选游戏备份'))
   const download = await pending
-  assert.match(download.suggestedFilename(), /^advance-backup-.*\.zip$/)
+  assert.match(download.suggestedFilename(), /^orbitra-backup-.*\.zip$/)
   const bytes = await readFile(await download.path())
   await page.locator('.backup-feedback').first().filter({ hasText: '备份已生成' }).waitFor()
   return bytes

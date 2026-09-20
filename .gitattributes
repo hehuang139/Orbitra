@@ -3,6 +3,7 @@
 
 # Preserve vendored runtime bytes and binary assets exactly.
 public/emulator/mgba.js -text
+public/dolphin/** whitespace=-blank-at-eof
 *.png binary
 *.jpg binary
 *.jpeg binary

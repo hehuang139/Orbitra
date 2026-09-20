@@ -322,7 +322,7 @@ export function createAccountApi(options = {}) {
     const origin = req.headers.origin
     if (!origin) return
     if (!allowedOrigins.has(origin)) {
-      throw Object.assign(new Error('当前 Advance 地址未被在线游戏库允许。'), { status: 403 })
+      throw Object.assign(new Error('当前 Orbitra 地址未被在线游戏库允许。'), { status: 403 })
     }
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
@@ -353,7 +353,7 @@ export function createAccountApi(options = {}) {
     const pathname = new URL(req.url || '/', 'http://localhost').pathname
     if (!pathname.startsWith('/api/')) {
       if (next) next()
-      else error(res, 404, '这里只提供 Advance 在线游戏库 API。')
+      else error(res, 404, '这里只提供 Orbitra 在线游戏库 API。')
       return
     }
     try {

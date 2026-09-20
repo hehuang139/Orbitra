@@ -20,6 +20,11 @@ const assets = [
     notice: path.join(root, 'public', 'emulatorjs', 'NOTICE.md'),
     marker: `\`${name}\`:`,
   })),
+  {
+    file: path.join(root, 'public', 'dolphin', 'cores', 'dolphin', 'dolphin-core-upstream.wasm'),
+    notice: path.join(root, 'public', 'dolphin', 'NOTICE.md'),
+    marker: '`dolphin-core-upstream.wasm`',
+  },
 ]
 
 function fail(message) {

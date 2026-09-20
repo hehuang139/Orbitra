@@ -17,6 +17,7 @@ const labels: Record<GbaButton, string> = {
   Y: 'Y 按钮',
   L: 'L 肩键',
   R: 'R 肩键',
+  Z: 'Z 按钮',
   Start: '开始',
   Select: '选择',
 }
@@ -183,9 +184,10 @@ export function TouchControls({
       }
     >
       <div className="advance-touch-layout">
-        {buttons.includes('L') || buttons.includes('R') ? (
+        {buttons.includes('L') || buttons.includes('R') || buttons.includes('Z') ? (
           <div className="advance-touch-shoulders">
             {buttons.includes('L') ? key('L') : null}
+            {buttons.includes('Z') ? key('Z') : null}
             {buttons.includes('R') ? key('R') : null}
           </div>
         ) : null}
@@ -196,8 +198,8 @@ export function TouchControls({
           {key('Down', 'advance-touch-down')}
         </div>
         <div className="advance-touch-system">
-          {key('Select')}
-          {key('Start')}
+          {buttons.includes('Select') ? key('Select') : null}
+          {buttons.includes('Start') ? key('Start') : null}
         </div>
         <div className={`advance-touch-action ${buttons.includes('X') ? 'has-four-buttons' : ''}`}>
           {buttons.includes('Y') ? key('Y', 'advance-touch-y') : null}

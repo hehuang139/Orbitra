@@ -1,27 +1,27 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="72" height="72" alt="Advance 标志" />
+<img src="public/favicon.svg" width="72" height="72" alt="Orbitra 标志" />
 
-# Advance
+# Orbitra
 
-**你的掌机游戏空间。**
+**所有经典，都在同一轨道。**
 
-一个现代、美观的 GBA、GB、GBC、FC / NES 与 SFC / SNES 浏览器模拟器。真实 WebAssembly 内核，本地游戏库，随时保存，再次出发。
+一个面向多平台的现代浏览器模拟器。真实 WebAssembly 内核、统一游戏库、本地优先的数据管理，当前支持 GBA、GB、GBC、FC / NES、SFC / SNES，以及实验性的 GameCube。
 
 [![Application license: MIT](https://img.shields.io/badge/Application-MIT-a8f0c4?style=flat-square&labelColor=173227)](LICENSE)
-[![Cores: mGBA · FCEUmm · Snes9x](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
+[![Cores: mGBA · FCEUmm · Snes9x · Dolphin](https://img.shields.io/badge/Cores-mGBA_·_FCEUmm_·_Snes9x_·_Dolphin-a8f0c4?style=flat-square&labelColor=173227)](THIRD_PARTY_NOTICES.md)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&labelColor=173227)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=flat-square&labelColor=173227)](https://www.typescriptlang.org/)
 
-[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
+[效果预览](#效果预览) · [功能特性](#功能特性) · [快速开始](#快速开始) · [部署](#构建与部署) · [品牌素材](docs/brand.md) · [Roadmap](ROADMAP.md) · [参与贡献](CONTRIBUTING.md) · [English](README.en.md)
 
 </div>
 
-![Advance 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
+![Orbitra 桌面游戏库：深色界面、薄荷绿点缀与原创游戏卡片](docs/images/desktop-library.png)
 
-Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm 与 Snes9x WebAssembly** 核心实际执行。
+Orbitra 把不同世代的经典游戏平台汇聚到同一套浏览器体验中：整理 GBA、GB、GBC、FC / NES、SFC / SNES 与 GameCube 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm、Snes9x 与实验性 Dolphin WebAssembly** 核心实际执行。
 
-无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可在界面中配置一个独立部署的在线游戏库地址，登录后把 ROM、游戏内存档与即时存档同步到自托管服务，并在新的浏览器中恢复。在线库不是游戏运行时，Advance 不会默认把数据发送到当前站点。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
+无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可在界面中配置一个独立部署的在线游戏库地址，登录后把经典主机 ROM、游戏内存档与即时存档同步到自托管服务，并在新的浏览器中恢复。在线库不是游戏运行时，Orbitra 不会默认把数据发送到当前站点；GameCube 光盘镜像始终仅保存在导入它的浏览器中。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
 
 ## 效果预览
 
@@ -72,14 +72,14 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 移动端布局按平台提供方向键、A / B、Start / Select、L / R 与 SFC 的 X / Y 触屏控件；播放工具栏也可直接操作。可选择标准或紧凑布局，调整按键大小与不透明度；支持多指同时操作，横竖屏切换会释放当前按键。
 
 <p align="center">
-  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Advance 手机播放器、播放工具栏与触屏虚拟手柄" /></a>
+  <a href="docs/images/mobile-player.png"><img src="docs/images/mobile-player.png" width="320" alt="Orbitra 手机播放器、播放工具栏与触屏虚拟手柄" /></a>
 </p>
 
 ## 功能特性
 
 | 模块           | 已实现功能                                                                                                  |
 | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| **真实模拟**   | mGBA、FCEUmm 与 Snes9x WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES                                   |
+| **真实模拟**   | mGBA、FCEUmm、Snes9x 与实验性 Dolphin WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES、GameCube          |
 | **游戏库**     | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
 | **ZIP 导入**   | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
 | **即时存档**   | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
@@ -101,13 +101,13 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 推荐 **Node.js 24** 与 **pnpm 11.19.0**（最低 Node.js 22.18）。如尚未安装 pnpm，先运行 `npm install --global pnpm@11.19.0`。
 
 ```sh
-git clone https://github.com/hehuang139/gba-emu.git
-cd gba-emu
+git clone https://github.com/hehuang139/orbitra.git
+cd orbitra
 pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-打开 [http://localhost:5173](http://localhost:5173)，点击「开始试玩」，或导入自己的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc`、`.smc` / `.zip` 文件；也可以选择包含这些文件的文件夹，应用会递归扫描子目录。
+打开 [http://localhost:5173](http://localhost:5173)，点击「开始试玩」，或导入自己的 `.gba`、`.gb`、`.gbc`、`.nes`、`.sfc`、`.smc`、`.iso`、`.gcm` / `.zip` 文件；也可以选择包含这些文件的文件夹，应用会递归扫描子目录。GameCube 目前仅面向满足跨源隔离和 OffscreenCanvas 要求的桌面 Chromium，核心约需 1.5 GiB 内存。
 
 **Star Orbit 玩法**：方向键移动飞船，靠近金色信标得分；`X` 推进、`Z` 发出脉冲、`Enter` 清零并重新开始。它运行在模拟器内核中；[试玩说明与构建源码](public/demo/README.md)可以帮助你了解一个最小 GBA 程序如何工作。
 
@@ -115,18 +115,19 @@ pnpm dev
 
 启动游戏后画面自动获得键盘焦点，也可点击画面重新聚焦。游戏按键与快捷操作仅在画面聚焦时生效；按 `Esc` 或 `Shift + Tab` 可离开游戏焦点，用正常的 `Tab`、`Enter` 和 `Space` 操作界面。对话框关闭后恢复原入口焦点，返回游戏库后恢复启动入口焦点。模拟按键可在「控制器设置」中重新映射，录入时按 `Esc` 取消；暂停、快进等快捷键保留给模拟器。
 
-| 操作                | 默认按键             |
-| ------------------- | -------------------- |
-| 方向                | `↑` `↓` `←` `→`      |
-| A / B               | `X` / `Z`            |
-| X / Y（仅 SFC）     | `C` / `V`            |
-| L / R（GBA、SFC）   | `A` / `S`            |
-| Start / Select      | `Enter` / 右 `Shift` |
-| 暂停 / 继续         | `Space`              |
-| 保存 / 读取手动槽 1 | `F5` / `F8`          |
-| 临时 2× 快进        | 按住 `Tab`           |
-| 倒带                | 按住 `Backspace`     |
-| 全屏                | `F11`                |
+| 操作                  | 默认按键             |
+| --------------------- | -------------------- |
+| 方向                  | `↑` `↓` `←` `→`      |
+| A / B                 | `X` / `Z`            |
+| X / Y（SFC、GC）      | `C` / `V`            |
+| L / R（GBA、SFC、GC） | `A` / `S`            |
+| Z（仅 GC）            | `D`                  |
+| Start / Select        | `Enter` / 右 `Shift` |
+| 暂停 / 继续           | `Space`              |
+| 保存 / 读取手动槽 1   | `F5` / `F8`          |
+| 临时 2× 快进          | 按住 `Tab`           |
+| 倒带                  | 按住 `Backspace`     |
+| 全屏                  | `F11`                |
 
 标准手柄默认支持 A / B / X / Y、L / R、Start / Select、十字键和左摇杆；界面会按当前平台隐藏无效按键。浏览器通常需要先按一次手柄按钮才能识别。在「控制器设置」选择设备后，点击某个模拟按键，再按手柄按钮或推动摇杆即可录入；可取消、清除单项、恢复默认，并在 10%–90% 范围调整摇杆死区。非标准手柄初始为空映射，需要自行设置。配置按浏览器提供的设备标识和布局保存，重新连接后的插槽变化不影响配置；相同标识和布局的设备共用配置。
 
@@ -142,6 +143,7 @@ pnpm dev
 | 单个 `.gb` / `.gbc`  | 32 KiB–8 MiB                                                        |
 | 单个 `.nes`          | 16 KiB + 16 B–8 MiB；校验 iNES 文件头                               |
 | 单个 `.sfc` / `.smc` | 32 KiB–16 MiB                                                       |
+| 单个 `.iso` / `.gcm` | 32 KiB–1,459,978,240 B；校验 GameCube 光盘头；仅支持直接导入        |
 | `.zip` 文件          | 最大 64 MiB；支持 Stored / Deflate                                  |
 | ZIP 内游戏           | 最多 32 个；解压后的 ROM 总大小不超过 128 MiB                       |
 | 子目录与重复文件     | 递归识别支持的 ROM，忽略说明文档与 macOS 元数据；同内容游戏自动合并 |
@@ -166,7 +168,7 @@ ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏
 docker compose up -d --build
 ```
 
-打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `gba-emu:local` 并启动 `advance` 服务；修改宿主机端口或停止服务：
+打开 [http://localhost:8080](http://localhost:8080)。`compose.yaml` 会构建本地镜像 `orbitra:local` 并启动 `orbitra` 服务；修改宿主机端口或停止服务：
 
 ```sh
 PORT=8090 docker compose up -d --build
@@ -176,11 +178,11 @@ docker compose down
 修改端口后访问 [http://localhost:8090](http://localhost:8090)。也可不使用 Compose，独立构建与运行：
 
 ```sh
-docker build -t gba-emu:local .
-docker run -d --name advance -p 8080:8080 \
+docker build -t orbitra:local .
+docker run -d --name orbitra -p 8080:8080 \
   --read-only --tmpfs /tmp --cap-drop ALL \
   --security-opt no-new-privileges:true --restart unless-stopped \
-  gba-emu:local
+  orbitra:local
 ```
 
 镜像使用 Node.js 24 与 pnpm 11.19.0 多阶段构建，最终仅通过 Nginx 提供静态文件，以非 root 用户监听容器 `8080` 端口。Compose 默认启用只读文件系统、`/tmp` 临时目录、移除全部 Linux capabilities、禁止获取新权限和 `unless-stopped` 重启策略。
@@ -189,15 +191,15 @@ docker run -d --name advance -p 8080:8080 \
 
 对外部署时，应由 HTTPS 反向代理将站点根目录转发到容器 `8080` 端口，并保留镜像返回的 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。请将应用和内核资源放在同一源下，不建议部署到子路径；普通 HTTP 局域网访问不满足内核运行要求。
 
-此 Nginx 镜像只提供静态应用，不包含账号 API，因此账号登录与跨浏览器同步不可用；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。需要账号同步时，请使用下方的 Node.js 同源生产服务并持久化其 SQLite 数据目录。
+此 Nginx 镜像只提供静态应用，不包含在线游戏库；游戏仍可完整地在本地使用。容器无需数据卷：ROM、游戏库与存档保存在用户浏览器的 IndexedDB，偏好保存在 localStorage，而非容器内。更换域名、协议或端口会改变浏览器存储所属的源，迁移前请在「备份与恢复」中导出重要数据。需要登录与跨浏览器同步时，请另行启动下文所述的在线游戏库。
 
 如需离线分发构建好的镜像，可导出镜像文件，在目标机器加载后使用上面的 `docker run` 命令启动：
 
 ```sh
 # 构建镜像的机器
-docker save -o gba-emu.tar gba-emu:local
+docker save -o orbitra.tar orbitra:local
 # 目标机器
-docker load -i gba-emu.tar
+docker load -i orbitra.tar
 ```
 
 以下检查使用 Node HTTP，无需浏览器依赖；对已运行的镜像检查响应头、WASM MIME、缓存策略、资源 `404`、SPA 回退与健康检查：
@@ -223,9 +225,9 @@ pnpm start
 ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
 ```
 
-在线库默认监听 [http://localhost:4174](http://localhost:4174)。打开 Advance 侧栏中的「在线游戏库」，填入该地址后登录。通过 `ADVANCE_LIBRARY_HOST`、`ADVANCE_LIBRARY_PORT`、`ADVANCE_LIBRARY_DATA_DIR` 和逗号分隔的 `ADVANCE_LIBRARY_ALLOWED_ORIGINS` 配置监听、SQLite 数据目录与允许连接的 Advance 来源；默认数据库为 `.data/online-library/advance.sqlite`。对外部署时同时设置 `ADVANCE_LIBRARY_TLS_CERT_PATH` 和 `ADVANCE_LIBRARY_TLS_KEY_PATH`，并定期备份数据目录。
+在线库默认监听 [http://localhost:4174](http://localhost:4174)。打开 Orbitra 侧栏中的「在线游戏库」，填入该地址后登录。通过 `ADVANCE_LIBRARY_HOST`、`ADVANCE_LIBRARY_PORT`、`ADVANCE_LIBRARY_DATA_DIR` 和逗号分隔的 `ADVANCE_LIBRARY_ALLOWED_ORIGINS` 配置监听、SQLite 数据目录与允许连接的 Orbitra 来源；默认数据库为 `.data/online-library/advance.sqlite`。对外部署时同时设置 `ADVANCE_LIBRARY_TLS_CERT_PATH` 和 `ADVANCE_LIBRARY_TLS_KEY_PATH`，并定期备份数据目录。
 
-`pnpm dev`、`pnpm preview` 和静态托管都只提供游戏运行时，不会隐式启动在线库。在线库单个传输最大 72 MiB，总库上限 2 GiB；服务端数据并非端到端加密。HTTPS Advance 只能连接 HTTPS 在线库；会话 token 保存在浏览器 localStorage，不要在不受信任的设备上登录。
+`pnpm dev`、`pnpm preview` 和静态托管都只提供游戏运行时，不会隐式启动在线库。在线库单个传输最大 72 MiB，总库上限 2 GiB；服务端数据并非端到端加密。HTTPS Orbitra 只能连接 HTTPS 在线库；会话 token 保存在浏览器 localStorage，不要在不受信任的设备上登录。
 
 **mGBA 使用 WebAssembly 线程，部署必须满足跨源隔离要求。** 使用 HTTPS（本地开发可用 localhost），并在响应中添加：
 
@@ -243,7 +245,7 @@ Vite 开发与预览服务已配置上述响应头；`public/_headers` 会随构
 server {
     listen 443 ssl;
     # 在此配置你的域名和 TLS 证书
-    root /var/www/advance/dist;
+    root /var/www/orbitra/dist;
 
     add_header Cross-Origin-Opener-Policy same-origin always;
     add_header Cross-Origin-Embedder-Policy require-corp always;
@@ -265,7 +267,7 @@ server {
 ```mermaid
 flowchart LR
     A[React 界面<br/>游戏库 · 播放器 · 设置] --> B[TypeScript 内核适配层]
-    B --> C[mGBA · FCEUmm · Snes9x<br/>WebAssembly 核心]
+    B --> C[mGBA · FCEUmm · Snes9x · Dolphin<br/>WebAssembly 核心]
     A --> D[本地存储<br/>IndexedDB · localStorage]
     A -. 配置独立地址 .-> G[在线游戏库<br/>账号 · SQLite 快照]
     B --> D
@@ -273,7 +275,7 @@ flowchart LR
     F --> D
 ```
 
-应用负责交互、资源管理与存档持久化，各 WebAssembly 核心负责硬件模拟。内核文件随仓库分发，版本、校验值及本地修改见 [mGBA 来源说明](public/emulator/NOTICE.md)与 [EmulatorJS 来源说明](public/emulatorjs/NOTICE.md)。
+应用负责交互、资源管理与存档持久化，各 WebAssembly 核心负责硬件模拟。内核文件随仓库分发，版本、校验值及本地修改见 [mGBA 来源说明](public/emulator/NOTICE.md)、[EmulatorJS 来源说明](public/emulatorjs/NOTICE.md)与 [Dolphin 来源说明](public/dolphin/NOTICE.md)。
 
 适配层在当前游戏完成首帧后才允许存取档，避免线程已创建但 ROM 尚未初始化时读取空进度。导出电池存档时，从核心生成的原生即时快照提取当前存档数据，避免暂停后读到尚未写回虚拟文件系统的旧 SRAM。本轮未升级 mGBA 核心，也未更改对外的 `.sav` 或即时存档格式。
 
@@ -362,19 +364,20 @@ pnpm test:deployment
 
 ## 参与贡献
 
-欢迎提交 Bug、改进交互、完善文档或增加测试。请先阅读 [贡献指南](CONTRIBUTING.md)，提交问题时附上浏览器版本、复现步骤与错误信息。可通过 [Issues](https://github.com/hehuang139/gba-emu/issues) 讨论建议，通过 [Pull requests](https://github.com/hehuang139/gba-emu/pulls) 提交改动。
+欢迎提交 Bug、改进交互、完善文档或增加测试。请先阅读 [贡献指南](CONTRIBUTING.md)，提交问题时附上浏览器版本、复现步骤与错误信息。可通过 [Issues](https://github.com/hehuang139/orbitra/issues) 讨论建议，通过 [Pull requests](https://github.com/hehuang139/orbitra/pulls) 提交改动。
 
 请勿在 Issue、PR 或测试资源中上传无权分发的游戏 ROM、BIOS 或素材。原创试玩及有明确再分发许可的自制游戏更适合用于复现和测试。
 
 ## 鸣谢
 
-Advance 建立在以下开源项目与创作者的工作之上：
+Orbitra 建立在以下开源项目与创作者的工作之上：
 
 | 项目                                                                                                    | 用途                                 |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
 | [mGBA](https://mgba.io/) · Jeffrey Pfau 与贡献者                                                        | GBA、GB 与 GBC 硬件模拟核心          |
 | [mgba-wasm](https://github.com/thenick775/mgba) · Nicholas VanCise 与贡献者                             | mGBA 的 WebAssembly 移植与浏览器接口 |
 | [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 与 FCEUmm / Snes9x 贡献者                        | FC / NES 与 SFC / SNES 浏览器运行时  |
+| [wasm-dolphin](https://github.com/dougchansan/wasm-dolphin) 与 Dolphin 贡献者                           | 实验性 GameCube 浏览器运行时         |
 | [React](https://react.dev/) · [TypeScript](https://www.typescriptlang.org/) · [Vite](https://vite.dev/) | 应用界面、类型系统与构建工具         |
 | [Lucide](https://lucide.dev/)                                                                           | 界面图标                             |
 | [fflate](https://github.com/101arrowz/fflate)                                                           | ZIP 解压                             |
@@ -385,6 +388,6 @@ Advance 建立在以下开源项目与创作者的工作之上：
 
 ## 许可证
 
-应用代码与原创试玩采用 [MIT 许可证](LICENSE)。**第三方组件保留各自许可证**：mGBA / mgba-wasm 使用 MPL-2.0；EmulatorJS、FCEUmm 与 Snes9x 使用各自随仓库附带的许可证；DM Sans 字体采用 SIL OFL 1.1。分发时应保留相应许可证与来源说明，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+应用代码与原创试玩采用 [MIT 许可证](LICENSE)。**第三方组件保留各自许可证**：mGBA / mgba-wasm 使用 MPL-2.0；EmulatorJS、FCEUmm 与 Snes9x 使用各自随仓库附带的许可证；wasm-dolphin / Dolphin 使用 GPL-2.0-or-later；DM Sans 字体采用 SIL OFL 1.1。分发时应保留相应许可证与来源说明，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
 
 Game Boy、Game Boy Color 与 Game Boy Advance 是 Nintendo 的商标。本项目是独立开源项目，与 Nintendo 无关联，也未获其背书。

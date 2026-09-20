@@ -25,5 +25,5 @@ const protocol = tls ? 'https' : 'http'
 
 server.on('close', api.close)
 server.listen(port, host, () => {
-  console.log(`Advance online library: ${protocol}://${host}:${port}`)
+  console.log(`Orbitra online library: ${protocol}://${host}:${port}`)
 })

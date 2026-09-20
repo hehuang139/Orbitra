@@ -1,17 +1,17 @@
 {
-  "name": "advance-gba",
+  "name": "orbitra",
   "private": true,
   "version": "1.4.0",
-  "description": "Advance — a browser-based GBA, GB, GBC, FC/NES and SFC/SNES emulator with local cores, ZIP import, save states, gamepad and touch controls.",
+  "description": "Orbitra — a multi-platform browser emulator with local cores, a unified game library, save states, gamepad and touch controls.",
   "license": "MIT",
   "author": "hehuang139",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hehuang139/gba-emu.git"
+    "url": "https://github.com/hehuang139/orbitra.git"
   },
-  "homepage": "https://github.com/hehuang139/gba-emu#readme",
+  "homepage": "https://github.com/hehuang139/orbitra#readme",
   "bugs": {
-    "url": "https://github.com/hehuang139/gba-emu/issues"
+    "url": "https://github.com/hehuang139/orbitra/issues"
   },
   "engines": {
     "node": ">=22.18.0"
@@ -45,6 +45,7 @@
     "test:deployment": "node scripts/test-deployment.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "^1.8.0",
     "fflate": "^0.8.3",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",

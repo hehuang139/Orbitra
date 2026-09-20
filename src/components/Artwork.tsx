@@ -89,7 +89,7 @@ export function HandheldArt() {
       <div className="handheld">
         <div className="shoulder shoulder-left" />
         <div className="shoulder shoulder-right" />
-        <div className="handheld-label">ADVANCE</div>
+        <div className="handheld-label">ORBITRA</div>
         <div className="console-dpad">
           <span />
           <span />

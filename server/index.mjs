@@ -81,5 +81,5 @@ const server = tls ? createSecureServer(tls, staticFile) : createServer(staticFi
 const protocol = tls ? 'https' : 'http'
 
 server.listen(port, host, () => {
-  console.log(`Advance runtime: ${protocol}://${host}:${port}`)
+  console.log(`Orbitra runtime: ${protocol}://${host}:${port}`)
 })

@@ -1,10 +1,10 @@
-# 参与 Advance 开发
+# 参与 Orbitra 开发
 
-感谢你帮助改善 Advance。文档、问题复现、设备兼容性记录、界面改进与代码贡献都很有价值。本项目主要使用中文沟通，也欢迎英文 Issue 和 PR。
+感谢你帮助改善 Orbitra。文档、问题复现、设备兼容性记录、界面改进与代码贡献都很有价值。本项目主要使用中文沟通，也欢迎英文 Issue 和 PR。
 
 ## 提交问题或建议
 
-在 [Issues](https://github.com/hehuang139/gba-emu/issues) 搜索是否已有相同问题。Bug 报告请尽量包含：
+在 [Issues](https://github.com/hehuang139/orbitra/issues) 搜索是否已有相同问题。Bug 报告请尽量包含：
 
 - 操作系统、浏览器名称与版本、设备或手柄型号。
 - 使用环境：本地开发、生产部署，及是否通过 HTTPS 访问。
@@ -21,8 +21,8 @@
 推荐 Node.js 24、pnpm 11.19.0 和支持 WebAssembly 线程的现代浏览器。最低 Node.js 版本为 22.18。如尚未安装 pnpm，先运行 `npm install --global pnpm@11.19.0`。
 
 ```sh
-git clone https://github.com/hehuang139/gba-emu.git
-cd gba-emu
+git clone https://github.com/hehuang139/orbitra.git
+cd orbitra
 pnpm install --frozen-lockfile
 pnpm dev
 ```

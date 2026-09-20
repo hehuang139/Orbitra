@@ -193,26 +193,17 @@ button:disabled:hover {
   align-items: center;
   font-size: 28px;
   font-weight: 750;
-  letter-spacing: -1.5px;
+  letter-spacing: 0;
   padding: 0 12px;
 }
 .brand-mark {
   width: 33px;
   height: 33px;
-  display: grid;
-  place-items: center;
-  background: var(--mint);
-  border-radius: 10px;
-  color: #183629;
-  transform: rotate(-7deg);
-}
-.brand-mark svg {
-  width: 23px;
-  height: 23px;
-  transform: rotate(7deg);
+  display: block;
+  border-radius: 9px;
 }
 .brand-period {
-  color: var(--mint);
+  color: #ff7468;
 }
 .workspace-label {
   font-size: 10px;
@@ -2177,6 +2168,17 @@ main {
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+.canvas-wrap > canvas.dolphin-focus-canvas {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.canvas-wrap > canvas.dolphin-canvas {
+  width: min(100%, 800px);
+  aspect-ratio: 4 / 3;
 }
 .player-panel.platform-gb .canvas-wrap canvas,
 .player-panel.platform-gbc .canvas-wrap canvas {

@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-11T23:43:55.389Z",
+  "coreId": "sha256:d7395b3a94080f5b7d08a0522f59096007419d117b7b0eb868246429adee6f5c",
+  "repository": {
+    "commit": "1f2e571b2d07e6097aae08f5784a1ebc2b517067",
+    "status": "M cores/dolphin/dolphin-core-upstream.js\n M cores/dolphin/dolphin-core-upstream.wasm\n M provenance/dolphin-source.lock.json\n M provenance/dolphin-vendor-snapshot-v1.json\n M src/upstream-discio-worker.js\n?? patches/dolphin-wasm/snapshot/0066-jit-retry-deferred-blocks-and-apply-policy.patch\n?? patches/dolphin-wasm/snapshot/0067-cached-interpreter-static-exit-links.patch\n?? tests/cached-interpreter-static-exit-links.test.mjs\n?? tests/jit-deferred-compile.test.mjs\n?? tests/jit-fuse-status.test.mjs\n?? tests/jit-pause-timing.test.mjs\n?? tests/native/static-exit-links/build-cache.py\n?? tests/native/static-exit-links/build-callbacks.py\n?? tests/native/static-exit-links/build-gates.py\n?? tests/native/static-exit-links/build-helpers.py\n?? tests/native/static-exit-links/build-stats.py\n?? tests/native/static-exit-links/cache.template.cpp\n?? tests/native/static-exit-links/callback-declarations.inc\n?? tests/native/static-exit-links/callback-state.inc\n?? tests/native/static-exit-links/callback.template.cpp\n?? tests/native/static-exit-links/cases.json\n?? tests/native/static-exit-links/extract-base.py\n?? tests/native/static-exit-links/gate.template.cpp\n?? tests/native/static-exit-links/helper-state.inc\n?? tests/native/static-exit-links/helper.template.cpp\n?? tests/native/static-exit-links/run-header.py\n?? tests/native/static-exit-links/run.py\n?? tests/native/static-exit-links/stats.template.cpp\n?? tests/native/static-exit-links/test-header.cpp\n?? tests/native/static-exit-links/test-platform.h\n?? tests/native/static-exit-links/test_support.py",
+    "cleanTree": false,
+    "dirtyBuildOverride": [
+      "provenance/dolphin-source.lock.json",
+      "provenance/dolphin-vendor-snapshot-v1.json",
+      "src/upstream-discio-worker.js",
+      "patches/dolphin-wasm/snapshot/0066-jit-retry-deferred-blocks-and-apply-policy.patch",
+      "patches/dolphin-wasm/snapshot/0067-cached-interpreter-static-exit-links.patch",
+      "tests/cached-interpreter-static-exit-links.test.mjs",
+      "tests/jit-deferred-compile.test.mjs",
+      "tests/jit-fuse-status.test.mjs",
+      "tests/jit-pause-timing.test.mjs",
+      "tests/native/static-exit-links/build-cache.py",
+      "tests/native/static-exit-links/build-callbacks.py",
+      "tests/native/static-exit-links/build-gates.py",
+      "tests/native/static-exit-links/build-helpers.py",
+      "tests/native/static-exit-links/build-stats.py",
+      "tests/native/static-exit-links/cache.template.cpp",
+      "tests/native/static-exit-links/callback-declarations.inc",
+      "tests/native/static-exit-links/callback-state.inc",
+      "tests/native/static-exit-links/callback.template.cpp",
+      "tests/native/static-exit-links/cases.json",
+      "tests/native/static-exit-links/extract-base.py",
+      "tests/native/static-exit-links/gate.template.cpp",
+      "tests/native/static-exit-links/helper-state.inc",
+      "tests/native/static-exit-links/helper.template.cpp",
+      "tests/native/static-exit-links/run-header.py",
+      "tests/native/static-exit-links/run.py",
+      "tests/native/static-exit-links/stats.template.cpp",
+      "tests/native/static-exit-links/test-header.cpp",
+      "tests/native/static-exit-links/test-platform.h",
+      "tests/native/static-exit-links/test_support.py"
+    ]
+  },
+  "source": {
+    "upstreamCommit": "e22551eae1c84a7e4d0b6a5c519ef4ed4ef69df1",
+    "patchSeriesSha256": "8e3a1b6101a233488aaedd1dbfc912dda4312423ea7ae44bf8d1df9bf8056d0f",
+    "vendorResultTree": "dd6f5548aa13de585ec9988130f98aa9d0ce1982",
+    "sourceLockSha256": "fe5ef1bd590bf0a2d334274880e0e85411ac50b966cb5235ae1de89b5629ff2c",
+    "vendorSnapshotSha256": "6d75bc3014904311b38bf2e3c8b284aaf8a8162294c85912ef01f1a54d82f668",
+    "localInputsSha256": "2864bb48e04d618f1c0ebdfafa75724f8619120df445cb45c615582968f90ace",
+    "localInputs": [
+      {
+        "path": "core/upstream/dolphin_web_core.cpp",
+        "size": 44803,
+        "sha256": "0b7220487717ebed29695b031e8779c218771926e12ffe0c102675aba7ad803f",
+        "hashMode": "lf-normalized"
+      },
+      {
+        "path": "core/upstream/dolphin_web_discio.cpp",
+        "size": 46768,
+        "sha256": "2815c46b414ff4b67a58cd55d714e1b41f9b38984023e5a0dca29a71d2a4206b",
+        "hashMode": "lf-normalized"
+      },
+      {
+        "path": "core/upstream/dolphin_web_raster_profile.h",
+        "size": 34085,
+        "sha256": "cbd5bd078934d2a22b7220543e15f5d2185682c92953a7dc63e2e8663b932162",
+        "hashMode": "lf-normalized"
+      },
+      {
+        "path": "core/upstream/dolphin_web_xfb_fastpaths.h",
+        "size": 3028,
+        "sha256": "a0262feec1d2044dc576b6f67240a8a99b36a4ba27cf37013cc99d855f3c755e",
+        "hashMode": "lf-normalized"
+      },
+      {
+        "path": "tools/jit-cache-prejs.js",
+        "size": 5317,
+        "sha256": "387202bfdf5608f36d7e25a24c44a0089e458b5c1174aa4b31da0a5acb00499f",
+        "hashMode": "lf-normalized"
+      }
+    ]
+  },
+  "toolchain": {
+    "lockSha256": "36112f1020e5c639b20510c09ba0b39063160b833eb8afc552bc9b450fe9bb77",
+    "emscriptenVersion": "5.0.7",
+    "emscriptenCompilerCommit": "263db4cffa6f9fc2ec514a70abac81362ea41849",
+    "emsdkCommit": "bafd64c26bdaf10bd829163d1575b50b759a72d8",
+    "cmakeVersion": "4.3.2",
+    "ninjaVersion": "1.13.0.git.kitware.jobserver-pipe-1",
+    "rustcVersion": "1.97.0-nightly",
+    "rustcCommit": "7c3c88f42ad444f4688b865591d84660be4ece2f",
+    "cargoVersion": "1.97.0-nightly",
+    "nagaDependencyVersion": "26.0.0",
+    "cargoLockSha256": "1f9dbc6ae36abff7af42626c17fb899275bcd7e134d36ec24a78ef79c8c4ce78"
+  },
+  "configure": {
+    "buildDir": "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\build\\dolphin-wasm",
+    "outputDir": "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\cores\\dolphin",
+    "nagaLibrarySha256": "f3b436b94904bdcfcb78f32b6b0627ece116931930a62a4a403d06b39f8b2b34",
+    "wasmMemoryPages": 24576,
+    "fastBranchInline": "1",
+    "fallbackMapDiagnostics": "0",
+    "fallbackMapBits": "16",
+    "directWasmBlockDispatch": "0",
+    "wasmCompileFlags": "-O3 -pthread -msimd128 -flto -DXXH_VECTOR=0 -DDOLPHIN_WEB_HOT_COUNTERS=0 -DDOLPHIN_WEB_INLINE_FAST_BRANCH=1 -DDOLPHIN_WEB_FALLBACK_MAP_DIAGNOSTICS=0 -DDOLPHIN_WEB_FALLBACK_MAP_BITS=16 -DDOLPHIN_WEB_DIRECT_WASM_BLOCK_DISPATCH=0",
+    "cmakeArgs": [
+      "C:\\Program Files\\CMake\\bin\\cmake.exe",
+      "-S",
+      "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\vendor\\dolphin",
+      "-B",
+      "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\build\\dolphin-wasm",
+      "-GNinja",
+      "-DCMAKE_MAKE_PROGRAM=C:\\Users\\douglaswhittingham\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\ninja.exe",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_TRY_COMPILE_CONFIGURATION=Debug",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DUSE_SYSTEM_LIBS=OFF",
+      "-DENABLE_GENERIC=ON",
+      "-DENABLE_QT=OFF",
+      "-DENABLE_NOGUI=OFF",
+      "-DENABLE_CLI_TOOL=OFF",
+      "-DENABLE_HEADLESS=OFF",
+      "-DENABLE_ALSA=OFF",
+      "-DENABLE_PULSEAUDIO=OFF",
+      "-DENABLE_CUBEB=OFF",
+      "-DENABLE_X11=OFF",
+      "-DENABLE_EGL=OFF",
+      "-DENABLE_SDL=OFF",
+      "-DENABLE_VULKAN=OFF",
+      "-DENABLE_LLVM=OFF",
+      "-DENABLE_TESTS=OFF",
+      "-DUSE_UPNP=OFF",
+      "-DUSE_DISCORD_PRESENCE=OFF",
+      "-DUSE_MGBA=OFF",
+      "-DUSE_RETRO_ACHIEVEMENTS=OFF",
+      "-DENABLE_AUTOUPDATE=OFF",
+      "-DENABLE_ANALYTICS=OFF",
+      "-DENCODE_FRAMEDUMPS=OFF",
+      "-DWITH_OPTIM=OFF",
+      "-DWITH_SSE2=OFF",
+      "-DWITH_SSSE3=OFF",
+      "-DWITH_SSE41=OFF",
+      "-DWITH_SSE42=OFF",
+      "-DWITH_PCLMULQDQ=OFF",
+      "-DWITH_AVX2=OFF",
+      "-DWITH_AVX512=OFF",
+      "-DWITH_AVX512VNNI=OFF",
+      "-DWITH_VPCLMULQDQ=OFF",
+      "-DCMAKE_C_FLAGS:STRING=-O3 -pthread -msimd128 -flto -DXXH_VECTOR=0 -DDOLPHIN_WEB_HOT_COUNTERS=0 -DDOLPHIN_WEB_INLINE_FAST_BRANCH=1 -DDOLPHIN_WEB_FALLBACK_MAP_DIAGNOSTICS=0 -DDOLPHIN_WEB_FALLBACK_MAP_BITS=16 -DDOLPHIN_WEB_DIRECT_WASM_BLOCK_DISPATCH=0",
+      "-DCMAKE_CXX_FLAGS:STRING=-O3 -pthread -msimd128 -flto -DXXH_VECTOR=0 -DDOLPHIN_WEB_HOT_COUNTERS=0 -DDOLPHIN_WEB_INLINE_FAST_BRANCH=1 -DDOLPHIN_WEB_FALLBACK_MAP_DIAGNOSTICS=0 -DDOLPHIN_WEB_FALLBACK_MAP_BITS=16 -DDOLPHIN_WEB_DIRECT_WASM_BLOCK_DISPATCH=0",
+      "-DCMAKE_C_FLAGS_DEBUG:STRING=-O0 -fno-lto",
+      "-DCMAKE_CXX_FLAGS_DEBUG:STRING=-O0 -fno-lto",
+      "-DDOLPHIN_WASM_NAGA_WGSL_LIB=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\tools\\naga-spirv-wgsl\\target\\wasm32-unknown-emscripten\\release\\libnaga_spirv_wgsl.a",
+      "-DDOLPHIN_WASM_JIT_CACHE_PRE_JS=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\tools\\jit-cache-prejs.js",
+      "-DDOLPHIN_WASM_MEMORY_PAGES=24576",
+      "-DDOLPHIN_WASM_PROJECT_ROOT=G:/wasm-dolphin/.claude/worktrees/wasm-dolphin-mkwii-webgpu-64624f",
+      "-DDOLPHIN_WASM_BRIDGE_SOURCE=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\core\\upstream\\dolphin_web_discio.cpp",
+      "-DDOLPHIN_WASM_SHARED_SOURCE_DIR=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\core\\upstream",
+      "-DDOLPHIN_WASM_OUTPUT_DIR=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\cores\\dolphin",
+      "-DDOLPHIN_WASM_CORE_SOURCE=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\core\\upstream\\dolphin_web_core.cpp",
+      "-DDOLPHIN_WASM_OUTPUT_DIR=G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\cores\\dolphin"
+    ],
+    "cmakeCacheSha256": "28186f1e9053c23038f2600cb110177abbd87cc0785685a83786b6e9873a406a"
+  },
+  "artifacts": {
+    "js": {
+      "path": "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\cores\\dolphin\\dolphin-core-upstream.js",
+      "size": 266972,
+      "sha256": "7c78f3fc2207daab059af3b15c230c23d11205584cf1dfe89c65f66996e18b99",
+      "hashMode": "lf-normalized"
+    },
+    "wasm": {
+      "path": "G:\\wasm-dolphin\\.claude\\worktrees\\wasm-dolphin-mkwii-webgpu-64624f\\cores\\dolphin\\dolphin-core-upstream.wasm",
+      "size": 15175335,
+      "sha256": "d7395b3a94080f5b7d08a0522f59096007419d117b7b0eb868246429adee6f5c",
+      "hashMode": "raw"
+    },
+    "wasmSections": [
+      {
+        "id": 1,
+        "size": 2005,
+        "sha256": "6d24054d83fd883cb28bbdf641f5c1abf9f84d961567fbf65ff0726f6cbd670f"
+      },
+      {
+        "id": 2,
+        "size": 2420,
+        "sha256": "fd419fb9155de9eefe24b28448729bc077f5c49a8a7c62b612aa73889c43b17a"
+      },
+      {
+        "id": 3,
+        "size": 12445,
+        "sha256": "bba25739e0f224d1ed1d08bbae499174b14f5d27e84ab100b44ea5ab11d05544"
+      },
+      {
+        "id": 4,
+        "size": 5,
+        "sha256": "0acc3f6bce7ac99b9cc92f1cb3ed9fe909743d212794c05cd0b5d5cef65b1ca3"
+      },
+      {
+        "id": 6,
+        "size": 49,
+        "sha256": "67925c36629c620f56b3528f8a46899f0dee296f4c6ded932f97b924a7bc2391"
+      },
+      {
+        "id": 7,
+        "size": 1069,
+        "sha256": "30ed0ced306c4afd559b8e2e2bdb76fca24a002120cebdf96d2d4fc7a65e996f"
+      },
+      {
+        "id": 8,
+        "size": 2,
+        "sha256": "1b44e67c719b2a7da8da9123cef5ff1e60e04fc8086f245fc683b3da72fd26ff"
+      },
+      {
+        "id": 9,
+        "size": 22553,
+        "sha256": "1de41298c7a7b55ec3fa207b9f999e95ca309dae1baa296669355a630836b165"
+      },
+      {
+        "id": 12,
+        "size": 2,
+        "sha256": "76813e3162f6e7c93a7ca7a62ab667d5e6dc13e66408b85b80929e6a54581a79"
+      },
+      {
+        "id": 10,
+        "size": 10464029,
+        "sha256": "073c7caffd5446828e20f546ef30998f8ccf5ebf08607a3ca00a0991455afa2c"
+      },
+      {
+        "id": 11,
+        "size": 2464942,
+        "sha256": "2e5b4f24410ea782d91824af96a8374090e39119c68cee976f1de08ce0950ea9"
+      },
+      {
+        "id": 0,
+        "size": 2205767,
+        "sha256": "8e39498e5d7ee57d2b0bb3a1cccba40a893bd4cf0921e08b56d58daff96ea776"
+      }
+    ]
+  }
+}

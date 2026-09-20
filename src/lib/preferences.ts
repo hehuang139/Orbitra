@@ -22,6 +22,7 @@ export const defaultBindings: Record<EmulatorButton, string> = {
   Y: 'KeyV',
   L: 'KeyA',
   R: 'KeyS',
+  Z: 'KeyD',
   Start: 'Enter',
   Select: 'ShiftRight',
 }
@@ -55,9 +56,9 @@ export function normalizeSettings(value: unknown): Settings {
       const code = rawBindings[key]
       if (isBindingCode(code)) bindings[key] = code
     }
-    // X/Y did not exist before multi-console support. Preserve every legacy
+    // X/Y/Z did not exist before multi-console support. Preserve every legacy
     // binding and move only a newly supplied default when one is occupied.
-    for (const key of ['X', 'Y'] as const) {
+    for (const key of ['X', 'Y', 'Z'] as const) {
       if (rawBindings[key] !== undefined) continue
       const occupied = new Set(
         Object.entries(bindings)

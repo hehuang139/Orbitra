@@ -1,6 +1,6 @@
-# Advance Roadmap
+# Orbitra Roadmap
 
-本文区分当前已交付能力、下一阶段的改进方向与仍待评估的功能。未勾选条目尚未完成；没有承诺的发布日期。欢迎通过 [Issues](https://github.com/hehuang139/gba-emu/issues) 分享使用场景、复现资料与优先级建议。
+本文区分当前已交付能力、下一阶段的改进方向与仍待评估的功能。未勾选条目尚未完成；没有承诺的发布日期。欢迎通过 [Issues](https://github.com/hehuang139/orbitra/issues) 分享使用场景、复现资料与优先级建议。
 
 ## 已交付
 
@@ -76,7 +76,7 @@
 - [x] FC / NES、SFC / SNES 单人基础流程：固定本地核心、额外按键、合法生成测试资源和逐平台端到端验收。
 - [ ] FC / NES、SFC / SNES 扩展验收：双人输入、更多 mapper / 增强芯片、实体设备与人工音频验证。
 - [ ] Nintendo DS、Nintendo 3DS / New Nintendo 3DS：验证浏览器核心、双屏与触控布局、麦克风和增强机型能力，隔离卡带存档、SD 数据与即时存档。
-- [ ] GameCube、Wii、Wii U：验证光盘按需读取、图形和持续运行性能，接入记忆卡 / NAND、Wii 遥控器与 Wii U GamePad 等平台专用能力。
+- [ ] GameCube、Wii、Wii U：GameCube 已提供 `.iso` / `.gcm` 本地 Blob 导入、基础输入、音频与即时存档的实验性支持；继续验证持续运行性能和兼容性，并接入记忆卡。Wii / Wii U 仍需验证核心、NAND、Wii 遥控器与 Wii U GamePad 等平台专用能力。
 - [ ] 街机：选定首批硬件范围与浏览器核心，固定 ROM set / 核心版本，支持 ZIP ROM、必要的 BIOS / 父子 ROM 依赖、街机按键与可选双人输入，并按游戏记录兼容性。
 - [ ] 后续扩展：支持 PS1、PSP，先验证浏览器核心与性能，再接入光盘 / 大文件、固件需求、记忆卡 / 存档目录和模拟摇杆。
 - [ ] Nintendo Switch、Nintendo Switch 2：分别完成核心移植、许可证、浏览器图形与性能可行性研究；原型通过后再设计本地密钥 / 系统文件校验、游戏资源和存档接入。

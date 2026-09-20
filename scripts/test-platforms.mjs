@@ -51,10 +51,44 @@ const assertScreen = async (platform, name) => {
   )
 }
 
+const gameCubeImage = () => {
+  const bytes = new Uint8Array(32 * 1024)
+  bytes.set([0xc2, 0x33, 0x9f, 0x3d], 0x1c)
+  return bytes
+}
+
 try {
   await page.goto(process.env.UI_TEST_URL || 'http://127.0.0.1:5173')
+  const dolphinRuntime = await page.evaluate(async () => {
+    const module = await import('/dolphin/src/upstream-worker-adapter.js')
+    const [worker, wasm] = await Promise.all([
+      fetch('/dolphin/src/upstream-discio-worker.js'),
+      fetch('/dolphin/cores/dolphin/dolphin-core-upstream.wasm'),
+    ])
+    const digest = [
+      ...new Uint8Array(await crypto.subtle.digest('SHA-256', await wasm.arrayBuffer())),
+    ]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('')
+    return {
+      adapter: typeof module.UpstreamWorkerAdapter,
+      crossOriginIsolated,
+      offscreen: typeof HTMLCanvasElement.prototype.transferControlToOffscreen,
+      sharedMemory: typeof SharedArrayBuffer,
+      workerStatus: worker.status,
+      digest,
+    }
+  })
+  assert.deepEqual(dolphinRuntime, {
+    adapter: 'function',
+    crossOriginIsolated: true,
+    offscreen: 'function',
+    sharedMemory: 'function',
+    workerStatus: 200,
+    digest: 'd7395b3a94080f5b7d08a0522f59096007419d117b7b0eb868246429adee6f5c',
+  })
   const input = page.getByLabel('选择游戏文件', { exact: true })
-  assert.equal(await input.getAttribute('accept'), '.gba,.gb,.gbc,.nes,.sfc,.smc,.zip')
+  assert.equal(await input.getAttribute('accept'), '.gba,.gb,.gbc,.nes,.sfc,.smc,.iso,.gcm,.zip')
   await input.setInputFiles([
     {
       name: 'Classic.gb',
@@ -87,7 +121,7 @@ try {
     await page.locator('.platform-filter button[data-platform="gb"] span').innerText(),
     '0',
   )
-  await page.locator('.nav-item').filter({ hasText: '游戏库' }).click()
+  await page.getByRole('button', { name: /^游戏库/ }).click()
 
   assert.equal(await page.locator('.game-card').count(), 1)
   await page.getByRole('button', { name: '开始 Classic', exact: true }).click()
@@ -110,7 +144,7 @@ try {
     1.111,
     'GB save-state thumbnails keep the native 10:9 ratio',
   )
-  await page.locator('.nav-item').filter({ hasText: '游戏库' }).click()
+  await page.getByRole('button', { name: /^游戏库/ }).click()
   await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
 
   await page.locator('.platform-filter button[data-platform="gbc"]').click()
@@ -139,10 +173,19 @@ try {
       mimeType: 'application/octet-stream',
       buffer: Buffer.from(createSnesTestRom()),
     },
+    {
+      name: 'Homebrew.iso',
+      mimeType: 'application/octet-stream',
+      buffer: Buffer.from(gameCubeImage()),
+    },
   ])
-  await page.getByText('已导入 2 个游戏，准备开始吧', { exact: true }).waitFor()
+  await page.getByText('已导入 3 个游戏，准备开始吧', { exact: true }).waitFor()
   await page.locator('.platform-filter button').first().click()
-  assert.equal(await page.locator('.game-card').count(), 5)
+  assert.equal(await page.locator('.game-card').count(), 6)
+
+  await page.locator('.platform-filter button[data-platform="gamecube"]').click()
+  assert.equal(await page.locator('.game-card').count(), 1)
+  assert.equal(await page.locator('.cover-platform[data-platform="gamecube"]').count(), 1)
 
   await page.locator('.platform-filter button[data-platform="nes"]').click()
   await page.getByRole('button', { name: '开始 Console', exact: true }).click()
@@ -179,10 +222,10 @@ try {
 
   await page.reload()
   await page.locator('.platform-filter').waitFor()
-  await page.waitForFunction(() => document.querySelectorAll('.game-card').length === 5)
+  await page.waitForFunction(() => document.querySelectorAll('.game-card').length === 6)
   assert.equal(
     await page.locator('.cover-platform').count(),
-    5,
+    6,
     'platform metadata persists across reload',
   )
   await page.setViewportSize({ width: 390, height: 844 })
@@ -216,6 +259,8 @@ try {
           'FC/SFC filename-based titles',
           'FC/SFC save states',
           'SFC X/Y/L/R controls',
+          'GameCube Blob import, badge, and filter',
+          'GameCube runtime module, worker, isolation, and WASM hash',
           'platform badges and filters',
           'native 10:9 screen ratio',
           'platform-specific touch controls',

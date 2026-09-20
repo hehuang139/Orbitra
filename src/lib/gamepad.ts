@@ -11,6 +11,7 @@ export const gbaButtons: GbaButton[] = [
   'Y',
   'L',
   'R',
+  'Z',
   'Start',
   'Select',
 ]
@@ -51,6 +52,7 @@ export function defaultGamepadProfile(pad: GamepadSnapshot): GamepadProfile {
       [3, 'Y'],
       [4, 'L'],
       [5, 'R'],
+      [7, 'Z'],
       [8, 'Select'],
       [9, 'Start'],
       [12, 'Up'],
@@ -107,13 +109,14 @@ export function validateGamepadProfile(
   if (
     bindingKeys.some((key) => !gbaButtons.includes(key as GbaButton)) ||
     bindingKeys.some((key, index) => bindingKeys.indexOf(key) !== index) ||
-    bindingKeys.length < gbaButtons.length - 2 ||
+    bindingKeys.length < gbaButtons.length - 3 ||
     bindingKeys.length > gbaButtons.length
   )
     return null
   const bindings = {} as GamepadProfile['bindings']
   for (const key of gbaButtons) {
-    const entries = value.bindings[key] ?? (key === 'X' || key === 'Y' ? [] : undefined)
+    const entries =
+      value.bindings[key] ?? (key === 'X' || key === 'Y' || key === 'Z' ? [] : undefined)
     if (
       !Array.isArray(entries) ||
       entries.length > 8 ||

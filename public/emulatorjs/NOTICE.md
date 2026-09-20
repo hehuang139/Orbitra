@@ -20,7 +20,7 @@ WebGL 1 implementations as well as WebGL 2 implementations.
 ## Local frontend changes
 
 The emulation core archives are redistributed unmodified. The readable EmulatorJS frontend source
-is redistributed with five host integration changes, visibly marked with `Advance` comments:
+is redistributed with five host integration changes, visibly marked with `Orbitra` comments:
 
 1. Disable the runtime update request because all assets are pinned and served locally.
 2. Keep `/data/saves` in memory when application-managed persistence is enabled.

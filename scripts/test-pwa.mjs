@@ -41,7 +41,7 @@ try {
 
   await context.setOffline(true)
   await page.reload({ waitUntil: 'domcontentloaded' })
-  assert.match(await page.title(), /Advance/)
+  assert.match(await page.title(), /Orbitra/)
   assert.equal(await page.locator('#root').count(), 1)
   console.log(JSON.stringify({ passed: true, controlled: true, offlineNavigation: true }, null, 2))
 } finally {
