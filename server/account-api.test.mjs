@@ -10,10 +10,11 @@ let api
 let baseUrl
 let dataDirectory
 let server
+const runtimeOrigin = 'http://127.0.0.1:5173'
 
 before(async () => {
   dataDirectory = await mkdtemp(path.join(tmpdir(), 'advance-account-'))
-  api = createAccountApi({ dataDirectory })
+  api = createAccountApi({ dataDirectory, allowedOrigins: [runtimeOrigin] })
   server = createServer((request, response) => void api(request, response))
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   const address = server.address()
@@ -32,7 +33,7 @@ async function request(pathname, options = {}) {
   return fetch(`${baseUrl}${pathname}`, {
     ...options,
     headers: {
-      Origin: baseUrl,
+      Origin: runtimeOrigin,
       ...options.headers,
     },
   })
@@ -53,9 +54,15 @@ test('account session preserves a snapshot across logout and login', async () =>
   })
   assert.equal(registered.status, 201)
   const firstCookie = sessionCookie(registered)
-  assert.equal((await registered.json()).user.username, 'player.one')
+  const registration = await registered.json()
+  const firstToken = registration.token
+  assert.match(firstToken, /^[A-Za-z0-9_-]{32,}$/)
+  assert.equal(registration.user.username, 'player.one')
+  assert.equal(registered.headers.get('access-control-allow-origin'), runtimeOrigin)
 
-  const session = await request('/api/auth/session', { headers: { Cookie: firstCookie } })
+  const session = await request('/api/auth/session', {
+    headers: { Authorization: `Bearer ${firstToken}` },
+  })
   assert.equal((await session.json()).user.username, 'player.one')
 
   const snapshot = Buffer.alloc(22)
@@ -142,7 +149,7 @@ test('account session preserves a snapshot across logout and login', async () =>
 
   const loggedOut = await request('/api/auth/logout', {
     method: 'POST',
-    headers: { Cookie: firstCookie, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${firstToken}`, 'Content-Type': 'application/json' },
     body: '{}',
   })
   assert.equal(loggedOut.status, 200)
@@ -162,8 +169,11 @@ test('account session preserves a snapshot across logout and login', async () =>
     body: credentials,
   })
   assert.equal(loggedIn.status, 200)
-  const secondCookie = sessionCookie(loggedIn)
-  const restored = await request('/api/sync', { headers: { Cookie: secondCookie } })
+  const login = await loggedIn.json()
+  assert.equal(login.user.username, 'player.one')
+  const restored = await request('/api/sync', {
+    headers: { Authorization: `Bearer ${login.token}` },
+  })
   assert.deepEqual(Buffer.from(await restored.arrayBuffer()), snapshot)
 
   const duplicate = await request('/api/auth/register', {
@@ -181,6 +191,24 @@ test('mutating endpoints reject cross-origin requests', async () => {
     body: JSON.stringify({ username: 'other-user', password: 'valid-password' }),
   })
   assert.equal(response.status, 403)
+})
+
+test('health and preflight identify the standalone online library', async () => {
+  const health = await request('/api/health')
+  assert.equal(health.status, 200)
+  assert.deepEqual(await health.json(), { service: 'advance-online-library', version: 1 })
+  assert.equal(health.headers.get('cross-origin-resource-policy'), 'cross-origin')
+
+  const preflight = await request('/api/library', {
+    method: 'OPTIONS',
+    headers: { 'Access-Control-Request-Headers': 'authorization, content-type' },
+  })
+  assert.equal(preflight.status, 204)
+  assert.match(preflight.headers.get('access-control-allow-headers'), /Authorization/)
+  assert.match(preflight.headers.get('access-control-expose-headers'), /X-Advance-Revision/)
+
+  const root = await fetch(baseUrl)
+  assert.equal(root.status, 404)
 })
 
 test('sync requires an authenticated session', async () => {

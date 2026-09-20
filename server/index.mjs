@@ -3,7 +3,6 @@ import { createServer } from 'node:http'
 import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createAccountApi } from './account-api.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = path.join(root, 'dist')
@@ -11,7 +10,6 @@ const port = Number(process.env.PORT || 4173)
 const host = process.env.HOST || '0.0.0.0'
 const tlsCertificatePath = process.env.TLS_CERT_PATH
 const tlsKeyPath = process.env.TLS_KEY_PATH
-const api = createAccountApi()
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -36,6 +34,15 @@ function staticFile(req, res) {
   } catch {
     res.writeHead(400)
     res.end()
+    return
+  }
+  if (pathname.startsWith('/api/')) {
+    res.writeHead(404, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    })
+    res.end('Not found')
     return
   }
   const requested = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '')
@@ -66,18 +73,13 @@ if (Boolean(tlsCertificatePath) !== Boolean(tlsKeyPath)) {
   process.exit(1)
 }
 
-const handler = (req, res) => {
-  if (req.url?.startsWith('/api/')) void api(req, res)
-  else staticFile(req, res)
-}
-
 const tls =
   tlsCertificatePath && tlsKeyPath
     ? { cert: readFileSync(tlsCertificatePath), key: readFileSync(tlsKeyPath) }
     : null
-const server = tls ? createSecureServer(tls, handler) : createServer(handler)
+const server = tls ? createSecureServer(tls, staticFile) : createServer(staticFile)
 const protocol = tls ? 'https' : 'http'
 
 server.listen(port, host, () => {
-  console.log(`Advance account server: ${protocol}://${host}:${port}`)
+  console.log(`Advance runtime: ${protocol}://${host}:${port}`)
 })

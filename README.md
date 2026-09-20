@@ -21,7 +21,7 @@
 
 Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB、GBC、FC / NES 与 SFC / SNES 游戏，连接手柄、回到刚才的存档，或在手机上继续探索。界面采用中文设计，适配桌面、平板与手机；游戏由 **mGBA、FCEUmm 与 Snes9x WebAssembly** 核心实际执行。
 
-无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可选账号会把 ROM、游戏内存档与即时存档同步到自托管服务，登录后可在新的浏览器中恢复。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
+无需账号也能使用本地游戏库，并且不需要自行提供 BIOS。可在界面中配置一个独立部署的在线游戏库地址，登录后把 ROM、游戏内存档与即时存档同步到自托管服务，并在新的浏览器中恢复。在线库不是游戏运行时，Advance 不会默认把数据发送到当前站点。仓库附带 MIT 授权的原创 GBA 小游戏 **Star Orbit · 星际漫游**，启动后点击「开始试玩」即可体验。商业游戏 ROM 不随项目分发。
 
 ## 效果预览
 
@@ -77,20 +77,20 @@ Advance 把熟悉的掌机与经典主机体验带到浏览器：整理 GBA、GB
 
 ## 功能特性
 
-| 模块         | 已实现功能                                                                                                  |
-| ------------ | ----------------------------------------------------------------------------------------------------------- |
-| **真实模拟** | mGBA、FCEUmm 与 Snes9x WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES                                   |
-| **游戏库**   | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
-| **ZIP 导入** | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
-| **即时存档** | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
-| **进度管理** | 开启自动保存后，每 30 秒及返回游戏库、切入后台时保存，并在下次启动恢复；支持 `.sav` 导入 / 导出             |
-| **批量备份** | 选择游戏导出带校验和的 ZIP，默认不含 ROM；恢复前预览、匹配缺失 ROM、逐项选择冲突，失败整体回滚              |
-| **账号同步** | 可选用户名登录；自动同步 ROM、游戏内存档与即时存档，新浏览器登录后合并恢复，本机离线数据仍可独立使用        |
-| **播放控制** | 暂停、继续、重置、全屏；1× / 2× / 4× 速度；按住快进与倒带；音量、静音                                       |
-| **输入方式** | 可重映射键盘；按设备保存手柄按钮 / 轴方向与死区；标准 / 紧凑触屏布局、大小与不透明度                        |
-| **画面风格** | 按平台使用原生比例；WebGL 2 优先、Canvas 2D 软件降级；像素、平滑、CRT 扫描线与真实核心截图                  |
-| **本地存储** | ROM、游戏信息与存档存入 IndexedDB；偏好存入 localStorage；应用运行时不依赖外部 CDN                          |
-| **原创试玩** | 可复现构建的 ARM 程序，包含双缓冲画面、原生按键、PSG 音效与 SRAM 存档                                       |
+| 模块           | 已实现功能                                                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------- |
+| **真实模拟**   | mGBA、FCEUmm 与 Snes9x WASM 核心；支持 GBA、GB、GBC、FC / NES、SFC / SNES                                   |
+| **游戏库**     | 文件、文件夹递归扫描与拖放导入；平台筛选、搜索、排序、网格 / 列表、收藏、游玩记录；当前结果多选与批量删除   |
+| **ZIP 导入**   | 自动读取子目录中的受支持 ROM；一次导入多款游戏；平台域 SHA-256 内容去重，保留已有收藏与进度并隔离跨平台存档 |
+| **即时存档**   | 5 个手动槽 + 1 个自动槽；画面预览；快速存取档；按平台记录核心版本并隔离不兼容状态                           |
+| **进度管理**   | 开启自动保存后，每 30 秒及返回游戏库、切入后台时保存，并在下次启动恢复；支持 `.sav` 导入 / 导出             |
+| **批量备份**   | 选择游戏导出带校验和的 ZIP，默认不含 ROM；恢复前预览、匹配缺失 ROM、逐项选择冲突，失败整体回滚              |
+| **在线游戏库** | 配置独立服务地址并登录；自动同步 ROM、游戏内存档与即时存档，新浏览器登录后恢复，本机离线数据仍可独立使用    |
+| **播放控制**   | 暂停、继续、重置、全屏；1× / 2× / 4× 速度；按住快进与倒带；音量、静音                                       |
+| **输入方式**   | 可重映射键盘；按设备保存手柄按钮 / 轴方向与死区；标准 / 紧凑触屏布局、大小与不透明度                        |
+| **画面风格**   | 按平台使用原生比例；WebGL 2 优先、Canvas 2D 软件降级；像素、平滑、CRT 扫描线与真实核心截图                  |
+| **本地存储**   | ROM、游戏信息与存档存入 IndexedDB；偏好存入 localStorage；应用运行时不依赖外部 CDN                          |
+| **原创试玩**   | 可复现构建的 ARM 程序，包含双缓冲画面、原生按键、PSG 音效与 SRAM 存档                                       |
 
 ## 快速开始
 
@@ -154,7 +154,7 @@ ZIP 导入会检查文件大小与 CRC。原有游戏被再次导入时，收藏
 - **游戏内存档 `.sav`**：游戏自身的保存进度，例如在游戏菜单选择「保存」产生的数据。导入后会重新启动游戏，并刷新自动存档。
 - **即时存档**：包含画面对应时刻的完整模拟状态，可从任意时刻继续。请使用同一游戏、同一平台兼容核心版本生成的文件。
 
-浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；登录账号或导出备份可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
+浏览器清理站点数据、无痕窗口关闭或存储空间回收可能移除未同步的本地文件；连接在线游戏库并登录，或导出备份，可在新浏览器中恢复。强制结束浏览器时，上次自动保存或同步之后的进度可能丢失。
 
 ## 构建与部署
 
@@ -213,11 +213,19 @@ pnpm build
 pnpm start
 ```
 
-构建结果位于 `dist/`，生产服务地址默认为 [http://localhost:4173](http://localhost:4173)。`pnpm start` 同源提供静态资源和账号 API，使用 Node 内置 SQLite 将账号、会话和每位用户的最新游戏库快照保存在 `.data/advance.sqlite`。可通过 `HOST`、`PORT` 和 `ADVANCE_DATA_DIR` 修改监听地址、端口和数据目录，部署时必须定期备份该 SQLite 文件并确保目录可写。
+构建结果位于 `dist/`；`pnpm start` 只启动游戏运行时，默认地址为 [http://localhost:4173](http://localhost:4173)。可通过 `HOST` 和 `PORT` 修改监听地址与端口。游戏、ROM 和存档仍保存在浏览器本地，运行时不包含账号或同步 API。
 
-生产服务可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
+运行时可直接启用 HTTPS：同时设置 `TLS_CERT_PATH` 与 `TLS_KEY_PATH` 指向 PEM 证书和私钥即可。使用局域网 IP 时，证书必须包含对应 IP 的 Subject Alternative Name，并受访问设备信任；普通 HTTP 无法提供 Web Crypto 与 SharedArrayBuffer 所需的安全上下文。
 
-Vite 的 `pnpm dev` 与 `pnpm preview` 也会启用账号 API，方便本地开发。Netlify、Cloudflare Pages 等纯静态部署只能保留 IndexedDB 本地持久化，无法提供账号登录与跨浏览器恢复。账号快照最大 72 MiB，包含用户选择导入的 ROM 与存档；传输应使用 HTTPS，服务端数据并非端到端加密。
+在线游戏库必须作为另一个服务单独启动。在第二个终端运行：
+
+```sh
+ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
+```
+
+在线库默认监听 [http://localhost:4174](http://localhost:4174)。打开 Advance 侧栏中的「在线游戏库」，填入该地址后登录。通过 `ADVANCE_LIBRARY_HOST`、`ADVANCE_LIBRARY_PORT`、`ADVANCE_LIBRARY_DATA_DIR` 和逗号分隔的 `ADVANCE_LIBRARY_ALLOWED_ORIGINS` 配置监听、SQLite 数据目录与允许连接的 Advance 来源；默认数据库为 `.data/online-library/advance.sqlite`。对外部署时同时设置 `ADVANCE_LIBRARY_TLS_CERT_PATH` 和 `ADVANCE_LIBRARY_TLS_KEY_PATH`，并定期备份数据目录。
+
+`pnpm dev`、`pnpm preview` 和静态托管都只提供游戏运行时，不会隐式启动在线库。在线库单个传输最大 72 MiB，总库上限 2 GiB；服务端数据并非端到端加密。HTTPS Advance 只能连接 HTTPS 在线库；会话 token 保存在浏览器 localStorage，不要在不受信任的设备上登录。
 
 **mGBA 使用 WebAssembly 线程，部署必须满足跨源隔离要求。** 使用 HTTPS（本地开发可用 localhost），并在响应中添加：
 
@@ -259,7 +267,7 @@ flowchart LR
     A[React 界面<br/>游戏库 · 播放器 · 设置] --> B[TypeScript 内核适配层]
     B --> C[mGBA · FCEUmm · Snes9x<br/>WebAssembly 核心]
     A --> D[本地存储<br/>IndexedDB · localStorage]
-    A --> G[账号同步 API<br/>SQLite 快照]
+    A -. 配置独立地址 .-> G[在线游戏库<br/>账号 · SQLite 快照]
     B --> D
     E[支持的 ROM / ZIP 文件] --> F[平台识别 · 校验 · 解压 · 内容去重]
     F --> D
@@ -300,7 +308,7 @@ docs/images/                项目首页截图
 
 ```sh
 pnpm test
-pnpm test:account-server
+pnpm test:library-server
 pnpm build
 pnpm exec playwright install chromium
 
@@ -313,9 +321,9 @@ pnpm test:saves
 pnpm test:keyboard
 pnpm test:gamepad
 pnpm test:touch
+pnpm test:library-sync
 pnpm test:startup
 pnpm test:backup
-pnpm test:account
 pnpm test:pwa
 
 # 对已经运行的 Docker 镜像执行部署检查
@@ -350,7 +358,7 @@ pnpm test:deployment
 - [x] 探索具备跨源隔离支持的 PWA 安装与离线体验（真实移动设备仍待验证）。
 - [ ] 增加界面国际化与更多可合法分发的自制 ROM 测试。
 
-优先级、验收方向与待评估功能见 [完整 Roadmap](ROADMAP.md)，已发布版本的变化见 [更新日志](CHANGELOG.md)。FC / SFC 当前为单人基础支持，尚未覆盖双人输入、所有 mapper / 增强芯片和实体设备；联机、作弊码与云同步仍不支持。
+优先级、验收方向与待评估功能见 [完整 Roadmap](ROADMAP.md)，已发布版本的变化见 [更新日志](CHANGELOG.md)。FC / SFC 当前为单人基础支持，尚未覆盖双人输入、所有 mapper / 增强芯片和实体设备；联机、作弊码和托管式第三方云服务仍不支持，自托管在线游戏库需要单独部署。
 
 ## 参与贡献
 
