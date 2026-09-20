@@ -2,7 +2,19 @@
   "name": "orbitra",
   "private": true,
   "version": "1.4.0",
-  "description": "Orbitra — a multi-platform browser emulator with local cores, a unified game library, save states, gamepad and touch controls.",
+  "description": "Orbitra — a local-first browser emulator for GBA, Game Boy, NES, SNES, and experimental GameCube, powered by WebAssembly cores.",
+  "keywords": [
+    "browser emulator",
+    "retro gaming",
+    "game boy advance",
+    "game boy",
+    "game boy color",
+    "nes",
+    "snes",
+    "gamecube",
+    "webassembly",
+    "save states"
+  ],
   "license": "MIT",
   "author": "hehuang139",
   "repository": {
