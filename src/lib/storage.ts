@@ -442,13 +442,13 @@ export async function getRom(id: string): Promise<RomData | undefined> {
   })
 }
 
-/** Cache a cloud ROM without marking saves or metadata as locally modified. */
+/** Cache an online-library ROM without marking saves or metadata as locally modified. */
 export async function cacheRom(id: string, data: Uint8Array): Promise<Uint8Array> {
   const bytes = copyBytes(data, '下载的游戏 ROM 数据无效，请重试。')
   const game = await transaction([STORES.games], 'readonly', (tx) => requireGame(tx, id))
   if (game.platform === 'gamecube') throw new Error('GameCube 光盘镜像仅保存在导入它的浏览器中。')
   if (bytes.byteLength !== game.size || (await gameIdForRom(game.platform, bytes)) !== id)
-    throw new Error('下载的游戏 ROM 与云端游戏清单不匹配。')
+    throw new Error('下载的游戏 ROM 与在线游戏库清单不匹配。')
   await transaction([STORES.games, STORES.roms], 'readwrite', async (tx) => {
     const current = await requireGame(tx, id)
     if (current.platform !== game.platform || current.size !== bytes.byteLength)

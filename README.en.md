@@ -21,7 +21,7 @@ A modern multi-platform emulator for the browser, powered by local WebAssembly c
 
 Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin cores run the supported systems locally.
 
-No account or user-supplied BIOS is required for the local library. An optional self-hosted account service can sync classic-system ROMs and saves for restoration in another browser; GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
+No account or user-supplied BIOS is required. You can optionally configure the address of a separately deployed online game library, sign in, and sync classic-system ROMs and saves across browsers. The online library is not the game runtime, Orbitra never sends data to the current site by default, and GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
 ## Screenshots
 
@@ -86,7 +86,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 - **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
 - **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
 - **Display:** platform-native aspect ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
-- **Local data and account sync:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. Optional self-hosted accounts sync ROMs and saves so a fresh browser can restore them. Runtime assets are bundled without an external CDN dependency.
+- **Local data and online library:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. An optional, separately hosted online library syncs ROMs and saves so a fresh browser can restore them. Runtime assets are bundled without an external CDN dependency.
 - **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
 
 ## Quick start
@@ -166,7 +166,7 @@ The image includes cross-origin isolation headers, the `application/wasm` MIME t
 
 For public access, use an HTTPS reverse proxy that forwards the site root to container port `8080` and preserves the image's `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` response headers. Keep the application and core resources on the same origin. Subpath deployment is not recommended, and plain HTTP on a LAN address does not meet the core's requirements.
 
-This Nginx image serves only the static application and does not include the account API, so account login and cross-browser sync are unavailable; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Use the Node.js same-origin production server below and persist its SQLite data directory when account sync is required.
+This Nginx image serves only the static application and does not include the online game library; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Run the separate online game library described below when sign-in and cross-browser sync are required.
 
 To distribute a built image offline, export it on the build machine, load it on the target machine, then start it with the `docker run` command above:
 
@@ -190,11 +190,19 @@ pnpm build
 pnpm start
 ```
 
-The output is in `dist/`; the production server runs at [http://localhost:4173](http://localhost:4173) by default. `pnpm start` serves the app and same-origin account API, storing accounts, sessions and each user's latest library snapshot in `.data/advance.sqlite`. Configure `HOST`, `PORT` and `ORBITRA_DATA_DIR` as needed, keep the data directory writable, and back up the SQLite database. The legacy `ADVANCE_DATA_DIR` variable and database filename remain supported, so existing deployments do not need to move data.
+The output is in `dist/`. `pnpm start` serves only the game runtime at [http://localhost:4173](http://localhost:4173) by default; configure `HOST` and `PORT` as needed. Games, ROMs and saves remain in the browser, and the runtime does not include account or sync APIs.
 
-The production server can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
+The runtime can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
 
-`pnpm dev` and `pnpm preview` also enable the account API for development. Static-only hosting keeps IndexedDB persistence but cannot provide sign-in or cross-browser restore. Account snapshots are capped at 72 MiB and contain imported ROMs and saves; deploy behind HTTPS. Server-side snapshots are not end-to-end encrypted.
+Run the online game library as a separate service in another terminal:
+
+```sh
+ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
+```
+
+It listens at [http://localhost:4174](http://localhost:4174) by default. Open “Online game library” in Orbitra and enter that address before signing in. Configure its bind address, port, SQLite directory and comma-separated runtime origin allowlist with `ADVANCE_LIBRARY_HOST`, `ADVANCE_LIBRARY_PORT`, `ADVANCE_LIBRARY_DATA_DIR` and `ADVANCE_LIBRARY_ALLOWED_ORIGINS`. The default database is `.data/online-library/advance.sqlite`. For public deployments, set both `ADVANCE_LIBRARY_TLS_CERT_PATH` and `ADVANCE_LIBRARY_TLS_KEY_PATH`, and back up the data directory.
+
+`pnpm dev`, `pnpm preview` and static hosting serve only the game runtime; none implicitly starts an online library. A single library transfer is capped at 72 MiB and each account at 2 GiB. Server-side data is not end-to-end encrypted. An HTTPS runtime can only connect to an HTTPS library. Session tokens are kept in browser localStorage, so do not sign in on untrusted devices.
 
 **The threaded WASM core requires HTTPS or localhost and cross-origin isolation.** Serve these response headers:
 
@@ -211,7 +219,7 @@ Plain HTTP on a LAN address and hosts without the required headers will not run 
 
 ```sh
 pnpm test
-pnpm test:account-server
+pnpm test:library-server
 pnpm build
 pnpm exec playwright install chromium
 
@@ -224,9 +232,9 @@ pnpm test:saves
 pnpm test:keyboard
 pnpm test:gamepad
 pnpm test:touch
+pnpm test:library-sync
 pnpm test:startup
 pnpm test:backup
-pnpm test:account
 pnpm test:pwa
 
 # Run against an already-started Docker image
@@ -243,7 +251,7 @@ The [contributing guide](CONTRIBUTING.md) describes the project structure and te
 
 Gamepad and touch customization and keyboard focus improvements are implemented. Remaining work includes physical-device and screen-reader verification, broader browser / low-end-device evidence, UI localization and more redistributable homebrew tests. Backup and restore software is implemented; its remaining device and memory validation is tracked in the [v1.2 roadmap](docs/roadmaps/v1.2.md). See the [full roadmap](ROADMAP.md) for scope and acceptance goals and the [changelog](CHANGELOG.md) for release history. The v1.1 validation work remains open where devices or manual evidence are missing; unchecked items are not release-date commitments.
 
-FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play and cheats are not supported. Self-hosted account snapshot sync is available; concurrent multi-device editing and hosted third-party sync are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
+FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play and cheats are not supported. A separately deployed self-hosted online library is available; concurrent conflict resolution and a hosted third-party cloud service are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
 
 ## Acknowledgments and license
 

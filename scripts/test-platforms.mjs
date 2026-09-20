@@ -121,7 +121,7 @@ try {
     await page.locator('.platform-filter button[data-platform="gb"] span').innerText(),
     '0',
   )
-  await page.locator('.nav-item').filter({ hasText: '游戏库' }).click()
+  await page.getByRole('button', { name: /^游戏库/ }).click()
 
   assert.equal(await page.locator('.game-card').count(), 1)
   await page.getByRole('button', { name: '开始 Classic', exact: true }).click()
@@ -144,7 +144,7 @@ try {
     1.111,
     'GB save-state thumbnails keep the native 10:9 ratio',
   )
-  await page.locator('.nav-item').filter({ hasText: '游戏库' }).click()
+  await page.getByRole('button', { name: /^游戏库/ }).click()
   await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
 
   await page.locator('.platform-filter button[data-platform="gbc"]').click()

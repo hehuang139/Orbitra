@@ -2,6 +2,52 @@
   display: grid;
   gap: 18px;
 }
+.library-server-intro,
+.library-server-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  color: #a7b1aa;
+}
+.library-server-intro > svg,
+.library-server-row > svg {
+  flex: none;
+  margin-top: 2px;
+  color: #91dfb3;
+}
+.library-server-intro > div,
+.library-server-row > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  flex: 1;
+}
+.library-server-intro strong,
+.library-server-row strong {
+  color: #edf5ef;
+}
+.library-server-intro p,
+.library-server-row span {
+  margin: 0;
+  color: #849087;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.library-server-row {
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #2b342e;
+}
+.library-server-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.library-server-row .icon-button {
+  flex: none;
+}
 .account-nav-label {
   min-width: 0;
   overflow: hidden;
@@ -118,4 +164,10 @@
 }
 .account-spinner {
   animation: spin 0.9s linear infinite;
+}
+
+@media (max-width: 420px) {
+  .account-actions .button {
+    flex: 1 1 100%;
+  }
 }
