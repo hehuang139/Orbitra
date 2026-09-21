@@ -239,6 +239,9 @@ export function createRetroEmulator(
     get platform() {
       return platform
     },
+    get capabilities() {
+      return platform ? PLATFORM_REGISTRY[platform].capabilities : null
+    },
     get version() {
       return platform === 'nes' || platform === 'snes'
         ? `${CORE_NAMES[platform]} · EmulatorJS`

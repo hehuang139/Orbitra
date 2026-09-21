@@ -9,7 +9,11 @@ import type { Cheat } from '../lib/types.ts'
 
 /** Browser adapter for the locally bundled mGBA WebAssembly core. */
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms.ts'
-import type { EmulatorButton as PlatformButton, GamePlatform } from '../lib/platforms.ts'
+import type {
+  EmulatorButton as PlatformButton,
+  GamePlatform,
+  PlatformCapabilities,
+} from '../lib/platforms.ts'
 
 export type EmulatorButton = PlatformButton
 export type GbaButton = EmulatorButton
@@ -28,6 +32,7 @@ export interface Emulator {
   readonly status: EmulatorStatus
   readonly romName: string | null
   readonly platform: GamePlatform | null
+  readonly capabilities: PlatformCapabilities | null
   readonly version: string
   loadRom(
     data: RomSource,
@@ -391,6 +396,9 @@ export function createMgbaEmulator(
     get platform() {
       return platform
     },
+    get capabilities() {
+      return platform ? PLATFORM_REGISTRY[platform].capabilities : null
+    },
     get version() {
       return core
         ? `${core.version.projectName} ${core.version.projectVersion}`
@@ -658,6 +666,9 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
     },
     get platform() {
       return backend?.platform ?? null
+    },
+    get capabilities() {
+      return backend?.capabilities ?? null
     },
     get version() {
       return backend?.version ?? 'Orbitra 多核心运行时'

@@ -156,6 +156,9 @@ export function createDolphinEmulator(
     get platform() {
       return platform
     },
+    get capabilities() {
+      return platform ? PLATFORM_REGISTRY[platform].capabilities : null
+    },
     get version() {
       return `Dolphin WebAssembly (experimental) · ${CORE_SHA256.slice(0, 12)}`
     },
