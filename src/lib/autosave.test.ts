@@ -5,6 +5,7 @@ import {
   automaticSlots,
   isAutomaticSlot,
   latestAutomaticState,
+  mostRecentPlayedGame,
   nextAutomaticSlot,
 } from './autosave.ts'
 
@@ -43,4 +44,15 @@ test('resume selects the newest state among configured automatic slots only', ()
   assert.equal(latestAutomaticState(states, 3)?.marker, 'second')
   assert.equal(latestAutomaticState(states, 1)?.marker, 'first')
   assert.equal(latestAutomaticState([{ slot: 7, createdAt: 20 }], 2), undefined)
+})
+
+test('continue selection ignores unplayed games and resolves equal timestamps deterministically', () => {
+  const games = [
+    { id: 'never', lastPlayed: null, addedAt: 30 },
+    { id: 'older', lastPlayed: 100, addedAt: 10 },
+    { id: 'latest-old-import', lastPlayed: 200, addedAt: 20 },
+    { id: 'latest-new-import', lastPlayed: 200, addedAt: 40 },
+  ]
+  assert.equal(mostRecentPlayedGame(games)?.id, 'latest-new-import')
+  assert.equal(mostRecentPlayedGame([{ lastPlayed: null, addedAt: 1 }]), undefined)
 })

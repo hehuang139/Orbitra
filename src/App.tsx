@@ -90,6 +90,7 @@ import {
   automaticSlotLabel,
   isAutomaticSlot,
   latestAutomaticState,
+  mostRecentPlayedGame,
   nextAutomaticSlot,
 } from './lib/autosave'
 import {
@@ -235,6 +236,7 @@ export default function App() {
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null)
   const [states, setStates] = useState<SaveState[]>([])
   const [allStates, setAllStates] = useState<SaveState[]>([])
+  const [continueState, setContinueState] = useState<SaveState | null>(null)
   const [mapping, setMapping] = useState<EmulatorButton | null>(null)
   const [launchError, setLaunchError] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -1062,6 +1064,26 @@ export default function App() {
       ),
     [games, page],
   )
+  const recentGame = useMemo(() => mostRecentPlayedGame(games), [games])
+  useEffect(() => {
+    let cancelled = false
+    if (!recentGame) {
+      setContinueState(null)
+      return
+    }
+    void db
+      .getStates(recentGame.id)
+      .then((saved) => {
+        if (!cancelled)
+          setContinueState(latestAutomaticState(saved, settings.autoSaveSlotCount) ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setContinueState(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [recentGame, settings.autoSaveSlotCount, active])
   const visibleGames = useMemo(
     () =>
       pageGames
@@ -1739,8 +1761,53 @@ export default function App() {
           </section>
 
           {!active && page === 'library' && (
-            <section className="hero">
-              <div className="hero-content">
+            <>
+              {recentGame && (
+                <section className="continue-shelf" aria-label="继续上次游戏">
+                  <div className="continue-identity">
+                    <span className="continue-icon" aria-hidden="true">
+                      <Play size={17} fill="currentColor" />
+                    </span>
+                    <div>
+                      <small>继续上次游戏</small>
+                      <strong title={displayTitle(recentGame)}>{displayTitle(recentGame)}</strong>
+                    </div>
+                  </div>
+                  <dl className="continue-meta">
+                    <div>
+                      <dt>平台</dt>
+                      <dd>{PLATFORM_REGISTRY[recentGame.platform].label}</dd>
+                    </div>
+                    <div>
+                      <dt>上次游玩</dt>
+                      <dd>{formatDate(recentGame.lastPlayed!)}</dd>
+                    </div>
+                    <div>
+                      <dt>最新自动存档</dt>
+                      <dd>{continueState ? formatDate(continueState.createdAt) : '正常启动'}</dd>
+                    </div>
+                    <div>
+                      <dt>模拟核心</dt>
+                      <dd>
+                        {CORE_REGISTRY[PLATFORM_REGISTRY[recentGame.platform].core].name.replace(
+                          ' WebAssembly',
+                          '',
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+                  <button
+                    className="button primary continue-button"
+                    disabled={busy}
+                    onClick={() => void playGame(recentGame)}
+                  >
+                    <Play size={15} fill="currentColor" />
+                    继续游戏
+                  </button>
+                </section>
+              )}
+              <section className="hero">
+                <div className="hero-content">
                 <div className="hero-badge">
                   <span /> SMALL CONSOLE. BIG MEMORIES.
                 </div>
@@ -1773,9 +1840,10 @@ export default function App() {
                   <Sparkles size={12} />
                   内置原创游戏 · 无需下载 · 即点即玩
                 </span>
-              </div>
-              <HandheldArt />
-            </section>
+                </div>
+                <HandheldArt />
+              </section>
+            </>
           )}
 
           {page === 'online-library' ? (
