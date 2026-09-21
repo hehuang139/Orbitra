@@ -67,7 +67,7 @@ import { TouchSettings } from './components/TouchSettings'
 import { BackupManager } from './components/BackupManager'
 import { OfflineStatus } from './components/OfflineStatus'
 import { AccountPanel } from './components/AccountPanel'
-import { OnlineLibraryPanel } from './components/OnlineLibraryPanel'
+import { OnlineLibraryPage } from './components/OnlineLibraryPanel'
 import { useAccountSync } from './hooks/useAccountSync'
 import { useOnlineLibrary } from './hooks/useOnlineLibrary'
 import { createBackup } from './lib/backup-format'
@@ -92,7 +92,7 @@ import {
   watchFullscreen,
 } from './lib/fullscreen'
 
-type Page = 'library' | 'recent' | 'favorites' | 'states'
+type Page = 'library' | 'recent' | 'favorites' | 'states' | 'online-library'
 type Modal =
   | 'settings'
   | 'controls'
@@ -101,7 +101,6 @@ type Modal =
   | 'cheats'
   | 'backup'
   | 'account'
-  | 'online-library'
   | null
 type PlatformFilter = 'all' | GamePlatform
 const pages: Record<Page, string> = {
@@ -109,6 +108,7 @@ const pages: Record<Page, string> = {
   recent: '最近游玩',
   favorites: '我的收藏',
   states: '存档管理',
+  'online-library': '在线游戏库',
 }
 const buttonNames: Record<EmulatorButton, string> = {
   Up: '上',
@@ -1253,6 +1253,7 @@ export default function App() {
               ['recent', Clock3],
               ['favorites', Heart],
               ['states', Save],
+              ['online-library', CloudDownload],
             ] as const
           ).map(([key, Icon]) => (
             <button
@@ -1266,6 +1267,14 @@ export default function App() {
               {key === 'favorites' && games.some((g) => g.favorite) && (
                 <span className="nav-count">{games.filter((g) => g.favorite).length}</span>
               )}
+              {key === 'online-library' &&
+                (onlineLibrary.phase === 'loading' || onlineLibrary.phase === 'importing') && (
+                  <LoaderCircle
+                    size={14}
+                    className="account-spinner"
+                    aria-label="正在读取在线游戏库"
+                  />
+                )}
             </button>
           ))}
         </nav>
@@ -1284,19 +1293,6 @@ export default function App() {
             </span>
             {account.phase === 'syncing' ? (
               <LoaderCircle size={14} className="account-spinner" aria-label="正在同步" />
-            ) : null}
-          </button>
-          <button
-            className="nav-item"
-            onClick={() => {
-              setModal('online-library')
-              setSidebarOpen(false)
-            }}
-          >
-            <CloudDownload size={18} />
-            <span>在线游戏库</span>
-            {onlineLibrary.phase === 'loading' || onlineLibrary.phase === 'importing' ? (
-              <LoaderCircle size={14} className="account-spinner" aria-label="正在读取在线游戏库" />
             ) : null}
           </button>
           <button className="nav-item" disabled={busy || !ready} onClick={() => void openBackup()}>
@@ -1470,28 +1466,32 @@ export default function App() {
                     ? '接着上次的冒险，继续向前。'
                     : page === 'favorites'
                       ? '把心头好，放在最顺手的地方。'
-                      : '每一段冒险，都值得好好保存。'}
+                      : page === 'states'
+                        ? '每一段冒险，都值得好好保存。'
+                        : '浏览分发目录，把想玩的游戏带回个人游戏库。'}
               </p>
             </div>
-            <div className="import-actions">
-              <button
-                className="button secondary import-top"
-                disabled={busy}
-                onClick={() => directoryInputRef.current?.click()}
-              >
-                <FolderOpen size={18} />
-                导入文件夹
-              </button>
-              <button
-                className="button primary import-top"
-                disabled={busy}
-                aria-busy={Boolean(importLabel)}
-                onClick={() => inputRef.current?.click()}
-              >
-                {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
-                {importLabel || '导入游戏'}
-              </button>
-            </div>
+            {page !== 'online-library' && (
+              <div className="import-actions">
+                <button
+                  className="button secondary import-top"
+                  disabled={busy}
+                  onClick={() => directoryInputRef.current?.click()}
+                >
+                  <FolderOpen size={18} />
+                  导入文件夹
+                </button>
+                <button
+                  className="button primary import-top"
+                  disabled={busy}
+                  aria-busy={Boolean(importLabel)}
+                  onClick={() => inputRef.current?.click()}
+                >
+                  {importLabel ? <LoaderCircle className="spin" size={18} /> : <Plus size={18} />}
+                  {importLabel || '导入游戏'}
+                </button>
+              </div>
+            )}
           </div>
 
           <section
@@ -1691,7 +1691,9 @@ export default function App() {
             </section>
           )}
 
-          {page !== 'states' ? (
+          {page === 'online-library' ? (
+            <OnlineLibraryPage library={onlineLibrary} />
+          ) : page !== 'states' ? (
             <div className="content-grid">
               <section className="library-section">
                 <div className="section-heading">
@@ -2276,7 +2278,7 @@ export default function App() {
           }}
         >
           <div
-            className={`modal ${modal === 'states' || modal === 'cheats' || modal === 'backup' || modal === 'online-library' ? 'wide-modal' : ''}`}
+            className={`modal ${modal === 'states' || modal === 'cheats' || modal === 'backup' ? 'wide-modal' : ''}`}
             ref={modalRef}
             tabIndex={-1}
             role={deleteTarget || batchDeleteTargets ? 'alertdialog' : 'dialog'}
@@ -2299,13 +2301,11 @@ export default function App() {
                             ? '备份与恢复'
                             : modal === 'account'
                               ? '账号与游戏同步'
-                              : modal === 'online-library'
-                                ? '在线游戏库'
-                                : modal === 'states'
-                                  ? '给冒险留个书签'
-                                  : modal === 'cheats'
-                                    ? '管理金手指'
-                                    : '准备好，开始冒险'}
+                              : modal === 'states'
+                                ? '给冒险留个书签'
+                                : modal === 'cheats'
+                                  ? '管理金手指'
+                                  : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -2382,8 +2382,6 @@ export default function App() {
               />
             ) : modal === 'account' ? (
               <AccountPanel account={account} />
-            ) : modal === 'online-library' ? (
-              <OnlineLibraryPanel library={onlineLibrary} />
             ) : modal === 'controls' ? (
               <>
                 <p className="modal-description">

@@ -3,9 +3,11 @@ import type { FormEvent } from 'react'
 import {
   CloudDownload,
   Download,
+  Files,
   Link2,
   LoaderCircle,
   RefreshCw,
+  Search,
   Server,
   Trash2,
   Unplug,
@@ -16,7 +18,7 @@ import { gameIdForOnlineLibraryEntry } from '../lib/online-library.ts'
 import { PLATFORM_REGISTRY, ROM_FILE_EXTENSIONS } from '../lib/platforms.ts'
 import './online-library-panel.css'
 
-interface OnlineLibraryPanelProps {
+interface OnlineLibraryPageProps {
   library: OnlineLibraryController
 }
 
@@ -26,20 +28,31 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
-export function OnlineLibraryPanel({ library }: OnlineLibraryPanelProps) {
+export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
   const [url, setUrl] = useState(library.url ?? '')
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [view, setView] = useState<'browse' | 'manage'>('browse')
+  const [query, setQuery] = useState('')
   const [adminToken, setAdminToken] = useState('')
   const [upload, setUpload] = useState<File | null>(null)
   const [uploadInputKey, setUploadInputKey] = useState(0)
   const busy = ['loading', 'importing', 'publishing'].includes(library.phase)
+  const games = useMemo(() => library.manifest?.games ?? [], [library.manifest])
   const available = useMemo(
-    () =>
-      (library.manifest?.games ?? []).filter(
-        (game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game)),
-      ),
-    [library.installedGameIds, library.manifest],
+    () => games.filter((game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game))),
+    [games, library.installedGameIds],
+  )
+  const visibleGames = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase('zh-CN')
+    if (!normalized) return games
+    return games.filter((game) =>
+      `${game.title}\n${game.filename}\n${PLATFORM_REGISTRY[game.platform].label}`
+        .toLocaleLowerCase('zh-CN')
+        .includes(normalized),
+    )
+  }, [games, query])
+  const selectableVisible = visibleGames.filter(
+    (game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game)),
   )
 
   useEffect(() => setUrl(library.url ?? ''), [library.url])
@@ -57,15 +70,17 @@ export function OnlineLibraryPanel({ library }: OnlineLibraryPanelProps) {
 
   if (!library.url || !library.manifest) {
     return (
-      <div className="online-library-panel">
-        <div className="online-library-source">
-          <Server size={19} aria-hidden="true" />
+      <section className="online-library-page online-library-connect" aria-label="连接在线游戏库">
+        <div className="online-library-connect-heading">
+          <span className="online-library-connect-icon" aria-hidden="true">
+            <Server size={24} />
+          </span>
           <div>
-            <strong>添加分发来源</strong>
-            <span>公开分发目录，不使用用户账号登录。</span>
+            <h2>添加分发来源</h2>
+            <p>连接一个 Orbitra 在线游戏库。</p>
           </div>
         </div>
-        <form className="online-library-form" onSubmit={(event) => void connect(event)}>
+        <form className="online-library-form online-library-connect-form" onSubmit={connect}>
           <label>
             <span>在线游戏库地址</span>
             <input
@@ -91,47 +106,71 @@ export function OnlineLibraryPanel({ library }: OnlineLibraryPanelProps) {
         >
           {library.message}
         </div>
-      </div>
+      </section>
     )
   }
 
-  const allSelected = available.length > 0 && available.every((game) => selected.has(game.id))
-  const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(available.map((game) => game.id)))
+  const allSelected =
+    selectableVisible.length > 0 && selectableVisible.every((game) => selected.has(game.id))
+  const toggleAll = () => {
+    setSelected((current) => {
+      const next = new Set(current)
+      for (const game of selectableVisible) {
+        if (allSelected) next.delete(game.id)
+        else next.add(game.id)
+      }
+      return next
+    })
+  }
 
   return (
-    <div className="online-library-panel">
-      <div className="online-library-source">
-        <CloudDownload size={19} aria-hidden="true" />
-        <div>
-          <span>{library.manifest.name}</span>
-          <strong title={library.url}>{library.url}</strong>
-          <small>目录版本 {library.manifest.revision}</small>
+    <section className="online-library-page" aria-label="在线游戏库工作台">
+      <header className="online-library-source">
+        <span className="online-library-source-icon" aria-hidden="true">
+          <CloudDownload size={21} />
+        </span>
+        <div className="online-library-source-name">
+          <h2>{library.manifest.name}</h2>
+          <span title={library.url}>{library.url}</span>
         </div>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="刷新在线游戏库"
-          title="刷新在线游戏库"
-          disabled={busy}
-          onClick={() => void library.refresh().catch(() => {})}
-        >
-          <RefreshCw size={16} />
-        </button>
-        <button
-          className="icon-button"
-          type="button"
-          aria-label="断开在线游戏库"
-          title="断开在线游戏库"
-          disabled={busy}
-          onClick={() => {
-            setAdminToken('')
-            library.disconnect()
-          }}
-        >
-          <Unplug size={16} />
-        </button>
-      </div>
+        <div className="online-library-summary" aria-label="在线游戏库概览">
+          <span>
+            <strong>{games.length}</strong> 已发布
+          </span>
+          <span>
+            <strong>{available.length}</strong> 可导入
+          </span>
+          <span>
+            <strong>{library.manifest.revision.slice(0, 8)}</strong> 目录版本
+          </span>
+        </div>
+        <div className="online-library-source-actions">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="刷新在线游戏库"
+            title="刷新在线游戏库"
+            disabled={busy}
+            onClick={() => void library.refresh().catch(() => {})}
+          >
+            <RefreshCw size={16} />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="断开在线游戏库"
+            title="断开在线游戏库"
+            disabled={busy}
+            onClick={() => {
+              setAdminToken('')
+              setQuery('')
+              library.disconnect()
+            }}
+          >
+            <Unplug size={16} />
+          </button>
+        </div>
+      </header>
 
       <div className="online-library-tabs" role="tablist" aria-label="在线游戏库视图">
         <button
@@ -152,74 +191,118 @@ export function OnlineLibraryPanel({ library }: OnlineLibraryPanelProps) {
         </button>
       </div>
 
+      <div className="online-library-toolbar">
+        <label className="online-library-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="搜索在线游戏"
+            placeholder="搜索游戏或文件名…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+        {view === 'browse' ? (
+          <label className="online-library-select-all">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              disabled={!selectableVisible.length || busy}
+              onChange={toggleAll}
+            />
+            <span>选择当前结果</span>
+          </label>
+        ) : (
+          <span className="online-library-result-count">{visibleGames.length} 个文件</span>
+        )}
+      </div>
+
       {view === 'browse' ? (
         <>
-          <div className="online-library-toolbar">
-            <label>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                disabled={!available.length || busy}
-                onChange={toggleAll}
-              />
-              <span>选择全部未导入游戏</span>
-            </label>
-            <span>{available.length} 个可导入</span>
+          <div className="online-library-table online-library-browse-table">
+            <div className="online-library-table-heading" aria-hidden="true">
+              <span aria-hidden="true" />
+              <span>游戏</span>
+              <span>文件名</span>
+              <span>平台</span>
+              <span>大小</span>
+              <span>状态</span>
+            </div>
+            <div className="online-library-list" aria-label="在线游戏目录">
+              {visibleGames.length ? (
+                visibleGames.map((game) => {
+                  const installed = library.installedGameIds.has(gameIdForOnlineLibraryEntry(game))
+                  return (
+                    <label
+                      className={`online-library-game ${installed ? 'is-installed' : ''}`}
+                      key={game.id}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={installed || selected.has(game.id)}
+                        disabled={installed || busy}
+                        aria-label={`选择 ${game.title}`}
+                        onChange={() =>
+                          setSelected((current) => {
+                            const next = new Set(current)
+                            if (next.has(game.id)) next.delete(game.id)
+                            else next.add(game.id)
+                            return next
+                          })
+                        }
+                      />
+                      <span className="online-library-game-title">
+                        <strong>{game.title}</strong>
+                        <small className="online-library-mobile-meta">
+                          {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
+                        </small>
+                      </span>
+                      <span className="online-library-filename" title={game.filename}>
+                        {game.filename}
+                      </span>
+                      <span className="online-library-platform">
+                        {PLATFORM_REGISTRY[game.platform].label}
+                      </span>
+                      <span className="online-library-size">{formatSize(game.size)}</span>
+                      <em>{installed ? '已在个人库' : '可导入'}</em>
+                    </label>
+                  )
+                })
+              ) : (
+                <div className="online-library-empty">
+                  <Files size={24} aria-hidden="true" />
+                  <span>{games.length ? '没有匹配的游戏。' : '此在线游戏库暂时没有游戏。'}</span>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="online-library-list" aria-label="在线游戏目录">
-            {library.manifest.games.length ? (
-              library.manifest.games.map((game) => {
-                const installed = library.installedGameIds.has(gameIdForOnlineLibraryEntry(game))
-                return (
-                  <label
-                    className={`online-library-game ${installed ? 'is-installed' : ''}`}
-                    key={game.id}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={installed || selected.has(game.id)}
-                      disabled={installed || busy}
-                      onChange={() =>
-                        setSelected((current) => {
-                          const next = new Set(current)
-                          if (next.has(game.id)) next.delete(game.id)
-                          else next.add(game.id)
-                          return next
-                        })
-                      }
-                    />
-                    <span>
-                      <strong>{game.title}</strong>
-                      <small>
-                        {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
-                      </small>
-                    </span>
-                    <em>{installed ? '已在个人库' : '可导入'}</em>
-                  </label>
-                )
-              })
-            ) : (
-              <div className="online-library-empty">此在线游戏库暂时没有可分发的游戏。</div>
-            )}
-          </div>
-          <button
-            className="button primary online-library-import"
-            type="button"
-            disabled={busy || selected.size === 0}
-            onClick={() =>
-              void library
-                .importGames(Array.from(selected))
-                .then(() => setSelected(new Set()))
-                .catch(() => {})
-            }
-          >
-            {library.phase === 'importing' ? (
-              <LoaderCircle size={16} className="account-spinner" />
-            ) : (
-              <Download size={16} />
-            )}
-            导入所选{selected.size ? `（${selected.size}）` : ''}
-          </button>
+          <footer className="online-library-actionbar">
+            <div
+              className={`online-library-feedback ${library.phase === 'error' ? 'is-error' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
+              {library.message}
+            </div>
+            <button
+              className="button primary online-library-import"
+              type="button"
+              disabled={busy || selected.size === 0}
+              onClick={() =>
+                void library
+                  .importGames(Array.from(selected))
+                  .then(() => setSelected(new Set()))
+                  .catch(() => {})
+              }
+            >
+              {library.phase === 'importing' ? (
+                <LoaderCircle size={16} className="account-spinner" />
+              ) : (
+                <Download size={16} />
+              )}
+              导入所选{selected.size ? `（${selected.size}）` : ''}
+            </button>
+          </footer>
         </>
       ) : (
         <>
@@ -268,51 +351,71 @@ export function OnlineLibraryPanel({ library }: OnlineLibraryPanelProps) {
               发布到在线库
             </button>
           </form>
-          <div className="online-library-list" aria-label="已发布游戏">
-            {library.manifest.games.length ? (
-              library.manifest.games.map((game) => (
-                <div className="online-library-game online-library-managed-game" key={game.id}>
-                  <CloudDownload size={16} aria-hidden="true" />
-                  <span>
-                    <strong>{game.title}</strong>
-                    <small>
-                      {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
-                    </small>
-                  </span>
-                  <button
-                    className="icon-button"
-                    type="button"
-                    aria-label={`下架 ${game.title}`}
-                    title={`下架 ${game.title}`}
-                    disabled={busy || !adminToken}
-                    onClick={() => {
-                      if (window.confirm(`从在线游戏库下架「${game.title}」？`)) {
-                        void library.remove(game.filename, adminToken).catch(() => {})
-                      }
-                    }}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+          <div className="online-library-table online-library-manage-table">
+            <div className="online-library-table-heading" aria-hidden="true">
+              <span aria-hidden="true" />
+              <span>游戏</span>
+              <span>文件名</span>
+              <span>平台</span>
+              <span>大小</span>
+              <span>SHA-256</span>
+              <span aria-hidden="true" />
+            </div>
+            <div className="online-library-list" aria-label="已发布游戏">
+              {visibleGames.length ? (
+                visibleGames.map((game) => (
+                  <div className="online-library-game online-library-managed-game" key={game.id}>
+                    <CloudDownload size={16} aria-hidden="true" />
+                    <span className="online-library-game-title">
+                      <strong>{game.title}</strong>
+                      <small className="online-library-mobile-meta">
+                        {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
+                      </small>
+                    </span>
+                    <span className="online-library-filename" title={game.filename}>
+                      {game.filename}
+                    </span>
+                    <span className="online-library-platform">
+                      {PLATFORM_REGISTRY[game.platform].label}
+                    </span>
+                    <span className="online-library-size">{formatSize(game.size)}</span>
+                    <code title={game.sha256}>{game.sha256.slice(0, 12)}</code>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      aria-label={`下架 ${game.title}`}
+                      title={`下架 ${game.title}`}
+                      disabled={busy || !adminToken}
+                      onClick={() => {
+                        if (window.confirm(`从在线游戏库下架「${game.title}」？`)) {
+                          void library.remove(game.filename, adminToken).catch(() => {})
+                        }
+                      }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="online-library-empty">
+                  <Files size={24} aria-hidden="true" />
+                  <span>{games.length ? '没有匹配的文件。' : '尚未发布游戏。'}</span>
                 </div>
-              ))
-            ) : (
-              <div className="online-library-empty">尚未发布游戏。</div>
-            )}
+              )}
+            </div>
           </div>
+          <footer className="online-library-actionbar">
+            <div
+              className={`online-library-feedback ${library.phase === 'error' ? 'is-error' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
+              {library.message}
+            </div>
+            <span className="online-library-token-note">令牌仅在当前页面停留期间保留。</span>
+          </footer>
         </>
       )}
-      <div
-        className={`online-library-feedback ${library.phase === 'error' ? 'is-error' : ''}`}
-        role="status"
-        aria-live="polite"
-      >
-        {library.message}
-      </div>
-      <p className="small-note">
-        {view === 'browse'
-          ? '在线库只提供游戏文件；个人存档与账号数据不会发送给此来源。'
-          : '管理令牌仅保留在当前对话框中，关闭或刷新后清除。'}
-      </p>
-    </div>
+    </section>
   )
 }
