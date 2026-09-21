@@ -34,7 +34,7 @@ export const defaultSettings: Settings = {
   speed: 1,
   filter: 'pixel',
   autoSave: true,
-  autoSaveInterval: 1,
+  autoSaveInterval: 10,
   autoSaveSlotCount: 3,
   touch: false,
   touchConfig: defaultTouchConfig,
@@ -87,7 +87,9 @@ export function normalizeSettings(value: unknown): Settings {
     filter: raw.filter === 'smooth' || raw.filter === 'crt' ? raw.filter : 'pixel',
     autoSave: raw.autoSave !== false,
     autoSaveInterval:
-      raw.autoSaveInterval === 5 || raw.autoSaveInterval === 10 ? raw.autoSaveInterval : 1,
+      raw.autoSaveInterval === 1 || raw.autoSaveInterval === 5 || raw.autoSaveInterval === 10
+        ? raw.autoSaveInterval
+        : defaultSettings.autoSaveInterval,
     autoSaveSlotCount:
       raw.autoSaveSlotCount === 1 || raw.autoSaveSlotCount === 2 ? raw.autoSaveSlotCount : 3,
     touch: raw.touch === true,
