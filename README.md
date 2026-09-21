@@ -202,7 +202,7 @@ ONLINE_LIBRARY_ADMIN_TOKEN=replace-with-a-long-random-token \
 pnpm start:library
 ```
 
-It listens at [http://localhost:4174](http://localhost:4174) and distributes supported ROMs from `public/demo` by default. Open “Online game library” to browse/import the catalog, or use “Manage distribution” with `ONLINE_LIBRARY_ADMIN_TOKEN` to publish and remove files. Configure `ONLINE_LIBRARY_HOST`, `ONLINE_LIBRARY_PORT`, `ONLINE_LIBRARY_ROOT`, `ONLINE_LIBRARY_NAME` and `ONLINE_LIBRARY_ALLOWED_ORIGINS`; set both `ONLINE_LIBRARY_TLS_CERT_PATH` and `ONLINE_LIBRARY_TLS_KEY_PATH` for HTTPS. Back up the configured distribution directory.
+It listens at [http://localhost:4174](http://localhost:4174) and distributes supported ROMs from `public/demo` by default. Open “Online game library” as a workspace page to search filenames and browse/import the catalog, or use “Manage distribution” with `ONLINE_LIBRARY_ADMIN_TOKEN` to publish and remove files. Configure `ONLINE_LIBRARY_HOST`, `ONLINE_LIBRARY_PORT`, `ONLINE_LIBRARY_ROOT`, `ONLINE_LIBRARY_NAME` and `ONLINE_LIBRARY_ALLOWED_ORIGINS`; set both `ONLINE_LIBRARY_TLS_CERT_PATH` and `ONLINE_LIBRARY_TLS_KEY_PATH` for HTTPS. Back up the configured distribution directory.
 
 The online game library is independent of user accounts: public catalog and ROM requests omit credentials, while publishing uses its own administrator token and never uploads saves. `pnpm dev`, `pnpm preview` and `pnpm start` expose the same-origin account API but do not start this distribution service. An HTTPS runtime can only connect to an HTTPS library.
 

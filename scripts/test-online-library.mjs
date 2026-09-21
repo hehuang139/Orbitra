@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const browser = await chromium.launch({
@@ -14,6 +14,8 @@ const libraryUrl = process.env.ONLINE_LIBRARY_TEST_URL || 'http://127.0.0.1:4174
 const adminToken = process.env.ONLINE_LIBRARY_TEST_ADMIN_TOKEN || 'distribution-test-token'
 const errors = []
 const libraryRequests = []
+const artifacts = new URL('../.artifacts/', import.meta.url)
+await mkdir(artifacts, { recursive: true })
 
 try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
@@ -34,9 +36,13 @@ try {
   await page.getByRole('button', { name: '登录与同步' }).waitFor()
   await page.getByRole('button', { name: '在线游戏库' }).click()
   await page.getByRole('heading', { name: '在线游戏库' }).waitFor()
+  assert.equal(await page.getByRole('dialog').count(), 0, 'online library must be a page')
+  await page.locator('.online-library-page').waitFor()
   await page.getByLabel('在线游戏库地址').fill(libraryUrl)
   await page.getByRole('button', { name: '读取目录' }).click()
   await page.getByRole('tab', { name: '浏览与导入' }).waitFor()
+  await page.getByText('star-orbit.gba', { exact: true }).waitFor()
+  await page.screenshot({ path: new URL('desktop-online-library.png', artifacts).pathname })
 
   const source = Buffer.from(
     await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)),
@@ -56,6 +62,8 @@ try {
   await page.getByRole('button', { name: '发布到在线库' }).click()
   await page.getByText('已发布 Library Orbit.gba。').waitFor()
   await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).waitFor()
+  await page.getByText('Library Orbit.gba', { exact: true }).waitFor()
+  await page.screenshot({ path: new URL('desktop-online-library-manage.png', artifacts).pathname })
 
   await page.getByRole('tab', { name: '浏览与导入' }).click()
   const row = page.locator('.online-library-game', { hasText: 'Library Orbit' })
@@ -77,8 +85,30 @@ try {
     await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).count(),
     0,
   )
-  await page.getByRole('button', { name: '关闭对话框' }).click()
+  await page.getByRole('button', { name: /^游戏库/ }).click()
   await page.locator('.game-title', { hasText: 'Library Orbit' }).waitFor()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: '打开导航' }).click()
+  await page.getByRole('button', { name: '在线游戏库' }).click()
+  await page.getByRole('tab', { name: '浏览与导入' }).waitFor()
+  await page.waitForFunction(() => !document.querySelector('.sidebar')?.classList.contains('open'))
+  await page.waitForTimeout(250)
+  assert.equal(await page.getByRole('dialog').count(), 0, 'mobile online library must be a page')
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'mobile online library must not overflow',
+  )
+  await page.screenshot({ path: new URL('mobile-online-library.png', artifacts).pathname })
+  await page.getByRole('tab', { name: '管理分发' }).click()
+  await page.getByLabel('管理员令牌').waitFor()
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'mobile distribution management must not overflow',
+  )
+  await page.screenshot({ path: new URL('mobile-online-library-manage.png', artifacts).pathname })
 
   assert.equal(
     libraryRequests.some((request) => request.url.includes('/api/auth')),
@@ -95,7 +125,7 @@ try {
   assert.deepEqual(errors, [], 'online library flow should not produce uncaught browser errors')
   await context.close()
   console.log(
-    'Online library flow passed: view, publish, import, deduplicate, remove, local retention.',
+    'Online library page passed: browse, publish, import, deduplicate, remove, responsive layout.',
   )
 } finally {
   await browser.close()
