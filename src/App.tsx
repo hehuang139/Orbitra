@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  CircleOff,
   Clock3,
   CloudDownload,
   CloudOff,
@@ -16,6 +17,7 @@ import {
   Expand,
   FastForward,
   FolderOpen,
+  FlaskConical,
   Gamepad2,
   HardDrive,
   Heart,
@@ -75,6 +77,12 @@ import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
 import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
+import {
+  FEATURE_STATUS_LABELS,
+  capabilityReportForPlatform,
+} from './lib/capability-status'
+import type { FeatureStatus } from './lib/capability-status'
+import { CORE_REGISTRY } from './lib/core-version'
 import { createCheatId, validateCheats } from './lib/cheats'
 import {
   AUTO_SAVE_SLOTS,
@@ -221,6 +229,8 @@ export default function App() {
   const [progress, setProgress] = useState('正在准备模拟器…')
   const [compatibility, setCompatibility] = useState<CompatibilityReport | null>(null)
   const [compatibilityOpen, setCompatibilityOpen] = useState(false)
+  const [compatibilityView, setCompatibilityView] = useState<'environment' | 'cores'>('environment')
+  const [capabilityPlatform, setCapabilityPlatform] = useState<GamePlatform>('gba')
   const [fps, setFps] = useState(0)
   const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null)
   const [states, setStates] = useState<SaveState[]>([])
@@ -1143,6 +1153,9 @@ export default function App() {
           }
   const demo = games.find(isDemo)
   const activePlatform = PLATFORM_REGISTRY[active?.platform ?? 'gba']
+  const capabilityDefinition = PLATFORM_REGISTRY[capabilityPlatform]
+  const capabilityCore = CORE_REGISTRY[capabilityDefinition.core]
+  const capabilityReport = capabilityReportForPlatform(capabilityPlatform)
   const effectiveSpeed = activePlatform.capabilities.speedControl ? settings.speed : 1
   const canControl = Boolean(active && ['running', 'paused'].includes(status) && !busy)
   const setSetting = <K extends keyof Settings>(key: K, value: Settings[K]) =>
@@ -1412,13 +1425,15 @@ export default function App() {
           >
             <div className="compatibility-heading">
               <div>
-                <strong>运行环境检查</strong>
+                <strong>环境与核心能力</strong>
                 <p>
-                  {!compatibility.ready
-                    ? '有能力未满足，可能导致核心无法启动。'
-                    : compatibilityRenderingWarning
-                      ? '可以启动；部分能力将使用兼容模式。'
-                      : '模拟器运行所需能力已就绪。'}
+                  {compatibilityView === 'cores'
+                    ? '按当前适配层与已记录验证展示，不从上游核心能力推断支持。'
+                    : !compatibility.ready
+                      ? '有能力未满足，可能导致核心无法启动。'
+                      : compatibilityRenderingWarning
+                        ? '可以启动；部分能力将使用兼容模式。'
+                        : '模拟器运行所需能力已就绪。'}
                 </p>
               </div>
               <button
@@ -1429,26 +1444,98 @@ export default function App() {
                 <X size={16} />
               </button>
             </div>
-            <div className="compatibility-grid">
-              {compatibility.checks.map((check) => (
-                <div className={`compatibility-check ${check.status}`} key={check.id}>
-                  <span className="compatibility-mark" aria-hidden="true">
-                    {check.status === 'ok' ? (
-                      <Check size={14} />
-                    ) : check.status === 'warning' ? (
-                      '!'
-                    ) : (
-                      <X size={14} />
-                    )}
-                  </span>
-                  <div>
-                    <strong>{check.label}</strong>
-                    <span>{check.detail}</span>
-                    {check.action && <small>{check.action}</small>}
+            <div className="compatibility-tabs" role="tablist" aria-label="诊断视图">
+              <button
+                role="tab"
+                aria-selected={compatibilityView === 'environment'}
+                onClick={() => setCompatibilityView('environment')}
+              >
+                浏览器环境
+              </button>
+              <button
+                role="tab"
+                aria-selected={compatibilityView === 'cores'}
+                onClick={() => setCompatibilityView('cores')}
+              >
+                核心能力
+              </button>
+            </div>
+            {compatibilityView === 'environment' ? (
+              <div className="compatibility-grid">
+                {compatibility.checks.map((check) => (
+                  <div className={`compatibility-check ${check.status}`} key={check.id}>
+                    <span className="compatibility-mark" aria-hidden="true">
+                      {check.status === 'ok' ? (
+                        <Check size={14} />
+                      ) : check.status === 'warning' ? (
+                        '!'
+                      ) : (
+                        <X size={14} />
+                      )}
+                    </span>
+                    <div>
+                      <strong>{check.label}</strong>
+                      <span>{check.detail}</span>
+                      {check.action && <small>{check.action}</small>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="core-capability-view">
+                <div className="core-capability-toolbar">
+                  <label>
+                    <span>平台</span>
+                    <select
+                      aria-label="选择能力平台"
+                      value={capabilityPlatform}
+                      onChange={(event) =>
+                        setCapabilityPlatform(event.target.value as GamePlatform)
+                      }
+                    >
+                      {PLATFORM_LIST.map((platform) => (
+                        <option key={platform.id} value={platform.id}>
+                          {platform.label} · {platform.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="core-capability-identity">
+                    <strong>{capabilityCore.name}</strong>
+                    <span>
+                      {capabilityCore.version} · 状态格式 {capabilityCore.stateFormat}
+                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="core-capability-grid" role="list" aria-label="核心能力状态">
+                  {capabilityReport.map((entry) => {
+                    const StatusIcon = {
+                      verified: Check,
+                      experimental: FlaskConical,
+                      planned: Clock3,
+                      unavailable: CircleOff,
+                    } satisfies Record<FeatureStatus, typeof Check>
+                    const Icon = StatusIcon[entry.status]
+                    return (
+                      <div
+                        className={`core-capability-row ${entry.status}`}
+                        role="listitem"
+                        key={entry.capability}
+                      >
+                        <span className="core-capability-mark" aria-hidden="true">
+                          <Icon size={14} />
+                        </span>
+                        <div>
+                          <strong>{entry.label}</strong>
+                          <span>{entry.reason}</span>
+                        </div>
+                        <em>{FEATURE_STATUS_LABELS[entry.status]}</em>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </section>
         )}
         <main>
