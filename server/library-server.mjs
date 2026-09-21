@@ -21,6 +21,15 @@ const platformByExtension = new Map([
   ['.gcm', { platform: 'gamecube', min: 32 * 1024, max: 1_459_978_240 }],
 ])
 
+export function isDirectExecution(
+  filename = sourceFile,
+  argvEntry = process.argv[1],
+  managedEntry = process.env.pm_exec_path,
+) {
+  const entry = managedEntry || argvEntry
+  return Boolean(entry) && path.resolve(entry) === filename
+}
+
 function json(response, status, value, headers = {}) {
   const body = Buffer.from(JSON.stringify(value))
   response.writeHead(status, {
@@ -296,7 +305,7 @@ export async function createOnlineLibrary(options = {}) {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === sourceFile) {
+if (isDirectExecution()) {
   const port = Number(process.env.ONLINE_LIBRARY_PORT || 4174)
   const host = process.env.ONLINE_LIBRARY_HOST || '0.0.0.0'
   const certificatePath = process.env.ONLINE_LIBRARY_TLS_CERT_PATH

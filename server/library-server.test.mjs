@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { createOnlineLibrary } from './library-server.mjs'
+import { createOnlineLibrary, isDirectExecution } from './library-server.mjs'
 
 let baseUrl
 let directory
@@ -40,6 +40,16 @@ function request(pathname, options = {}) {
     headers: { Origin: 'https://orbitra.example', ...options.headers },
   })
 }
+
+test('detects direct execution through Node and PM2', () => {
+  const source = path.resolve('/srv/orbitra/server/library-server.mjs')
+  assert.equal(isDirectExecution(source, source), true)
+  assert.equal(
+    isDirectExecution(source, '/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js', source),
+    true,
+  )
+  assert.equal(isDirectExecution(source, '/srv/orbitra/server/test.mjs'), false)
+})
 
 test('serves a public manifest and immutable ROM without account endpoints', async () => {
   const response = await request('/manifest.json')
