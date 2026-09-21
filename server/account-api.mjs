@@ -13,12 +13,6 @@ const MAX_LIBRARY_BYTES = 2 * 1024 * 1024 * 1024
 const COOKIE_NAME = 'advance_session'
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const RATE_LIMIT_ATTEMPTS = 10
-const DEFAULT_ALLOWED_ORIGINS = [
-  'http://127.0.0.1:5173',
-  'http://localhost:5173',
-  'http://127.0.0.1:4173',
-  'http://localhost:4173',
-]
 
 function json(res, status, value, headers = {}) {
   const body = Buffer.from(JSON.stringify(value))
@@ -110,6 +104,13 @@ function requestOrigin(req) {
   return `${scheme}://${req.headers.host}`
 }
 
+function assertSameOrigin(req) {
+  const origin = req.headers.origin
+  if (origin && origin !== requestOrigin(req)) {
+    throw Object.assign(new Error('请求来源无效。'), { status: 403 })
+  }
+}
+
 function cookie(token, req, maxAge = Math.floor(SESSION_TTL_MS / 1000)) {
   const secure = requestOrigin(req).startsWith('https://') ? '; Secure' : ''
   return `${COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`
@@ -117,21 +118,15 @@ function cookie(token, req, maxAge = Math.floor(SESSION_TTL_MS / 1000)) {
 
 export function createAccountApi(options = {}) {
   const dataDirectory = path.resolve(
-    options.dataDirectory || process.env.ADVANCE_LIBRARY_DATA_DIR || '.data/online-library',
+    options.dataDirectory ||
+      process.env.ORBITRA_DATA_DIR ||
+      process.env.ADVANCE_DATA_DIR ||
+      '.data',
   )
   mkdirSync(dataDirectory, { recursive: true })
   const databasePath = path.join(dataDirectory, 'advance.sqlite')
   const database = new DatabaseSync(databasePath)
   const rateLimits = new Map()
-  const configuredOrigins =
-    options.allowedOrigins ??
-    String(process.env.ADVANCE_LIBRARY_ALLOWED_ORIGINS || '')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
-  const allowedOrigins = new Set(
-    configuredOrigins.length ? configuredOrigins : DEFAULT_ALLOWED_ORIGINS,
-  )
   database.exec(`
     PRAGMA foreign_keys = ON;
     PRAGMA journal_mode = WAL;
@@ -297,14 +292,8 @@ export function createAccountApi(options = {}) {
     rateLimits.delete(`${req.socket.remoteAddress || 'unknown'}:${key}`)
   }
 
-  function currentToken(req) {
-    const authorization = String(req.headers.authorization || '')
-    const bearer = /^Bearer ([A-Za-z0-9_-]{32,})$/.exec(authorization)
-    return bearer?.[1] || parseCookies(req)[COOKIE_NAME]
-  }
-
   function currentUser(req) {
-    const token = currentToken(req)
+    const token = parseCookies(req)[COOKIE_NAME]
     if (!token) return null
     deleteExpiredSessions.run(Date.now())
     return findSession.get(sessionHash(token), Date.now()) || null
@@ -315,23 +304,6 @@ export function createAccountApi(options = {}) {
     const now = Date.now()
     insertSession.run(sessionHash(token), userId, now, now + SESSION_TTL_MS)
     res.setHeader('Set-Cookie', cookie(token, req))
-    return token
-  }
-
-  function allowOrigin(req, res) {
-    const origin = req.headers.origin
-    if (!origin) return
-    if (!allowedOrigins.has(origin)) {
-      throw Object.assign(new Error('当前 Orbitra 地址未被在线游戏库允许。'), { status: 403 })
-    }
-    res.setHeader('Access-Control-Allow-Origin', origin)
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, If-None-Match')
-    res.setHeader(
-      'Access-Control-Expose-Headers',
-      'ETag, X-Advance-Revision, X-Advance-Updated-At, X-Advance-Sync-Fallback',
-    )
-    res.setHeader('Vary', 'Origin')
   }
 
   async function credentials(req) {
@@ -352,23 +324,12 @@ export function createAccountApi(options = {}) {
   async function accountApi(req, res, next) {
     const pathname = new URL(req.url || '/', 'http://localhost').pathname
     if (!pathname.startsWith('/api/')) {
-      if (next) next()
-      else error(res, 404, '这里只提供 Orbitra 在线游戏库 API。')
+      next?.()
       return
     }
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
     try {
-      allowOrigin(req, res)
-      res.setHeader('X-Content-Type-Options', 'nosniff')
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
-      if (req.method === 'OPTIONS') {
-        res.writeHead(204, { 'Cache-Control': 'no-store' })
-        res.end()
-        return
-      }
-      if (req.method === 'GET' && pathname === '/api/health') {
-        json(res, 200, { service: 'advance-online-library', version: 1 })
-        return
-      }
       if (req.method === 'GET' && pathname === '/api/auth/session') {
         const user = currentUser(req)
         json(res, 200, { user: user ? userResponse(user) : null })
@@ -376,6 +337,7 @@ export function createAccountApi(options = {}) {
       }
 
       if (req.method === 'POST' && pathname === '/api/auth/register') {
+        assertSameOrigin(req)
         const { username, key, password } = await credentials(req)
         assertRateLimit(req, `register:${key}`)
         if (findUser.get(key)) {
@@ -395,15 +357,15 @@ export function createAccountApi(options = {}) {
           }
           throw cause
         }
-        const token = createSession(Number(result.lastInsertRowid), req, res)
+        createSession(Number(result.lastInsertRowid), req, res)
         json(res, 201, {
           user: { id: Number(result.lastInsertRowid), username, createdAt },
-          token,
         })
         return
       }
 
       if (req.method === 'POST' && pathname === '/api/auth/login') {
+        assertSameOrigin(req)
         const { key, password } = await credentials(req)
         assertRateLimit(req, `login:${key}`)
         const user = findUser.get(key)
@@ -415,13 +377,14 @@ export function createAccountApi(options = {}) {
           return
         }
         clearRateLimit(req, `login:${key}`)
-        const token = createSession(Number(user.id), req, res)
-        json(res, 200, { user: userResponse(user), token })
+        createSession(Number(user.id), req, res)
+        json(res, 200, { user: userResponse(user) })
         return
       }
 
       if (req.method === 'POST' && pathname === '/api/auth/logout') {
-        const token = currentToken(req)
+        assertSameOrigin(req)
+        const token = parseCookies(req)[COOKIE_NAME]
         if (token) deleteSession.run(sessionHash(token))
         res.setHeader('Set-Cookie', cookie('', req, 0))
         json(res, 200, { user: null })
@@ -460,6 +423,7 @@ export function createAccountApi(options = {}) {
           return
         }
         if (req.method === 'PUT') {
+          assertSameOrigin(req)
           if (!String(req.headers['content-type'] || '').startsWith('application/zip')) {
             error(res, 415, '同步数据必须为 ZIP 备份。')
             return
@@ -550,6 +514,7 @@ export function createAccountApi(options = {}) {
           return
         }
         if (req.method === 'PUT') {
+          assertSameOrigin(req)
           if (!String(req.headers['content-type'] || '').startsWith('application/zip')) {
             error(res, 415, '同步数据必须为 ZIP 备份。')
             return
@@ -660,6 +625,7 @@ export function createAccountApi(options = {}) {
           return
         }
         if (req.method === 'DELETE') {
+          assertSameOrigin(req)
           if (part) {
             error(res, 405, '不能单独删除游戏同步数据。')
             return

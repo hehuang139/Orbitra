@@ -21,7 +21,7 @@ Orbitra is a local-first browser emulator for retro games: GBA (Game Boy Advance
 
 Orbitra brings classic systems from different eras into one browser experience, combining a local game library, save states and keyboard, gamepad and touch controls. The interface is currently in Chinese and adapts to desktop, tablet and phone screens. Bundled mGBA, FCEUmm, Snes9x, and experimental Dolphin cores run the supported systems locally.
 
-No account or user-supplied BIOS is required. You can optionally configure the address of a separately deployed online game library, sign in, and sync classic-system ROMs and saves across browsers. The online library is not the game runtime, Orbitra never sends data to the current site by default, and GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
+No account or user-supplied BIOS is required. Optional user accounts keep one player's personal library and saves in sync across browsers through the runtime's same-origin API. Separately, a configurable online game library distributes ROMs from a public catalog; it never receives account data or personal saves. GameCube disc images always remain in the browser where they were imported. Try **Star Orbit**, an original, MIT-licensed homebrew game included in the repository. No commercial game ROMs are distributed with this project.
 
 ## Screenshots
 
@@ -86,7 +86,7 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 - **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
 - **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
 - **Display:** platform-native aspect ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
-- **Local data and online library:** IndexedDB stores ROMs, library metadata and saves; localStorage stores preferences. An optional, separately hosted online library syncs ROMs and saves so a fresh browser can restore them. Runtime assets are bundled without an external CDN dependency.
+- **Accounts and distribution:** IndexedDB stores the local personal library. Optional accounts synchronize that personal library and its saves; an independently configured online game library only publishes, lists and distributes ROMs for import.
 - **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
 
 ## Quick start
@@ -166,7 +166,7 @@ The image includes cross-origin isolation headers, the `application/wasm` MIME t
 
 For public access, use an HTTPS reverse proxy that forwards the site root to container port `8080` and preserves the image's `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` response headers. Keep the application and core resources on the same origin. Subpath deployment is not recommended, and plain HTTP on a LAN address does not meet the core's requirements.
 
-This Nginx image serves only the static application and does not include the online game library; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Run the separate online game library described below when sign-in and cross-browser sync are required.
+This Nginx image serves only the static application and includes neither the Node account API nor the online distribution library; the full local workflow remains available. No container data volume is needed: the user's browser stores ROMs, library metadata and saves in IndexedDB, and preferences in localStorage. Changing the domain, protocol or port changes the browser storage origin. Export important data through the backup and restore panel before migrating. Use the Node production server for account sync, and run the separate online game library below only when a distribution catalog is needed.
 
 To distribute a built image offline, export it on the build machine, load it on the target machine, then start it with the `docker run` command above:
 
@@ -190,19 +190,21 @@ pnpm build
 pnpm start
 ```
 
-The output is in `dist/`. `pnpm start` serves only the game runtime at [http://localhost:4173](http://localhost:4173) by default; configure `HOST` and `PORT` as needed. Games, ROMs and saves remain in the browser, and the runtime does not include account or sync APIs.
+The output is in `dist/`. `pnpm start` serves the game runtime and its same-origin account API at [http://localhost:4173](http://localhost:4173) by default; configure `HOST`, `PORT` and `ORBITRA_DATA_DIR` as needed. Games, ROMs and saves remain usable in the browser without signing in.
 
 The runtime can serve HTTPS directly when both `TLS_CERT_PATH` and `TLS_KEY_PATH` point to PEM certificate and private-key files. A LAN IP certificate must contain that IP as a Subject Alternative Name and be trusted by each client device; plain HTTP cannot provide the secure context required by Web Crypto and SharedArrayBuffer.
 
 Run the online game library as a separate service in another terminal:
 
 ```sh
-ADVANCE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 pnpm start:library
+ONLINE_LIBRARY_ALLOWED_ORIGINS=http://localhost:4173 \
+ONLINE_LIBRARY_ADMIN_TOKEN=replace-with-a-long-random-token \
+pnpm start:library
 ```
 
-It listens at [http://localhost:4174](http://localhost:4174) by default. Open “Online game library” in Orbitra and enter that address before signing in. Configure its bind address, port, SQLite directory and comma-separated runtime origin allowlist with `ADVANCE_LIBRARY_HOST`, `ADVANCE_LIBRARY_PORT`, `ADVANCE_LIBRARY_DATA_DIR` and `ADVANCE_LIBRARY_ALLOWED_ORIGINS`. The default database is `.data/online-library/advance.sqlite`. For public deployments, set both `ADVANCE_LIBRARY_TLS_CERT_PATH` and `ADVANCE_LIBRARY_TLS_KEY_PATH`, and back up the data directory.
+It listens at [http://localhost:4174](http://localhost:4174) and distributes supported ROMs from `public/demo` by default. Open “Online game library” to browse/import the catalog, or use “Manage distribution” with `ONLINE_LIBRARY_ADMIN_TOKEN` to publish and remove files. Configure `ONLINE_LIBRARY_HOST`, `ONLINE_LIBRARY_PORT`, `ONLINE_LIBRARY_ROOT`, `ONLINE_LIBRARY_NAME` and `ONLINE_LIBRARY_ALLOWED_ORIGINS`; set both `ONLINE_LIBRARY_TLS_CERT_PATH` and `ONLINE_LIBRARY_TLS_KEY_PATH` for HTTPS. Back up the configured distribution directory.
 
-`pnpm dev`, `pnpm preview` and static hosting serve only the game runtime; none implicitly starts an online library. A single library transfer is capped at 72 MiB and each account at 2 GiB. Server-side data is not end-to-end encrypted. An HTTPS runtime can only connect to an HTTPS library. Session tokens are kept in browser localStorage, so do not sign in on untrusted devices.
+The online game library is independent of user accounts: public catalog and ROM requests omit credentials, while publishing uses its own administrator token and never uploads saves. `pnpm dev`, `pnpm preview` and `pnpm start` expose the same-origin account API but do not start this distribution service. An HTTPS runtime can only connect to an HTTPS library.
 
 **The threaded WASM core requires HTTPS or localhost and cross-origin isolation.** Serve these response headers:
 
@@ -219,7 +221,8 @@ Plain HTTP on a LAN address and hosts without the required headers will not run 
 
 ```sh
 pnpm test
-pnpm test:library-server
+pnpm test:account-server
+pnpm test:online-library-server
 pnpm build
 pnpm exec playwright install chromium
 
@@ -232,7 +235,8 @@ pnpm test:saves
 pnpm test:keyboard
 pnpm test:gamepad
 pnpm test:touch
-pnpm test:library-sync
+pnpm test:account
+pnpm test:online-library
 pnpm test:startup
 pnpm test:backup
 pnpm test:pwa
