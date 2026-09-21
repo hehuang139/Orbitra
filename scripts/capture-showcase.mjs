@@ -91,7 +91,11 @@ try {
   await desktop.getByText('已保存到存档位 1', { exact: true }).waitFor()
   await moveShip(desktop, 'ArrowUp', 240)
   await desktop.getByRole('button', { name: '管理即时存档', exact: true }).click()
-  await desktop.locator('.save-slot').nth(2).getByRole('button', { name: '保存', exact: true }).click()
+  await desktop
+    .locator('.save-slot')
+    .filter({ hasText: '存档位 2' })
+    .getByRole('button', { name: '保存', exact: true })
+    .click()
   await desktop.getByText('已保存到存档位 2', { exact: true }).waitFor()
   await desktop.getByRole('button', { name: '关闭对话框', exact: true }).click()
   await desktop.getByRole('button', { name: '返回游戏库', exact: true }).click()

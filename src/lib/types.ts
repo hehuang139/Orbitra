@@ -24,6 +24,8 @@ export interface Game {
   cheats?: Cheat[]
   /** Battery-only restoration takes precedence over an older automatic state. */
   skipAutoState?: boolean
+  /** An explicitly restored automatic slot takes precedence until the next automatic save. */
+  resumeAutoSaveSlot?: number
 }
 
 export interface SaveState {

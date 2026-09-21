@@ -6,6 +6,7 @@ import {
   type GamePlatform,
 } from './platforms.ts'
 import type { Game, SaveState } from './types.ts'
+import { AUTO_SAVE_SLOTS, isAutomaticSlot } from './autosave.ts'
 import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { BACKUP_LIMITS, gameIdForRom, sha256, validateBackupData } from './backup-format.ts'
 import type { BackupData, BackupGame } from './backup-format.ts'
@@ -281,7 +282,8 @@ function gameRecord(value: unknown): Game {
     !isTimestamp(game.playTime) ||
     typeof game.favorite !== 'boolean' ||
     (game.color !== undefined && typeof game.color !== 'string') ||
-    (game.skipAutoState !== undefined && typeof game.skipAutoState !== 'boolean')
+    (game.skipAutoState !== undefined && typeof game.skipAutoState !== 'boolean') ||
+    (game.resumeAutoSaveSlot !== undefined && !isAutomaticSlot(game.resumeAutoSaveSlot))
   ) {
     throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   }
@@ -297,6 +299,13 @@ function gameRecord(value: unknown): Game {
 function copyBytes(value: unknown, message: string): Uint8Array {
   if (!(value instanceof Uint8Array) || value.byteLength === 0) throw new Error(message)
   return new Uint8Array(value)
+}
+
+function withResumeAutoSaveSlot(game: Game, slot?: number): Game {
+  const updated = { ...game }
+  if (slot === undefined) delete updated.resumeAutoSaveSlot
+  else updated.resumeAutoSaveSlot = slot
+  return updated
 }
 
 function stateId(gameId: string, slot: number): string {
@@ -408,7 +417,14 @@ export async function importGame(file: File): Promise<Game> {
 type GameChanges = Partial<
   Pick<
     Game,
-    'title' | 'lastPlayed' | 'playTime' | 'favorite' | 'color' | 'skipAutoState' | 'cheats'
+    | 'title'
+    | 'lastPlayed'
+    | 'playTime'
+    | 'favorite'
+    | 'color'
+    | 'skipAutoState'
+    | 'resumeAutoSaveSlot'
+    | 'cheats'
   >
 >
 
@@ -512,8 +528,10 @@ export async function saveState(
       coreVersion: coreIdForPlatform(game.platform),
     })
     await requestResult(tx.objectStore(STORES.states).put(state))
-    if (slot === 0 && game.skipAutoState)
-      await requestResult(tx.objectStore(STORES.games).put({ ...game, skipAutoState: false }))
+    if (isAutomaticSlot(slot) && (game.skipAutoState || game.resumeAutoSaveSlot !== undefined))
+      await requestResult(
+        tx.objectStore(STORES.games).put(withResumeAutoSaveSlot({ ...game, skipAutoState: false })),
+      )
     return state
   })
   announceLibraryChange('content', gameId)
@@ -750,6 +768,7 @@ function gameMetadata(game?: Game): unknown {
       game.favorite,
       game.color,
       game.skipAutoState === true,
+      game.resumeAutoSaveSlot,
       game.cheats,
     ]
   )
@@ -910,10 +929,26 @@ export async function restoreLibrary(data: BackupData, choices: RestoreChoices):
     for (const { entry, choice } of writes) {
       const id = entry.game.id
       let game = choice.metadata ? entry.game : local.get(id)!.game!
-      if (choice.battery && !choice.slots.includes(0)) game = { ...game, skipAutoState: true }
-      else if (choice.slots.includes(0) && !choice.metadata)
-        game = { ...game, skipAutoState: false }
-      if (choice.metadata || choice.battery || choice.slots.includes(0))
+      const restoresAutomaticState = choice.slots.some(isAutomaticSlot)
+      if (choice.battery && !restoresAutomaticState)
+        game = withResumeAutoSaveSlot({ ...game, skipAutoState: true })
+      else if (restoresAutomaticState) {
+        const restored = entry.states
+          .filter((state) => choice.slots.includes(state.slot) && isAutomaticSlot(state.slot))
+          .reduce((latest, state) =>
+            !latest || state.createdAt > latest.createdAt ? state : latest,
+          )
+        const hasUnselectedAutomaticState = local
+          .get(id)!
+          .states.some((state) => isAutomaticSlot(state.slot) && !choice.slots.includes(state.slot))
+        game = withResumeAutoSaveSlot(
+          { ...game, ...(!choice.metadata ? { skipAutoState: false } : {}) },
+          restored.slot !== AUTO_SAVE_SLOTS[0] || hasUnselectedAutomaticState
+            ? restored.slot
+            : undefined,
+        )
+      }
+      if (choice.metadata || choice.battery || restoresAutomaticState)
         await requestResult(tx.objectStore(STORES.games).put(game))
       // An existing same-content ROM is retained; a supplied ROM repairs a missing one.
       if (!local.get(id)!.rom && entry.rom)

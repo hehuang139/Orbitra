@@ -1715,6 +1715,9 @@ main {
 .autosave-interval {
   margin-top: 10px;
 }
+.autosave-count-caption {
+  margin-top: 12px;
+}
 .autosave-interval > button {
   font-size: 9px;
 }

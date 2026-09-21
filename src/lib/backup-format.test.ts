@@ -233,6 +233,13 @@ test('preserves battery-first startup semantics across backup round trips', asyn
     manifest.games[0].game.skipAutoState = 'true'
   })
   await assert.rejects(parseBackup(archive(invalid)), /游戏信息无效/)
+
+  const localPreference = await fixture()
+  localPreference.games[0].game.resumeAutoSaveSlot = 6
+  const exported = await parseBackup(
+    archive(await createBackup(localPreference, { includeRoms: true })),
+  )
+  assert.equal(exported.games[0].game.resumeAutoSaveSlot, undefined)
 })
 
 test('snapshot bytes cannot be changed by a caller while asynchronous export hashes them', async () => {
@@ -286,7 +293,7 @@ test('validates filenames, finite metadata, dates, content identifiers and PNG-o
   }
 })
 
-test('rejects duplicate games/slots, foreign state IDs and slots outside 0..5', async () => {
+test('rejects duplicate games/slots, foreign state IDs and slots outside 0..7', async () => {
   const data = await fixture()
   data.games.push(data.games[0])
   assert.throws(() => validateBackupData(data), /重复.*游戏/)
@@ -297,7 +304,7 @@ test('rejects duplicate games/slots, foreign state IDs and slots outside 0..5', 
   data.games[0].states[0].id = 'foreign:0'
   assert.throws(() => validateBackupData(data), /存档信息无效/)
   const invalidSlot = mutateManifest(await packed(), (manifest) => {
-    manifest.games[0].states[0].slot = 6
+    manifest.games[0].states[0].slot = 8
   })
   await assert.rejects(parseBackup(archive(invalidSlot)), /槽位仅支持/)
 })
@@ -505,9 +512,9 @@ test('checks archive, game count, single-item and cumulative size limits before 
   const bytes = await packed()
   const tooMany = new Uint8Array(bytes)
   const view = new DataView(tooMany.buffer)
-  view.setUint16(bytes.length - 22 + 8, 130, true)
-  view.setUint16(bytes.length - 22 + 10, 130, true)
-  await assert.rejects(parseBackup(archive(tooMany)), /129 项/)
+  view.setUint16(bytes.length - 22 + 8, 162, true)
+  view.setUint16(bytes.length - 22 + 10, 162, true)
+  await assert.rejects(parseBackup(archive(tooMany)), /161 项/)
   const oversized = patchEntry(bytes, 0, (view, central, local) => {
     view.setUint32(central + 24, BACKUP_LIMITS.romBytes + 1, true)
     view.setUint32(local + 22, BACKUP_LIMITS.romBytes + 1, true)
