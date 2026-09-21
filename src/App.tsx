@@ -2029,7 +2029,7 @@ export default function App() {
           )}
 
           {page === 'online-library' ? (
-            <OnlineLibraryPage library={onlineLibrary} />
+            <OnlineLibraryPage library={onlineLibrary} personalGames={games} />
           ) : page !== 'states' ? (
             <div className="content-grid">
               <section className="library-section">

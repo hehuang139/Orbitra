@@ -4,6 +4,7 @@ import {
   CloudDownload,
   Download,
   Files,
+  Gamepad2,
   Link2,
   LoaderCircle,
   RefreshCw,
@@ -15,11 +16,18 @@ import {
 } from 'lucide-react'
 import type { OnlineLibraryController } from '../hooks/useOnlineLibrary.ts'
 import { gameIdForOnlineLibraryEntry } from '../lib/online-library.ts'
-import { PLATFORM_REGISTRY, ROM_FILE_EXTENSIONS } from '../lib/platforms.ts'
+import {
+  PLATFORM_LIST,
+  PLATFORM_REGISTRY,
+  ROM_FILE_EXTENSIONS,
+  type GamePlatform,
+} from '../lib/platforms.ts'
+import type { Game } from '../lib/types.ts'
 import './online-library-panel.css'
 
 interface OnlineLibraryPageProps {
   library: OnlineLibraryController
+  personalGames: readonly Game[]
 }
 
 function formatSize(bytes: number): string {
@@ -28,12 +36,15 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
-export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
+export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageProps) {
   const [url, setUrl] = useState(library.url ?? '')
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [view, setView] = useState<'browse' | 'manage'>('browse')
   const [query, setQuery] = useState('')
+  const [platform, setPlatform] = useState<'all' | GamePlatform>('all')
   const [adminToken, setAdminToken] = useState('')
+  const [uploadSource, setUploadSource] = useState<'library' | 'file'>('library')
+  const [personalGameId, setPersonalGameId] = useState('')
   const [upload, setUpload] = useState<File | null>(null)
   const [uploadInputKey, setUploadInputKey] = useState(0)
   const busy = ['loading', 'importing', 'publishing'].includes(library.phase)
@@ -42,20 +53,37 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
     () => games.filter((game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game))),
     [games, library.installedGameIds],
   )
+  const publishedGameIds = useMemo(
+    () => new Set(games.map((game) => gameIdForOnlineLibraryEntry(game))),
+    [games],
+  )
+  const personalUploadOptions = useMemo(
+    () => personalGames.filter((game) => !publishedGameIds.has(game.id)),
+    [personalGames, publishedGameIds],
+  )
   const visibleGames = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('zh-CN')
-    if (!normalized) return games
-    return games.filter((game) =>
-      `${game.title}\n${game.filename}\n${PLATFORM_REGISTRY[game.platform].label}`
-        .toLocaleLowerCase('zh-CN')
-        .includes(normalized),
+    return games.filter(
+      (game) =>
+        (view !== 'browse' || platform === 'all' || game.platform === platform) &&
+        (!normalized ||
+          `${game.title}\n${game.filename}\n${PLATFORM_REGISTRY[game.platform].label}`
+            .toLocaleLowerCase('zh-CN')
+            .includes(normalized)),
     )
-  }, [games, query])
+  }, [games, platform, query, view])
   const selectableVisible = visibleGames.filter(
     (game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game)),
   )
 
   useEffect(() => setUrl(library.url ?? ''), [library.url])
+  useEffect(() => {
+    setPersonalGameId((current) =>
+      personalUploadOptions.some((game) => game.id === current)
+        ? current
+        : (personalUploadOptions[0]?.id ?? ''),
+    )
+  }, [personalUploadOptions])
   useEffect(() => {
     setSelected((current) => {
       const availableIds = new Set(available.map((game) => game.id))
@@ -164,6 +192,7 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
             onClick={() => {
               setAdminToken('')
               setQuery('')
+              setPlatform('all')
               library.disconnect()
             }}
           >
@@ -192,16 +221,35 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
       </div>
 
       <div className="online-library-toolbar">
-        <label className="online-library-search">
-          <Search size={16} aria-hidden="true" />
-          <input
-            type="search"
-            aria-label="搜索在线游戏"
-            placeholder="搜索游戏或文件名…"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+        <div className="online-library-filter-tools">
+          <label className="online-library-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="搜索在线游戏"
+              placeholder="搜索游戏或文件名…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          {view === 'browse' && (
+            <label className="online-library-platform-filter">
+              <Gamepad2 size={16} aria-hidden="true" />
+              <select
+                aria-label="游戏类型"
+                value={platform}
+                onChange={(event) => setPlatform(event.target.value as 'all' | GamePlatform)}
+              >
+                <option value="all">全部类型</option>
+                {PLATFORM_LIST.map((definition) => (
+                  <option value={definition.id} key={definition.id}>
+                    {definition.label} · {definition.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
         {view === 'browse' ? (
           <label className="online-library-select-all">
             <input
@@ -271,7 +319,11 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
               ) : (
                 <div className="online-library-empty">
                   <Files size={24} aria-hidden="true" />
-                  <span>{games.length ? '没有匹配的游戏。' : '此在线游戏库暂时没有游戏。'}</span>
+                  <span>
+                    {games.length
+                      ? '没有匹配此类型或搜索条件的游戏。'
+                      : '此在线游戏库暂时没有游戏。'}
+                  </span>
                 </div>
               )}
             </div>
@@ -310,14 +362,19 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
             className="online-library-form online-library-admin"
             onSubmit={(event) => {
               event.preventDefault()
-              if (!upload) return
-              void library
-                .publish(upload, adminToken)
-                .then(() => {
-                  setUpload(null)
-                  setUploadInputKey((value) => value + 1)
-                })
-                .catch(() => {})
+              if (uploadSource === 'library') {
+                if (!personalGameId) return
+                void library.publishPersonalGame(personalGameId, adminToken).catch(() => {})
+              } else {
+                if (!upload) return
+                void library
+                  .publish(upload, adminToken)
+                  .then(() => {
+                    setUpload(null)
+                    setUploadInputKey((value) => value + 1)
+                  })
+                  .catch(() => {})
+              }
             }}
           >
             <label>
@@ -331,18 +388,61 @@ export function OnlineLibraryPage({ library }: OnlineLibraryPageProps) {
                 onChange={(event) => setAdminToken(event.target.value)}
               />
             </label>
-            <label>
+            <div className="online-library-publish-control">
               <span>发布 ROM</span>
-              <input
-                key={uploadInputKey}
-                name="gameFile"
-                type="file"
-                accept={ROM_FILE_EXTENSIONS.join(',')}
-                required
-                onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
-              />
-            </label>
-            <button className="button primary" type="submit" disabled={busy || !upload}>
+              <div className="online-library-upload-source" role="group" aria-label="上传来源">
+                <button
+                  type="button"
+                  aria-pressed={uploadSource === 'library'}
+                  onClick={() => setUploadSource('library')}
+                >
+                  <Files size={14} />
+                  个人游戏库
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={uploadSource === 'file'}
+                  onClick={() => setUploadSource('file')}
+                >
+                  <Upload size={14} />
+                  本地文件
+                </button>
+              </div>
+              {uploadSource === 'library' ? (
+                <select
+                  aria-label="选择个人游戏"
+                  required
+                  value={personalGameId}
+                  disabled={!personalUploadOptions.length}
+                  onChange={(event) => setPersonalGameId(event.target.value)}
+                >
+                  {personalUploadOptions.length ? (
+                    personalUploadOptions.map((game) => (
+                      <option value={game.id} key={game.id}>
+                        {game.title} ({PLATFORM_REGISTRY[game.platform].label})
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">没有可发布的个人游戏</option>
+                  )}
+                </select>
+              ) : (
+                <input
+                  key={uploadInputKey}
+                  name="gameFile"
+                  type="file"
+                  aria-label="发布 ROM"
+                  accept={ROM_FILE_EXTENSIONS.join(',')}
+                  required
+                  onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
+                />
+              )}
+            </div>
+            <button
+              className="button primary"
+              type="submit"
+              disabled={busy || (uploadSource === 'library' ? !personalGameId : !upload)}
+            >
               {library.phase === 'publishing' ? (
                 <LoaderCircle size={16} className="account-spinner" />
               ) : (
