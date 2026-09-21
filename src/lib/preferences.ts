@@ -7,6 +7,7 @@ export type Settings = {
   speed: 1 | 2 | 4
   filter: 'pixel' | 'smooth' | 'crt'
   autoSave: boolean
+  autoSaveInterval: 1 | 5 | 10
   touch: boolean
   touchConfig: TouchConfig
   bindings: Record<EmulatorButton, string>
@@ -31,6 +32,7 @@ export const defaultSettings: Settings = {
   speed: 1,
   filter: 'pixel',
   autoSave: true,
+  autoSaveInterval: 1,
   touch: false,
   touchConfig: defaultTouchConfig,
   bindings: defaultBindings,
@@ -81,6 +83,8 @@ export function normalizeSettings(value: unknown): Settings {
     speed: raw.speed === 2 || raw.speed === 4 ? raw.speed : 1,
     filter: raw.filter === 'smooth' || raw.filter === 'crt' ? raw.filter : 'pixel',
     autoSave: raw.autoSave !== false,
+    autoSaveInterval:
+      raw.autoSaveInterval === 5 || raw.autoSaveInterval === 10 ? raw.autoSaveInterval : 1,
     touch: raw.touch === true,
     touchConfig: normalizeTouchConfig(raw.touchConfig),
     bindings: unique ? bindings : { ...defaultBindings },

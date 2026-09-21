@@ -16,18 +16,24 @@ test('migrates missing or malformed touch settings without retaining unknown fie
 })
 
 test('retains supported presets and clamps finite size and opacity values', () => {
-  assert.deepEqual(normalizeTouchConfig({ layout: 'compact', scale: 1.15, opacity: 0.65 }), {
-    layout: 'compact',
-    scale: 1.15,
-    opacity: 0.65,
-  })
+  assert.deepEqual(
+    normalizeTouchConfig({ layout: 'compact', mode: 'overlay', scale: 1.15, opacity: 0.65 }),
+    {
+      layout: 'compact',
+      mode: 'overlay',
+      scale: 1.15,
+      opacity: 0.65,
+    },
+  )
   assert.deepEqual(normalizeTouchConfig({ scale: -2, opacity: 20 }), {
     layout: 'standard',
+    mode: 'panel',
     scale: 0.8,
     opacity: 1,
   })
   assert.deepEqual(normalizeTouchConfig({ scale: 20, opacity: -2 }), {
     layout: 'standard',
+    mode: 'panel',
     scale: 1.3,
     opacity: 0.4,
   })

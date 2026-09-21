@@ -16,6 +16,46 @@
   display: none;
 }
 
+.player-panel .touch-controls.advance-touch[data-mode='overlay'],
+.player-panel:fullscreen .touch-controls.advance-touch,
+.player-panel:-webkit-full-screen .touch-controls.advance-touch {
+  position: absolute;
+  inset: 49px 0 49px;
+  z-index: 5;
+  display: flex;
+  align-items: stretch;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.player-panel .touch-controls.advance-touch[data-mode='overlay'][hidden],
+.player-panel:fullscreen .touch-controls.advance-touch[hidden],
+.player-panel:-webkit-full-screen .touch-controls.advance-touch[hidden] {
+  display: none;
+}
+
+.player-panel .advance-touch[data-mode='overlay'] .advance-touch-layout,
+.player-panel:fullscreen .advance-touch-layout,
+.player-panel:-webkit-full-screen .advance-touch-layout {
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  align-content: space-between;
+  pointer-events: none;
+}
+
+.player-panel .advance-touch[data-mode='overlay'] .advance-touch-key,
+.player-panel:fullscreen .advance-touch-key,
+.player-panel:-webkit-full-screen .advance-touch-key {
+  pointer-events: auto;
+  box-shadow:
+    0 2px 0 #07100899,
+    0 0 0 1px #d8efc21a;
+}
+
 .advance-touch-layout {
   --tc-key: max(44px, min(calc(48px * var(--tc-scale)), calc((100cqw - 24px) / 5)));
   display: grid;

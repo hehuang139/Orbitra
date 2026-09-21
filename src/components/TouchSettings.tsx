@@ -29,6 +29,17 @@ export function TouchSettings({
         </select>
       </div>
       <div className="advance-touch-setting">
+        <label htmlFor={`${id}-mode`}>显示方式</label>
+        <select
+          id={`${id}-mode`}
+          value={current.mode}
+          onChange={(event) => change({ mode: event.target.value as TouchConfig['mode'] })}
+        >
+          <option value="panel">独立面板</option>
+          <option value="overlay">画面遮罩</option>
+        </select>
+      </div>
+      <div className="advance-touch-setting">
         <label htmlFor={`${id}-scale`}>
           按键大小 <output htmlFor={`${id}-scale`}>{Math.round(current.scale * 100)}%</output>
         </label>
@@ -62,7 +73,7 @@ export function TouchSettings({
         />
       </div>
       <p className="advance-touch-hint">
-        手机自动显示触屏手柄。紧凑布局减少高度；窄屏会自动限制按键尺寸，避免横向溢出。
+        手机自动显示触屏手柄。画面遮罩将按键叠在游戏上，全屏时会自动使用遮罩；空白区域仍可操作游戏画面。
       </p>
       <button
         type="button"

@@ -279,7 +279,19 @@ test('updates merge metadata, preserve identity, and serialize concurrent edits'
   assert.equal(updated.favorite, true)
   assert.equal(updated.playTime, 125)
   assert.equal(updated.filename, game.filename)
+  const withCheats = await updateGame(game.id, {
+    cheats: [{ id: 'max-health', name: 'Max health', code: '1234 5678', enabled: true }],
+  })
+  assert.deepEqual(withCheats.cheats, [
+    { id: 'max-health', name: 'Max health', code: '1234 5678', enabled: true },
+  ])
   await assert.rejects(updateGame(game.id, { playTime: -1 }), /游戏信息已损坏/)
+  await assert.rejects(
+    updateGame(game.id, {
+      cheats: [{ id: 'bad id', name: 'Broken', code: '!disabled', enabled: true }],
+    }),
+    /游戏信息已损坏/,
+  )
   assert.equal((await getGames())[0].playTime, 125)
   await assert.rejects(updateGame('missing', { favorite: true }), /游戏不存在/)
 })

@@ -2,12 +2,14 @@ import type { GbaButton } from '../emulator'
 
 export type TouchConfig = {
   layout: 'standard' | 'compact'
+  mode: 'panel' | 'overlay'
   scale: number
   opacity: number
 }
 
 export const defaultTouchConfig: TouchConfig = {
   layout: 'standard',
+  mode: 'panel',
   scale: 1,
   opacity: 1,
 }
@@ -22,6 +24,7 @@ export function normalizeTouchConfig(value: unknown): TouchConfig {
   const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
   return {
     layout: raw.layout === 'compact' ? 'compact' : 'standard',
+    mode: raw.mode === 'overlay' ? 'overlay' : 'panel',
     scale: clamp(raw.scale, 0.8, 1.3, defaultTouchConfig.scale),
     opacity: clamp(raw.opacity, 0.4, 1, defaultTouchConfig.opacity),
   }
