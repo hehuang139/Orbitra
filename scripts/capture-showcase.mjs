@@ -85,6 +85,7 @@ try {
   await capture(desktop, 'desktop-library.png')
 
   await desktop.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await desktop.getByRole('button', { name: '开始游戏', exact: true }).click()
   await running(desktop)
   await moveShip(desktop, 'ArrowRight', 200)
   await desktop.getByRole('button', { name: '快速存档 (F5)', exact: true }).click()
@@ -100,6 +101,7 @@ try {
   await desktop.getByRole('button', { name: '关闭对话框', exact: true }).click()
   await desktop.getByRole('button', { name: '返回游戏库', exact: true }).click()
   await desktop.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await desktop.getByRole('button', { name: '开始游戏', exact: true }).click()
   await running(desktop)
   await desktop.evaluate(() => window.scrollTo(0, 0))
   await capture(desktop, 'desktop-player.png', '.player-panel')
@@ -152,6 +154,7 @@ try {
 
   const mobile = await newPage({ width: 390, height: 844 }, true)
   await mobile.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await mobile.getByRole('button', { name: '开始游戏', exact: true }).click()
   await running(mobile)
   await moveShip(mobile, 'ArrowRight', 180)
   assert.equal(await mobile.locator('.touch-controls').isVisible(), true)

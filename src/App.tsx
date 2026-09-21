@@ -59,7 +59,7 @@ import {
   ROM_FILE_EXTENSIONS,
   platformSupportsButton,
 } from './lib/platforms'
-import type { Cheat, Game, GamePlatform, SaveState } from './lib/types'
+import type { Cheat, Game, GameLaunchMode, GamePlatform, SaveState } from './lib/types'
 import { defaultBindings, isBindingCode, keyLabel, readSettings } from './lib/preferences'
 import { createInputController } from './lib/input'
 import { useGamepads } from './hooks/useGamepads'
@@ -77,10 +77,7 @@ import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
 import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
-import {
-  FEATURE_STATUS_LABELS,
-  capabilityReportForPlatform,
-} from './lib/capability-status'
+import { FEATURE_STATUS_LABELS, capabilityReportForPlatform } from './lib/capability-status'
 import type { FeatureStatus } from './lib/capability-status'
 import { CORE_REGISTRY } from './lib/core-version'
 import { createCheatId, validateCheats } from './lib/cheats'
@@ -103,15 +100,9 @@ import {
 
 type Page = 'library' | 'recent' | 'favorites' | 'states' | 'online-library'
 type Modal =
-  | 'settings'
-  | 'controls'
-  | 'help'
-  | 'states'
-  | 'cheats'
-  | 'backup'
-  | 'account'
-  | null
+  'launch' | 'settings' | 'controls' | 'help' | 'states' | 'cheats' | 'backup' | 'account' | null
 type PlatformFilter = 'all' | GamePlatform
+type LaunchPolicy = 'remembered' | 'auto' | 'fresh'
 const pages: Record<Page, string> = {
   library: '游戏库',
   recent: '最近游玩',
@@ -237,6 +228,11 @@ export default function App() {
   const [states, setStates] = useState<SaveState[]>([])
   const [allStates, setAllStates] = useState<SaveState[]>([])
   const [continueState, setContinueState] = useState<SaveState | null>(null)
+  const [launchTarget, setLaunchTarget] = useState<Game | null>(null)
+  const [launchMode, setLaunchMode] = useState<GameLaunchMode>('fresh')
+  const [launchStateSlot, setLaunchStateSlot] = useState<number | null>(null)
+  const [launchStates, setLaunchStates] = useState<SaveState[]>([])
+  const launchAutomaticState = latestAutomaticState(launchStates, settings.autoSaveSlotCount)
   const [mapping, setMapping] = useState<EmulatorButton | null>(null)
   const [launchError, setLaunchError] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -625,7 +621,12 @@ export default function App() {
   }, [modal, deleteTarget, batchDeleteTargets, releaseInputs])
 
   const loadGameSession = useCallback(
-    async (game: Game, requestedState?: Pick<SaveState, 'data'>, quietResume = false) => {
+    async (
+      game: Game,
+      requestedState?: Pick<SaveState, 'data'>,
+      quietResume = false,
+      launchPolicy: LaunchPolicy = 'remembered',
+    ) => {
       const engine = engineRef.current
       if (!engine) throw new Error('模拟器尚未就绪')
       if (!activeRef.current) {
@@ -646,17 +647,19 @@ export default function App() {
       if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
       const battery = await db.getBatterySave(game.id)
       const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
-      const savedStates =
-        settingsRef.current.autoSave && !currentGame.skipAutoState
-          ? await db.getStates(game.id)
-          : []
+      const shouldLoadAutomaticState =
+        launchPolicy === 'auto' ||
+        (launchPolicy === 'remembered' &&
+          settingsRef.current.autoSave &&
+          !currentGame.skipAutoState)
+      const savedStates = shouldLoadAutomaticState ? await db.getStates(game.id) : []
       const preferredAutoState =
         currentGame.resumeAutoSaveSlot === undefined
           ? undefined
           : savedStates.find((state) => state.slot === currentGame.resumeAutoSaveSlot)
       const resume =
         requestedState ||
-        (settingsRef.current.autoSave && !currentGame.skipAutoState
+        (shouldLoadAutomaticState
           ? (preferredAutoState ??
             latestAutomaticState(savedStates, settingsRef.current.autoSaveSlotCount))
           : undefined)
@@ -689,9 +692,45 @@ export default function App() {
   )
 
   const playGame = useCallback(
-    (game: Game, requestedState?: SaveState) => run(() => loadGameSession(game, requestedState)),
+    (game: Game, requestedState?: SaveState) => {
+      if (requestedState) return run(() => loadGameSession(game, requestedState))
+      return run(async () => {
+        const savedStates = await db.getStates(game.id)
+        const automaticState = latestAutomaticState(
+          savedStates,
+          settingsRef.current.autoSaveSlotCount,
+        )
+        const selectedState = savedStates.find((state) => state.slot === game.launchStateSlot)
+        setLaunchTarget(game)
+        setLaunchStates(savedStates)
+        setLaunchMode(game.launchMode ?? (automaticState ? 'auto' : 'fresh'))
+        setLaunchStateSlot(selectedState?.slot ?? savedStates[0]?.slot ?? null)
+        setModal('launch')
+      })
+    },
     [run, loadGameSession],
   )
+
+  const confirmLaunch = () =>
+    run(async () => {
+      if (!launchTarget) return
+      const requestedState =
+        launchMode === 'state'
+          ? launchStates.find((state) => state.slot === launchStateSlot)
+          : undefined
+      if (launchMode === 'state' && !requestedState) throw new Error('请选择一个可用的即时存档')
+      const updated = await db.updateGame(launchTarget.id, {
+        launchMode,
+        launchStateSlot: launchMode === 'state' ? requestedState?.slot : undefined,
+        ...(launchMode === 'auto' ? { skipAutoState: false } : {}),
+      })
+      await loadGameSession(
+        updated,
+        requestedState,
+        false,
+        launchMode === 'state' ? 'fresh' : launchMode,
+      )
+    })
 
   const openCheats = () => {
     const game = activeRef.current
@@ -1808,38 +1847,38 @@ export default function App() {
               )}
               <section className="hero">
                 <div className="hero-content">
-                <div className="hero-badge">
-                  <span /> SMALL CONSOLE. BIG MEMORIES.
-                </div>
-                <h2>
-                  经典像素，
-                  <br />
-                  <span>全新主场。</span>
-                </h2>
-                <p>
-                  把口袋里的冒险，带回你的屏幕。
-                  <br />
-                  轻一点，回到热爱的那个世界。
-                </p>
-                <div className="hero-actions">
-                  <button
-                    className="button primary"
-                    disabled={!demo || busy}
-                    onClick={() => demo && void playGame(demo)}
-                  >
-                    <Play size={15} fill="currentColor" />
-                    开始试玩
-                    <ArrowRight size={16} />
-                  </button>
-                  <button className="button ghost" onClick={() => setModal('help')}>
-                    了解更多
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-                <span className="hero-footnote">
-                  <Sparkles size={12} />
-                  内置原创游戏 · 无需下载 · 即点即玩
-                </span>
+                  <div className="hero-badge">
+                    <span /> SMALL CONSOLE. BIG MEMORIES.
+                  </div>
+                  <h2>
+                    经典像素，
+                    <br />
+                    <span>全新主场。</span>
+                  </h2>
+                  <p>
+                    把口袋里的冒险，带回你的屏幕。
+                    <br />
+                    轻一点，回到热爱的那个世界。
+                  </p>
+                  <div className="hero-actions">
+                    <button
+                      className="button primary"
+                      disabled={!demo || busy}
+                      onClick={() => demo && void playGame(demo)}
+                    >
+                      <Play size={15} fill="currentColor" />
+                      开始试玩
+                      <ArrowRight size={16} />
+                    </button>
+                    <button className="button ghost" onClick={() => setModal('help')}>
+                      了解更多
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                  <span className="hero-footnote">
+                    <Sparkles size={12} />
+                    内置原创游戏 · 无需下载 · 即点即玩
+                  </span>
                 </div>
                 <HandheldArt />
               </section>
@@ -2448,19 +2487,21 @@ export default function App() {
                     ? `删除选中的 ${batchDeleteTargets.length} 个游戏？`
                     : deleteTarget
                       ? '删除这个游戏？'
-                      : modal === 'controls'
-                        ? '找到你的顺手操作'
-                        : modal === 'settings'
-                          ? '你的模拟器，你来定义'
-                          : modal === 'backup'
-                            ? '备份与恢复'
-                            : modal === 'account'
-                              ? '账号与游戏同步'
-                              : modal === 'states'
-                                ? '给冒险留个书签'
-                                : modal === 'cheats'
-                                  ? '管理金手指'
-                                  : '准备好，开始冒险'}
+                      : modal === 'launch'
+                        ? '选择这次的起点'
+                        : modal === 'controls'
+                          ? '找到你的顺手操作'
+                          : modal === 'settings'
+                            ? '你的模拟器，你来定义'
+                            : modal === 'backup'
+                              ? '备份与恢复'
+                              : modal === 'account'
+                                ? '账号与游戏同步'
+                                : modal === 'states'
+                                  ? '给冒险留个书签'
+                                  : modal === 'cheats'
+                                    ? '管理金手指'
+                                    : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -2521,6 +2562,99 @@ export default function App() {
                   >
                     <Trash2 size={16} />
                     确认删除
+                  </button>
+                </div>
+              </>
+            ) : modal === 'launch' && launchTarget ? (
+              <>
+                <p className="modal-description">
+                  {displayTitle(launchTarget)}
+                  <span> · 记住的选择会用于下次启动前的默认项</span>
+                </p>
+                <div className="launch-options" role="radiogroup" aria-label="启动方式">
+                  <label
+                    className={`launch-option ${launchMode === 'auto' ? 'selected' : ''} ${launchAutomaticState ? '' : 'disabled'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="launch-mode"
+                      value="auto"
+                      checked={launchMode === 'auto'}
+                      disabled={!launchAutomaticState}
+                      onChange={() => setLaunchMode('auto')}
+                    />
+                    <span>
+                      <strong>继续自动存档</strong>
+                      <small>
+                        {launchAutomaticState
+                          ? `${automaticSlotLabel(launchAutomaticState.slot)} · ${formatDate(launchAutomaticState.createdAt)}`
+                          : '还没有可用的自动存档'}
+                      </small>
+                    </span>
+                  </label>
+                  <label className={`launch-option ${launchMode === 'fresh' ? 'selected' : ''}`}>
+                    <input
+                      type="radio"
+                      name="launch-mode"
+                      value="fresh"
+                      checked={launchMode === 'fresh'}
+                      onChange={() => setLaunchMode('fresh')}
+                    />
+                    <span>
+                      <strong>正常启动</strong>
+                      <small>不读取即时存档，电池存档仍会正常载入</small>
+                    </span>
+                  </label>
+                  <div
+                    className={`launch-option launch-state-option ${launchMode === 'state' ? 'selected' : ''} ${launchStates.length ? '' : 'disabled'}`}
+                  >
+                    <label>
+                      <input
+                        type="radio"
+                        name="launch-mode"
+                        value="state"
+                        checked={launchMode === 'state'}
+                        disabled={!launchStates.length}
+                        onChange={() => setLaunchMode('state')}
+                      />
+                      <span>
+                        <strong>选择即时存档</strong>
+                        <small>从指定的自动或手动存档继续</small>
+                      </span>
+                    </label>
+                    <select
+                      aria-label="选择即时存档"
+                      value={launchStateSlot ?? ''}
+                      disabled={!launchStates.length}
+                      onChange={(event) => {
+                        setLaunchStateSlot(Number(event.target.value))
+                        setLaunchMode('state')
+                      }}
+                    >
+                      {!launchStates.length && <option value="">没有可用存档</option>}
+                      {launchStates.map((state) => (
+                        <option value={state.slot} key={state.slot}>
+                          {automaticSlotLabel(state.slot)} · {formatDate(state.createdAt)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button
+                    className="button secondary"
+                    disabled={busy}
+                    onClick={() => setModal(null)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={busy || (launchMode === 'state' && launchStateSlot === null)}
+                    onClick={() => void confirmLaunch()}
+                  >
+                    <Play size={16} />
+                    开始游戏
                   </button>
                 </div>
               </>

@@ -97,6 +97,7 @@ async function activate(page, target, key = 'Enter') {
 
 async function launch(page) {
   await button(page, `开始 ${title}`).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(() => {
     const control = document.querySelector('[aria-label="暂停 (Space)"]')
     return control && !control.disabled

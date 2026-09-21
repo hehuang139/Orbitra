@@ -175,6 +175,7 @@ try {
   await page.getByRole('button', { name: '关闭对话框', exact: true }).click()
 
   await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(
     () =>
       !!document.querySelector('[aria-label="暂停 (Space)"]') &&

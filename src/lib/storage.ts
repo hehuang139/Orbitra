@@ -283,7 +283,12 @@ function gameRecord(value: unknown): Game {
     typeof game.favorite !== 'boolean' ||
     (game.color !== undefined && typeof game.color !== 'string') ||
     (game.skipAutoState !== undefined && typeof game.skipAutoState !== 'boolean') ||
-    (game.resumeAutoSaveSlot !== undefined && !isAutomaticSlot(game.resumeAutoSaveSlot))
+    (game.resumeAutoSaveSlot !== undefined && !isAutomaticSlot(game.resumeAutoSaveSlot)) ||
+    (game.launchMode !== undefined && !['auto', 'fresh', 'state'].includes(game.launchMode)) ||
+    (game.launchStateSlot !== undefined &&
+      (!Number.isInteger(game.launchStateSlot) ||
+        game.launchStateSlot < 0 ||
+        game.launchStateSlot > 7))
   ) {
     throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   }
@@ -424,6 +429,8 @@ type GameChanges = Partial<
     | 'color'
     | 'skipAutoState'
     | 'resumeAutoSaveSlot'
+    | 'launchMode'
+    | 'launchStateSlot'
     | 'cheats'
   >
 >
@@ -769,6 +776,8 @@ function gameMetadata(game?: Game): unknown {
       game.color,
       game.skipAutoState === true,
       game.resumeAutoSaveSlot,
+      game.launchMode,
+      game.launchStateSlot,
       game.cheats,
     ]
   )

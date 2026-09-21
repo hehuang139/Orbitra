@@ -21,6 +21,7 @@ try {
   await page.getByRole('button', { name: '开始试玩', exact: true }).waitFor()
   await page.waitForFunction(() => !document.querySelector('.hero-actions button').disabled)
   await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(() => {
     const pause = document.querySelector('[aria-label="暂停 (Space)"]')
     return pause && !pause.disabled
@@ -83,6 +84,7 @@ try {
     await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
     await page.getByRole('button', { name: '开始试玩', exact: true }).waitFor()
     await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+    await page.getByRole('button', { name: '开始游戏', exact: true }).click()
     await page.waitForFunction(() => {
       const pause = document.querySelector('[aria-label="暂停 (Space)"]')
       return pause && !pause.disabled

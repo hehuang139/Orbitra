@@ -106,6 +106,7 @@ try {
     'the second browser should only have its bundled demo ROM',
   )
   await second.page.getByRole('button', { name: `开始 ${titles.at(-1)}` }).click()
+  await second.page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await second.page.getByText('正在游玩', { exact: true }).waitFor()
   assert.equal(await romCount(second.page), 2, 'playing should cache only the requested cloud ROM')
   await second.page.getByRole('button', { name: '批量管理' }).click()

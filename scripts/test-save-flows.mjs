@@ -27,6 +27,7 @@ async function ready() {
 async function launch(title) {
   phase = `launch ${title}`
   await page.getByRole('button', { name: `开始 ${title}`, exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(() => {
     const control = document.querySelector('[aria-label="暂停 (Space)"]')
     return control && !control.disabled
