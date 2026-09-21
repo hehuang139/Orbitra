@@ -366,6 +366,7 @@ pnpm test:deployment
 - [x] 提供游戏库及存档批量备份 / 恢复（真实低内存设备仍待验证）。
 - [x] 探索具备跨源隔离支持的 PWA 安装与离线体验（真实移动设备仍待验证）。
 - [ ] 增加界面国际化与更多可合法分发的自制 ROM 测试。
+- [ ] 增加 Minecraft: Java Edition 官方版本库，支持发现、下载并校验官方清单仍公开的各版本；详细范围见 [Minecraft roadmap](docs/roadmaps/minecraft.md)。
 
 优先级、验收方向与待评估功能见 [完整 Roadmap](ROADMAP.md)，已发布版本的变化见 [更新日志](CHANGELOG.md)。FC / SFC 当前为单人基础支持，尚未覆盖双人输入、所有 mapper / 增强芯片和实体设备；联机和托管式第三方云服务仍不支持，自托管在线游戏库需要单独部署。金手指代码格式与效果由当前原生核心决定。
 
