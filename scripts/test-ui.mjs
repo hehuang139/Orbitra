@@ -60,6 +60,14 @@ try {
     'working browser capabilities must not be reported as errors',
   )
   await screenshot('desktop-compatibility')
+  await page.getByRole('tab', { name: '核心能力' }).click()
+  assert.equal(await page.locator('.core-capability-row').count(), 14)
+  assert.equal(await page.getByText('mGBA WebAssembly', { exact: true }).count(), 1)
+  await page.getByLabel('选择能力平台').selectOption('gamecube')
+  assert.equal(await page.locator('.core-capability-row.experimental').count(), 1)
+  assert.ok(await page.locator('.core-capability-row.planned').count())
+  assert.ok(await page.locator('.core-capability-row.unavailable').count())
+  await screenshot('desktop-core-capabilities')
   await page.getByRole('button', { name: '关闭环境检查', exact: true }).click()
 
   await page.getByRole('button', { name: '收藏 Star Orbit · 星际漫游', exact: true }).click()
@@ -170,6 +178,7 @@ try {
     'mobile must not overflow',
   )
   await page.getByRole('button', { name: '环境检查', exact: true }).click()
+  await page.getByRole('tab', { name: '核心能力' }).click()
   await screenshot('mobile-compatibility')
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
