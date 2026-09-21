@@ -2,6 +2,8 @@ import type { GamePlatform } from './platforms.ts'
 
 export type { GamePlatform } from './platforms.ts'
 
+export type GameLaunchMode = 'auto' | 'fresh' | 'state'
+
 export interface Cheat {
   id: string
   name: string
@@ -26,6 +28,10 @@ export interface Game {
   skipAutoState?: boolean
   /** An explicitly restored automatic slot takes precedence until the next automatic save. */
   resumeAutoSaveSlot?: number
+  /** Preferred startup behavior, selected explicitly before launching this game. */
+  launchMode?: GameLaunchMode
+  /** Save-state slot used when launchMode is `state`. */
+  launchStateSlot?: number
 }
 
 export interface SaveState {

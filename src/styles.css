@@ -2703,6 +2703,71 @@ main {
 .text-button:hover {
   color: var(--mint);
 }
+.launch-options {
+  display: grid;
+  gap: 8px;
+}
+.launch-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #3b4d35;
+  border-radius: 6px;
+  background: #202c1f;
+  color: #c7d7b8;
+  cursor: pointer;
+}
+.launch-option:hover {
+  border-color: #617a52;
+}
+.launch-option.selected {
+  border-color: #9abb7e;
+  background: #293a25;
+  box-shadow: inset 3px 0 #a9c989;
+}
+.launch-option.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.launch-option input[type='radio'] {
+  accent-color: #a9c989;
+  flex: 0 0 auto;
+}
+.launch-option > span,
+.launch-state-option label > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.launch-option strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.launch-option small {
+  color: #8fa281;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.launch-state-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(145px, auto);
+}
+.launch-state-option > label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: inherit;
+}
+.launch-state-option select {
+  width: 100%;
+  max-width: 205px;
+  background: #192419;
+  border-color: #4b653f;
+  color: #c7dbb0;
+  font-size: 9px;
+}
 .controller-status {
   display: flex;
   align-items: center;
@@ -3873,6 +3938,12 @@ kbd {
   }
   .modal-actions .button {
     font-size: 10px;
+  }
+  .launch-state-option {
+    grid-template-columns: 1fr;
+  }
+  .launch-state-option select {
+    max-width: none;
   }
   .slot-grid {
     grid-template-columns: repeat(2, 1fr);

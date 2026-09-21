@@ -135,6 +135,12 @@ function normalizeGame(value: unknown, allowLegacy = false): Game {
     !finite(raw.playTime) ||
     typeof raw.favorite !== 'boolean' ||
     (raw.skipAutoState !== undefined && typeof raw.skipAutoState !== 'boolean') ||
+    (raw.launchMode !== undefined &&
+      !['auto', 'fresh', 'state'].includes(String(raw.launchMode))) ||
+    (raw.launchStateSlot !== undefined &&
+      (!Number.isInteger(raw.launchStateSlot) ||
+        Number(raw.launchStateSlot) < 0 ||
+        Number(raw.launchStateSlot) > 7)) ||
     (raw.color !== undefined && (!text(raw.color, 64) || !/^#[0-9a-f]{3,8}$/i.test(raw.color)))
   )
     throw new Error(FORMAT_ERROR)
@@ -286,6 +292,8 @@ function gameMetadata(game: Game): Game {
     playTime: game.playTime,
     favorite: game.favorite,
     ...(game.skipAutoState === undefined ? {} : { skipAutoState: game.skipAutoState }),
+    ...(game.launchMode === undefined ? {} : { launchMode: game.launchMode }),
+    ...(game.launchStateSlot === undefined ? {} : { launchStateSlot: game.launchStateSlot }),
     ...(game.color === undefined ? {} : { color: game.color }),
     ...(game.cheats === undefined ? {} : { cheats: game.cheats }),
   }

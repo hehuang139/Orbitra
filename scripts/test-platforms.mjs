@@ -125,6 +125,7 @@ try {
 
   assert.equal(await page.locator('.game-card').count(), 1)
   await page.getByRole('button', { name: '开始 Classic', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await waitForPlayer()
   await assertScreen('GB', 'Game Boy')
   await page.getByRole('button', { name: '控制器设置', exact: true }).click()
@@ -150,6 +151,7 @@ try {
   await page.locator('.platform-filter button[data-platform="gbc"]').click()
   assert.equal(await page.locator('.game-card').count(), 1)
   await page.getByRole('button', { name: '开始 Color', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await waitForPlayer()
   await assertScreen('GBC', 'Game Boy Color')
   await page.screenshot({
@@ -189,6 +191,7 @@ try {
 
   await page.locator('.platform-filter button[data-platform="nes"]').click()
   await page.getByRole('button', { name: '开始 Console', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await waitForPlayer()
   assert.equal(await page.locator('.player-heading .pill').innerText(), 'FAMICOM / NES')
   await page.waitForFunction(() => {
@@ -207,6 +210,7 @@ try {
   await page.getByRole('button', { name: '123456', exact: true }).waitFor()
   assert.equal(await page.getByText('ADVANCE SNES TEST', { exact: true }).count(), 0)
   await page.getByRole('button', { name: '开始 123456', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await waitForPlayer()
   assert.equal(await page.locator('.player-heading .pill').innerText(), 'SUPER FAMICOM / SNES')
   assert.equal(await page.locator('.advance-touch-action .advance-touch-key').count(), 4)

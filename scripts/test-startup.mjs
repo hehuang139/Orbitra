@@ -70,6 +70,10 @@ async function preparedPage(context) {
   })
   return page
 }
+async function startDemo(page) {
+  await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
+}
 try {
   for (const failure of ['insecure', 'headers', 'graphics']) {
     const context = await browser.newContext()
@@ -99,7 +103,7 @@ try {
         }, failure)
       }
       await page.reload()
-      await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+      await startDemo(page)
       const error = page.locator('.player-overlay[role="alert"]')
       await error.waitFor()
       assert.match(
@@ -133,7 +137,7 @@ try {
     const graphics = page.locator('.compatibility-check.warning').filter({ hasText: '图形渲染' })
     await graphics.waitFor()
     assert.match(await graphics.innerText(), /Canvas 2D 软件渲染/)
-    await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+    await startDemo(page)
     await page.waitForFunction(() => {
       const pause = document.querySelector('[aria-label="暂停 (Space)"]')
       return pause && !pause.disabled
@@ -159,7 +163,7 @@ try {
     const page = await context.newPage()
     page.on('pageerror', (error) => errors.push(error.message))
     await page.goto(url)
-    await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+    await startDemo(page)
     await page.waitForFunction(() => {
       const pause = document.querySelector('[aria-label="暂停 (Space)"]')
       return pause && !pause.disabled

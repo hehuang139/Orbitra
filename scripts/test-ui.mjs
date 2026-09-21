@@ -83,6 +83,19 @@ try {
   await page.getByRole('button', { name: '清空搜索' }).click()
 
   await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await page.getByRole('dialog').waitFor()
+  assert.equal(
+    await page.getByRole('radio', { name: /正常启动/ }).isChecked(),
+    true,
+    'a game without states defaults to a fresh launch',
+  )
+  assert.equal(
+    await page.getByRole('radio', { name: /继续自动存档/ }).isDisabled(),
+    true,
+    'automatic resume stays unavailable until an automatic state exists',
+  )
+  await screenshot('desktop-launch-strategy')
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.getByRole('button', { name: '暂停 (Space)', exact: true }).waitFor()
   await page.waitForFunction(() => !document.querySelector('[aria-label="暂停 (Space)"]').disabled)
   await page.keyboard.down('ArrowRight')
@@ -122,6 +135,35 @@ try {
   assert.equal(await continueShelf.getByText('正常启动', { exact: true }).count(), 0)
   await screenshot('desktop-continue-game')
 
+  await continueShelf.getByRole('button', { name: '继续游戏', exact: true }).click()
+  assert.equal(await page.getByRole('radio', { name: /正常启动/ }).isChecked(), true)
+  await page.getByRole('radio', { name: /继续自动存档/ }).check()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
+  await page.getByRole('button', { name: '暂停 (Space)', exact: true }).waitFor()
+  await page.getByText('已从存档继续游戏', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
+  await page.getByRole('button', { name: '继续游戏', exact: true }).waitFor()
+  await page.getByRole('button', { name: '继续游戏', exact: true }).click()
+  assert.equal(
+    await page.getByRole('radio', { name: /继续自动存档/ }).isChecked(),
+    true,
+    'automatic resume is remembered for this game',
+  )
+  await page.getByLabel('选择即时存档', { exact: true }).selectOption('1')
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
+  await page.getByRole('button', { name: '暂停 (Space)', exact: true }).waitFor()
+  await page.getByText('已从存档继续游戏', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
+  await page.getByRole('button', { name: '继续游戏', exact: true }).waitFor()
+  await page.getByRole('button', { name: '继续游戏', exact: true }).click()
+  assert.equal(
+    await page.getByRole('radio', { name: /选择即时存档/ }).isChecked(),
+    true,
+    'the selected state strategy is remembered for this game',
+  )
+  assert.equal(await page.getByLabel('选择即时存档', { exact: true }).inputValue(), '1')
+  await page.getByRole('button', { name: '关闭对话框' }).click()
+
   const rom = Buffer.from(await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)))
   rom[0xac] = 0x54
   rom[0xad] = 0x53
@@ -146,8 +188,8 @@ try {
   await page.locator('.state-card').nth(1).waitFor()
   assert.equal(
     await page.locator('.state-card').count(),
-    2,
-    'auto and manual states persist across reload',
+    4,
+    'three rotating auto states and the manual state persist across reload',
   )
 
   folderFixtureRoot = await mkdtemp(join(tmpdir(), 'advance-folder-import-'))
@@ -193,6 +235,13 @@ try {
   )
   await page.getByRole('button', { name: '关闭环境检查', exact: true }).click()
   await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await screenshot('mobile-launch-strategy')
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+    'mobile launch strategy must not overflow',
+  )
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(
     () =>
       !!document.querySelector('[aria-label="暂停 (Space)"]') &&
@@ -257,6 +306,7 @@ try {
           'favorites',
           'search',
           'real ROM launch',
+          'per-game launch strategy persistence',
           'keyboard',
           'quick save/load',
           'state download',

@@ -42,6 +42,7 @@ const openControls = async () => {
 const closeControls = () => page.getByRole('button', { name: '完成设置', exact: true }).click()
 const start = async () => {
   await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(() => {
     const pause = document.querySelector('[aria-label="暂停 (Space)"]')
     return pause && !pause.disabled

@@ -42,6 +42,7 @@ const count = async (expected) => {
 }
 const launch = async (title) => {
   await page.getByRole('button', { name: `开始 ${title}`, exact: true }).click()
+  await page.getByRole('button', { name: '开始游戏', exact: true }).click()
   await page.waitForFunction(() => {
     const button = document.querySelector('[aria-label="暂停 (Space)"]')
     return button && !button.disabled

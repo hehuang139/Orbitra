@@ -60,6 +60,7 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'hidden' })
   assert.equal(await button('控制器设置').evaluate((el) => el === document.activeElement), true)
   await activate('开始试玩')
+  await activate('开始游戏')
   await page.waitForFunction(() => {
     const pause = document.querySelector('[aria-label="暂停 (Space)"]')
     return pause && !pause.disabled

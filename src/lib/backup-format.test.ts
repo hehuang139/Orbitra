@@ -242,6 +242,24 @@ test('preserves battery-first startup semantics across backup round trips', asyn
   assert.equal(exported.games[0].game.resumeAutoSaveSlot, undefined)
 })
 
+test('round-trips per-game launch preferences and rejects invalid values', async () => {
+  const data = await fixture()
+  data.games[0].game.launchMode = 'state'
+  data.games[0].game.launchStateSlot = 2
+  const bytes = await createBackup(data, { includeRoms: true })
+  assert.deepEqual(await parseBackup(archive(bytes)), data)
+
+  const badMode = mutateManifest(bytes, (manifest) => {
+    manifest.games[0].game.launchMode = 'surprise'
+  })
+  await assert.rejects(parseBackup(archive(badMode)), /游戏信息无效/)
+
+  const badSlot = mutateManifest(bytes, (manifest) => {
+    manifest.games[0].game.launchStateSlot = 8
+  })
+  await assert.rejects(parseBackup(archive(badSlot)), /游戏信息无效/)
+})
+
 test('snapshot bytes cannot be changed by a caller while asynchronous export hashes them', async () => {
   const data = await fixture()
   const original = new Uint8Array(data.games[0].battery!)

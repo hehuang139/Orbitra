@@ -296,6 +296,18 @@ test('updates merge metadata, preserve identity, and serialize concurrent edits'
   await assert.rejects(updateGame('missing', { favorite: true }), /游戏不存在/)
 })
 
+test('persists and validates per-game launch preferences', async () => {
+  const game = await importGame(rom())
+  const selected = await updateGame(game.id, { launchMode: 'state', launchStateSlot: 4 })
+  assert.equal(selected.launchMode, 'state')
+  assert.equal(selected.launchStateSlot, 4)
+  assert.equal((await getLibrarySnapshot([game.id])).games[0].game.launchMode, 'state')
+
+  await assert.rejects(updateGame(game.id, { launchMode: 'invalid' as 'auto' }), /游戏信息已损坏/)
+  await assert.rejects(updateGame(game.id, { launchStateSlot: 8 }), /游戏信息已损坏/)
+  assert.equal((await getGames())[0].launchStateSlot, 4)
+})
+
 test('save slots overwrite atomically and do not expose stored byte buffers', async () => {
   const game = await importGame(rom())
   const bytes = new Uint8Array([1, 2, 3])
