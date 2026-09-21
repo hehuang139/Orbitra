@@ -79,7 +79,7 @@ import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
 import { FEATURE_STATUS_LABELS, capabilityReportForPlatform } from './lib/capability-status'
 import type { FeatureStatus } from './lib/capability-status'
-import { CORE_REGISTRY } from './lib/core-version'
+import { CORE_REGISTRY, coreIdForPlatform } from './lib/core-version'
 import { createCheatId, validateCheats } from './lib/cheats'
 import {
   AUTO_SAVE_SLOTS,
@@ -97,10 +97,26 @@ import {
   fullscreenSupported,
   watchFullscreen,
 } from './lib/fullscreen'
+import {
+  beginSessionRecovery,
+  clearSessionRecovery,
+  readSessionRecovery,
+  updateSessionRecoveryState,
+} from './lib/session-recovery'
+import type { SessionRecoveryRecord } from './lib/session-recovery'
 
 type Page = 'library' | 'recent' | 'favorites' | 'states' | 'online-library'
 type Modal =
-  'launch' | 'settings' | 'controls' | 'help' | 'states' | 'cheats' | 'backup' | 'account' | null
+  | 'launch'
+  | 'recovery'
+  | 'settings'
+  | 'controls'
+  | 'help'
+  | 'states'
+  | 'cheats'
+  | 'backup'
+  | 'account'
+  | null
 type PlatformFilter = 'all' | GamePlatform
 type LaunchPolicy = 'remembered' | 'auto' | 'fresh'
 const pages: Record<Page, string> = {
@@ -233,6 +249,8 @@ export default function App() {
   const [launchStateSlot, setLaunchStateSlot] = useState<number | null>(null)
   const [launchStates, setLaunchStates] = useState<SaveState[]>([])
   const launchAutomaticState = latestAutomaticState(launchStates, settings.autoSaveSlotCount)
+  const [recoveryRecord, setRecoveryRecord] = useState<SessionRecoveryRecord | null>(null)
+  const [recoveryState, setRecoveryState] = useState<SaveState | null>(null)
   const [mapping, setMapping] = useState<EmulatorButton | null>(null)
   const [launchError, setLaunchError] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -248,6 +266,30 @@ export default function App() {
   const compatibilityRenderingWarning =
     compatibility?.checks.some((check) => check.id === 'webgl' && check.status === 'warning') ??
     false
+  const recoveryGame = recoveryRecord
+    ? (games.find((game) => game.id === recoveryRecord.gameId) ?? null)
+    : null
+  const recoveryCoreMatches = Boolean(
+    recoveryGame && recoveryRecord?.coreId === coreIdForPlatform(recoveryGame.platform),
+  )
+  const recoveryStateMatches = Boolean(
+    recoveryRecord &&
+    recoveryState &&
+    recoveryRecord.stateSlot === recoveryState.slot &&
+    recoveryRecord.stateCreatedAt === recoveryState.createdAt &&
+    (!recoveryState.coreVersion || recoveryState.coreVersion === recoveryRecord.coreId),
+  )
+  const recoveryProblem = !recoveryRecord
+    ? ''
+    : !recoveryGame
+      ? '这个游戏已不在本地游戏库中。重新导入同一个 ROM 后，可从存档管理继续。'
+      : !recoveryCoreMatches
+        ? '模拟核心版本已经变化，为避免损坏进度，本次不自动读取旧状态。'
+        : recoveryRecord.stateSlot === undefined
+          ? '上次会话在生成可恢复存档前中断，可以正常启动游戏。'
+          : !recoveryStateMatches
+            ? '关联的即时存档已缺失、损坏或被更新，可以正常启动并从其他存档继续。'
+            : ''
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stageRef = useRef<HTMLElement>(null)
   const engineRef = useRef<Emulator | null>(null)
@@ -310,7 +352,7 @@ export default function App() {
     return promise
   }, [])
   const run = useCallback(
-    async (action: () => Promise<void>) => {
+    async (action: () => Promise<unknown>) => {
       if (operationRef.current) return
       operationRef.current = true
       setBusy(true)
@@ -352,7 +394,28 @@ export default function App() {
           await db.importGame(new File([await response.arrayBuffer()], 'star-orbit.gba'))
           list = await db.getGames()
         }
-        if (!cancelled) setGames(list)
+        if (!cancelled) {
+          setGames(list)
+          const recovery = readSessionRecovery()
+          if (recovery) {
+            let savedState: SaveState | null = null
+            if (
+              recovery.stateSlot !== undefined &&
+              list.some((game) => game.id === recovery.gameId)
+            ) {
+              try {
+                savedState = (await db.getState(recovery.gameId, recovery.stateSlot)) ?? null
+              } catch {
+                /* The recovery dialog reports an unavailable or damaged state. */
+              }
+            }
+            if (!cancelled) {
+              setRecoveryRecord(recovery)
+              setRecoveryState(savedState)
+              setModal('recovery')
+            }
+          }
+        }
       } catch (error) {
         if (!cancelled) notify(error instanceof Error ? error.message : '无法读取游戏库', true)
       } finally {
@@ -474,9 +537,10 @@ export default function App() {
       } catch {
         /* Save data remains useful without a thumbnail. */
       }
-      await db.saveState(game.id, slot, data, screenshot)
+      const savedState = await db.saveState(game.id, slot, data, screenshot)
       setStates(await db.getStates(game.id))
       if (!silent) notify(isAutomaticSlot(slot) ? '自动存档已更新' : `已保存到存档位 ${slot}`)
+      return savedState
     },
     [notify],
   )
@@ -486,7 +550,14 @@ export default function App() {
     if (!game) return
     const saved = await db.getStates(game.id)
     const slot = nextAutomaticSlot(saved, settingsRef.current.autoSaveSlotCount)
-    await snapshot(slot, true)
+    const savedState = await snapshot(slot, true)
+    if (savedState) {
+      try {
+        updateSessionRecoveryState(game.id, savedState)
+      } catch {
+        /* A completed save remains valid even if the lightweight journal is unavailable. */
+      }
+    }
   }, [snapshot])
 
   useEffect(() => {
@@ -623,13 +694,15 @@ export default function App() {
   const loadGameSession = useCallback(
     async (
       game: Game,
-      requestedState?: Pick<SaveState, 'data'>,
+      requestedState?: Pick<SaveState, 'data'> & Partial<Pick<SaveState, 'slot' | 'createdAt'>>,
       quietResume = false,
       launchPolicy: LaunchPolicy = 'remembered',
     ) => {
       const engine = engineRef.current
       if (!engine) throw new Error('模拟器尚未就绪')
-      if (!activeRef.current) {
+      const previousGame = activeRef.current
+      const startingNewSession = !previousGame || previousGame.id !== game.id
+      if (!previousGame) {
         launchTrigger.current = document.activeElement as HTMLElement
         launchTriggerName.current =
           launchTrigger.current.getAttribute('aria-label') ??
@@ -684,6 +757,32 @@ export default function App() {
       }
       await db.updateGame(game.id, { lastPlayed: Date.now() })
       setStates(await db.getStates(game.id))
+      if (startingNewSession) {
+        if (previousGame) {
+          try {
+            clearSessionRecovery(previousGame.id)
+          } catch {
+            /* The new session record below replaces a stale previous record when possible. */
+          }
+        }
+        const resumeReference =
+          resume && typeof resume.slot === 'number' && typeof resume.createdAt === 'number'
+            ? { slot: resume.slot, createdAt: resume.createdAt }
+            : undefined
+        try {
+          setRecoveryRecord(
+            beginSessionRecovery(
+              currentGame.id,
+              coreIdForPlatform(currentGame.platform),
+              resumeReference,
+            ),
+          )
+          setRecoveryState(null)
+        } catch {
+          setRecoveryRecord(null)
+          setRecoveryState(null)
+        }
+      }
       await refresh()
       canvasRef.current?.focus({ preventScroll: true })
       stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -732,6 +831,30 @@ export default function App() {
       )
     })
 
+  const ignoreRecovery = () => {
+    try {
+      clearSessionRecovery(recoveryRecord?.gameId)
+    } catch {
+      /* Dismissing the prompt remains available when storage permissions change. */
+    }
+    setRecoveryRecord(null)
+    setRecoveryState(null)
+    setModal(null)
+  }
+
+  const recoverUnfinishedSession = () =>
+    run(async () => {
+      if (!recoveryGame || !recoveryState || !recoveryCoreMatches || !recoveryStateMatches)
+        throw new Error('恢复所需的游戏或即时存档不可用')
+      await loadGameSession(recoveryGame, recoveryState, false, 'fresh')
+    })
+
+  const startRecoveryFresh = () =>
+    run(async () => {
+      if (!recoveryGame) throw new Error('游戏不在本地游戏库中，请先重新导入 ROM')
+      await loadGameSession(recoveryGame, undefined, false, 'fresh')
+    })
+
   const openCheats = () => {
     const game = activeRef.current
     if (!game || !PLATFORM_REGISTRY[game.platform].capabilities.cheats) return
@@ -759,6 +882,7 @@ export default function App() {
     run(async () => {
       const engine = engineRef.current,
         game = activeRef.current
+      const sessionGameId = game?.id ?? active?.id
       if (game && engine && ['running', 'paused'].includes(engine.status)) {
         engine.pause()
         if (settings.autoSave) await automaticSnapshot()
@@ -766,6 +890,15 @@ export default function App() {
         if (battery) await db.setBatterySave(game.id, battery)
         engine.pause()
         engine.releaseAllKeys()
+      }
+      if (sessionGameId) {
+        try {
+          clearSessionRecovery(sessionGameId)
+          setRecoveryRecord(null)
+          setRecoveryState(null)
+        } catch {
+          /* Closing the emulator must still succeed when localStorage is unavailable. */
+        }
       }
       activeRef.current = null
       returnFocusPending.current = true
@@ -976,6 +1109,16 @@ export default function App() {
     }
   }
   const discardSession = () => {
+    const gameId = activeRef.current?.id
+    if (gameId) {
+      try {
+        clearSessionRecovery(gameId)
+      } catch {
+        /* Session disposal remains available when localStorage is unavailable. */
+      }
+    }
+    setRecoveryRecord(null)
+    setRecoveryState(null)
     activeRef.current = null
     engineRef.current?.dispose()
     engineRef.current = makeEngine()
@@ -2464,7 +2607,8 @@ export default function App() {
           className="modal-backdrop"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !operationRef.current) {
-              setModal(null)
+              if (modal === 'recovery') ignoreRecovery()
+              else setModal(null)
               setMapping(null)
               setDeleteTarget(null)
               setBatchDeleteTargets(null)
@@ -2487,28 +2631,31 @@ export default function App() {
                     ? `删除选中的 ${batchDeleteTargets.length} 个游戏？`
                     : deleteTarget
                       ? '删除这个游戏？'
-                      : modal === 'launch'
-                        ? '选择这次的起点'
-                        : modal === 'controls'
-                          ? '找到你的顺手操作'
-                          : modal === 'settings'
-                            ? '你的模拟器，你来定义'
-                            : modal === 'backup'
-                              ? '备份与恢复'
-                              : modal === 'account'
-                                ? '账号与游戏同步'
-                                : modal === 'states'
-                                  ? '给冒险留个书签'
-                                  : modal === 'cheats'
-                                    ? '管理金手指'
-                                    : '准备好，开始冒险'}
+                      : modal === 'recovery'
+                        ? '恢复未结束的游戏'
+                        : modal === 'launch'
+                          ? '选择这次的起点'
+                          : modal === 'controls'
+                            ? '找到你的顺手操作'
+                            : modal === 'settings'
+                              ? '你的模拟器，你来定义'
+                              : modal === 'backup'
+                                ? '备份与恢复'
+                                : modal === 'account'
+                                  ? '账号与游戏同步'
+                                  : modal === 'states'
+                                    ? '给冒险留个书签'
+                                    : modal === 'cheats'
+                                      ? '管理金手指'
+                                      : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
                 label="关闭对话框"
                 disabled={busy}
                 onClick={() => {
-                  setModal(null)
+                  if (modal === 'recovery') ignoreRecovery()
+                  else setModal(null)
                   setMapping(null)
                   setDeleteTarget(null)
                   setBatchDeleteTargets(null)
@@ -2562,6 +2709,83 @@ export default function App() {
                   >
                     <Trash2 size={16} />
                     确认删除
+                  </button>
+                </div>
+              </>
+            ) : modal === 'recovery' && recoveryRecord ? (
+              <>
+                <p className="modal-description">
+                  上次游戏没有正常返回游戏库。你可以恢复当时引用的存档，或从 ROM 正常启动。
+                </p>
+                <div className="recovery-summary">
+                  <div>
+                    <Gamepad2 size={17} />
+                    <span>
+                      <small>游戏</small>
+                      <strong>
+                        {recoveryGame ? displayTitle(recoveryGame) : '游戏已从库中移除'}
+                      </strong>
+                    </span>
+                  </div>
+                  <div>
+                    <Clock3 size={17} />
+                    <span>
+                      <small>最后活动</small>
+                      <strong>{formatDate(recoveryRecord.updatedAt)}</strong>
+                    </span>
+                  </div>
+                  <div>
+                    <Save size={17} />
+                    <span>
+                      <small>恢复点</small>
+                      <strong>
+                        {recoveryStateMatches && recoveryState
+                          ? `${automaticSlotLabel(recoveryState.slot)} · ${formatDate(recoveryState.createdAt)}`
+                          : '没有可用恢复点'}
+                      </strong>
+                    </span>
+                  </div>
+                  <div>
+                    <Braces size={17} />
+                    <span>
+                      <small>模拟核心</small>
+                      <strong>
+                        {recoveryGame
+                          ? CORE_REGISTRY[
+                              PLATFORM_REGISTRY[recoveryGame.platform].core
+                            ].name.replace(' WebAssembly', '')
+                          : '无法确认'}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+                {recoveryProblem && (
+                  <div className="recovery-warning" role="status">
+                    <ShieldAlert size={17} />
+                    <span>{recoveryProblem}</span>
+                  </div>
+                )}
+                <p className="recovery-note">
+                  恢复操作只读取原存档；失败时会保留它并正常启动游戏。
+                </p>
+                <div className="modal-actions recovery-actions">
+                  <button className="text-button" disabled={busy} onClick={ignoreRecovery}>
+                    忽略
+                  </button>
+                  <button
+                    className="button secondary"
+                    disabled={busy || !recoveryGame}
+                    onClick={() => void startRecoveryFresh()}
+                  >
+                    正常启动
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={busy || Boolean(recoveryProblem)}
+                    onClick={() => void recoverUnfinishedSession()}
+                  >
+                    <RotateCcw size={16} />
+                    恢复进度
                   </button>
                 </div>
               </>

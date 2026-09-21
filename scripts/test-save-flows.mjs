@@ -87,12 +87,17 @@ try {
   await importBattery(7)
   await assertBattery(7, 'imported .sav reaches the running core')
 
-  // Reload while still in the player: no close-game snapshot may hide a stale slot 0.
+  // Reload while still in the player: recover the unfinished session without hiding imported SRAM.
   await page.reload()
   await ready()
-  await launch(demo)
+  await page.getByRole('heading', { name: '恢复未结束的游戏', exact: true }).waitFor()
+  await page.getByRole('button', { name: '恢复进度', exact: true }).click()
+  await page.waitForFunction(() => {
+    const control = document.querySelector('[aria-label="暂停 (Space)"]')
+    return control && !control.disabled
+  })
   await openSaves()
-  await assertBattery(7, 'immediate reload preserves imported progress over the older automatic state')
+  await assertBattery(7, 'unfinished-session recovery preserves imported progress')
   await closeSaves()
   await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
   await ready()
