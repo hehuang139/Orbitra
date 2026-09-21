@@ -4,6 +4,7 @@ import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
+  Braces,
   Check,
   ChevronDown,
   ChevronRight,
@@ -24,6 +25,7 @@ import {
   ListChecks,
   LoaderCircle,
   Menu,
+  Minimize2,
   MoreHorizontal,
   Pause,
   Play,
@@ -55,7 +57,7 @@ import {
   ROM_FILE_EXTENSIONS,
   platformSupportsButton,
 } from './lib/platforms'
-import type { Game, GamePlatform, SaveState } from './lib/types'
+import type { Cheat, Game, GamePlatform, SaveState } from './lib/types'
 import { defaultBindings, isBindingCode, keyLabel, readSettings } from './lib/preferences'
 import { createInputController } from './lib/input'
 import { useGamepads } from './hooks/useGamepads'
@@ -73,10 +75,26 @@ import type { BackupData } from './lib/backup-format'
 import type { Settings } from './lib/preferences'
 import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
+import { createCheatId, validateCheats } from './lib/cheats'
+import {
+  enterFullscreen,
+  exitFullscreen,
+  fullscreenElement,
+  fullscreenSupported,
+  watchFullscreen,
+} from './lib/fullscreen'
 
 type Page = 'library' | 'recent' | 'favorites' | 'states'
 type Modal =
-  'settings' | 'controls' | 'help' | 'states' | 'backup' | 'account' | 'online-library' | null
+  | 'settings'
+  | 'controls'
+  | 'help'
+  | 'states'
+  | 'cheats'
+  | 'backup'
+  | 'account'
+  | 'online-library'
+  | null
 type PlatformFilter = 'all' | GamePlatform
 const pages: Record<Page, string> = {
   library: '游戏库',
@@ -208,6 +226,9 @@ export default function App() {
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedGameIds, setSelectedGameIds] = useState<Set<string>>(() => new Set())
   const [batchDeleteTargets, setBatchDeleteTargets] = useState<Game[] | null>(null)
+  const [cheatDrafts, setCheatDrafts] = useState<Cheat[]>([])
+  const [fullscreenActive, setFullscreenActive] = useState(false)
+  const [fullscreenAvailable, setFullscreenAvailable] = useState(false)
   const compatibilityRenderingWarning =
     compatibility?.checks.some((check) => check.id === 'webgl' && check.status === 'warning') ??
     false
@@ -401,6 +422,24 @@ export default function App() {
     engineRef.current?.setSpeed(settings.speed)
   }, [settings, notify])
 
+  useEffect(() => {
+    const update = () => {
+      const stage = stageRef.current
+      const active = Boolean(stage && fullscreenElement() === stage)
+      setFullscreenActive(active)
+      setFullscreenAvailable(Boolean(stage && fullscreenSupported(stage)))
+      if (!active) {
+        try {
+          screen.orientation?.unlock()
+        } catch {
+          /* Browsers may expose orientation without allowing unlock. */
+        }
+      }
+    }
+    update()
+    return watchFullscreen(update)
+  }, [])
+
   const snapshot = useCallback(
     async (slot: number, silent = false) => {
       const game = activeRef.current,
@@ -457,9 +496,9 @@ export default function App() {
     if (!active || !settings.autoSave || status !== 'running') return
     const timer = setInterval(() => {
       if (!operationRef.current) void run(() => snapshot(0, true))
-    }, 30000)
+    }, settings.autoSaveInterval * 60_000)
     return () => clearInterval(timer)
-  }, [active, status, settings.autoSave, run, snapshot])
+  }, [active, status, settings.autoSave, settings.autoSaveInterval, run, snapshot])
 
   useEffect(() => {
     const release = () => {
@@ -558,61 +597,88 @@ export default function App() {
     }
   }, [modal, deleteTarget, batchDeleteTargets, releaseInputs])
 
-  const playGame = useCallback(
-    (game: Game, requestedState?: SaveState) =>
-      run(async () => {
-        const engine = engineRef.current
-        if (!engine) throw new Error('模拟器尚未就绪')
-        if (!activeRef.current) {
-          launchTrigger.current = document.activeElement as HTMLElement
-          launchTriggerName.current =
-            launchTrigger.current.getAttribute('aria-label') ??
-            launchTrigger.current.textContent?.trim() ??
-            ''
+  const loadGameSession = useCallback(
+    async (game: Game, requestedState?: Pick<SaveState, 'data'>, quietResume = false) => {
+      const engine = engineRef.current
+      if (!engine) throw new Error('模拟器尚未就绪')
+      if (!activeRef.current) {
+        launchTrigger.current = document.activeElement as HTMLElement
+        launchTriggerName.current =
+          launchTrigger.current.getAttribute('aria-label') ??
+          launchTrigger.current.textContent?.trim() ??
+          ''
+      }
+      releaseInputs()
+      if (activeRef.current && ['running', 'paused'].includes(engine.status)) {
+        engine.pause()
+        if (settingsRef.current.autoSave) await snapshot(0, true)
+        const battery = await engine.exportSave()
+        if (battery) await db.setBatterySave(activeRef.current.id, battery)
+      }
+      const bytes = await account.ensureRom(game.id)
+      if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
+      const battery = await db.getBatterySave(game.id)
+      const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
+      const resume =
+        requestedState ||
+        (settingsRef.current.autoSave && !currentGame.skipAutoState
+          ? await db.getState(game.id, 0)
+          : undefined)
+      // loadRom flushes the previous cartridge. Keep its identity until that flush ends.
+      setActive(currentGame)
+      setPage('library')
+      setModal(null)
+      setProgress(`正在启动 ${PLATFORM_REGISTRY[currentGame.platform].label} 模拟核心…`)
+      setLaunchError('')
+      await engine.loadRom(bytes, currentGame.filename, currentGame.platform, currentGame.cheats)
+      activeRef.current = currentGame
+      if (battery) await engine.importSave(battery)
+      engine.setVolume(settingsRef.current.volume)
+      engine.setSpeed(settingsRef.current.speed)
+      if (resume) {
+        try {
+          await engine.loadState(resume.data)
+          if (!quietResume) notify('已从存档继续游戏')
+        } catch {
+          notify('此即时存档无法恢复，已重新启动游戏', true)
         }
-        releaseInputs()
-        if (activeRef.current && ['running', 'paused'].includes(engine.status)) {
-          engine.pause()
-          if (settingsRef.current.autoSave) await snapshot(0, true)
-          const battery = await engine.exportSave()
-          if (battery) await db.setBatterySave(activeRef.current.id, battery)
-        }
-        const bytes = await account.ensureRom(game.id)
-        if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
-        const battery = await db.getBatterySave(game.id)
-        const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
-        const resume =
-          requestedState ||
-          (settingsRef.current.autoSave && !currentGame.skipAutoState
-            ? await db.getState(game.id, 0)
-            : undefined)
-        // loadRom flushes the previous cartridge. Keep its identity until that flush ends.
-        setActive(currentGame)
-        setPage('library')
-        setModal(null)
-        setProgress(`正在启动 ${PLATFORM_REGISTRY[currentGame.platform].label} 模拟核心…`)
-        setLaunchError('')
-        await engine.loadRom(bytes, currentGame.filename, currentGame.platform)
-        activeRef.current = currentGame
-        if (battery) await engine.importSave(battery)
-        engine.setVolume(settingsRef.current.volume)
-        engine.setSpeed(settingsRef.current.speed)
-        if (resume) {
-          try {
-            await engine.loadState(resume.data)
-            notify('已从存档继续游戏')
-          } catch {
-            notify('此即时存档无法恢复，已重新启动游戏', true)
-          }
-        }
-        await db.updateGame(game.id, { lastPlayed: Date.now() })
-        setStates(await db.getStates(game.id))
-        await refresh()
-        canvasRef.current?.focus({ preventScroll: true })
-        stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }),
-    [run, snapshot, notify, refresh, releaseInputs, account],
+      }
+      await db.updateGame(game.id, { lastPlayed: Date.now() })
+      setStates(await db.getStates(game.id))
+      await refresh()
+      canvasRef.current?.focus({ preventScroll: true })
+      stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+    [snapshot, notify, refresh, releaseInputs, account],
   )
+
+  const playGame = useCallback(
+    (game: Game, requestedState?: SaveState) => run(() => loadGameSession(game, requestedState)),
+    [run, loadGameSession],
+  )
+
+  const openCheats = () => {
+    const game = activeRef.current
+    if (!game || !PLATFORM_REGISTRY[game.platform].capabilities.cheats) return
+    setCheatDrafts((game.cheats ?? []).map((cheat) => ({ ...cheat })))
+    setModal('cheats')
+  }
+
+  const applyCheats = () =>
+    run(async () => {
+      const game = activeRef.current
+      const engine = engineRef.current
+      if (!game || !engine) return
+      const cheats = validateCheats(cheatDrafts)
+      const liveState = await engine.saveState()
+      const updated = await db.updateGame(game.id, { cheats })
+      await loadGameSession(updated, { data: liveState }, true)
+      notify(
+        cheats.some((cheat) => cheat.enabled)
+          ? '金手指已应用并重新载入游戏'
+          : '金手指已保存，游戏已恢复',
+      )
+    })
 
   const closeGame = () =>
     run(async () => {
@@ -661,11 +727,16 @@ export default function App() {
       notify('截图已下载')
     })
   const fullscreen = async () => {
+    const stage = stageRef.current
+    if (!stage || !fullscreenSupported(stage)) {
+      notify('当前浏览器不支持网页全屏，请使用浏览器菜单进入全屏', true)
+      return
+    }
     try {
-      if (document.fullscreenElement) await document.exitFullscreen()
-      else await stageRef.current?.requestFullscreen()
+      if (fullscreenElement()) await exitFullscreen()
+      else await enterFullscreen(stage)
     } catch {
-      notify('当前浏览器不支持全屏模式', true)
+      notify('浏览器阻止了全屏，请再次点击全屏按钮或检查网站权限', true)
     }
   }
 
@@ -1401,7 +1472,7 @@ export default function App() {
 
           <section
             ref={stageRef}
-            className={`player-panel platform-${activePlatform.id} ${active ? 'visible' : ''}`}
+            className={`player-panel platform-${activePlatform.id} ${active ? 'visible' : ''} ${fullscreenActive ? 'fullscreen-active' : ''}`}
             aria-label={`${activePlatform.label} 游戏画面`}
           >
             <div className="player-heading">
@@ -1504,6 +1575,13 @@ export default function App() {
                 >
                   <ScanLine size={18} />
                 </IconButton>
+                <IconButton
+                  label="管理金手指"
+                  disabled={!canControl || !activePlatform.capabilities.cheats}
+                  onClick={openCheats}
+                >
+                  <Braces size={18} />
+                </IconButton>
               </div>
               <div className="toolbar-group">
                 <button
@@ -1527,8 +1605,12 @@ export default function App() {
                 >
                   {settings.volume ? <Volume2 size={18} /> : <VolumeX size={18} />}
                 </IconButton>
-                <IconButton label="全屏 (F11)" onClick={() => void fullscreen()}>
-                  <Expand size={18} />
+                <IconButton
+                  label={`${fullscreenActive ? '退出全屏' : '进入全屏'} (F11)`}
+                  disabled={!fullscreenAvailable}
+                  onClick={() => void fullscreen()}
+                >
+                  {fullscreenActive ? <Minimize2 size={18} /> : <Expand size={18} />}
                 </IconButton>
               </div>
             </div>
@@ -1999,7 +2081,19 @@ export default function App() {
                       label="自动存档"
                     />
                   </div>
-                  <p className="setting-help">每 30 秒保存一次，下次接着玩。</p>
+                  <div className="segmented autosave-interval" aria-label="自动存档间隔">
+                    {([1, 5, 10] as const).map((minutes) => (
+                      <button
+                        key={minutes}
+                        className={settings.autoSaveInterval === minutes ? 'active' : ''}
+                        disabled={!settings.autoSave}
+                        onClick={() => setSetting('autoSaveInterval', minutes)}
+                      >
+                        {minutes} 分钟
+                      </button>
+                    ))}
+                  </div>
+                  <p className="setting-help">按所选间隔覆盖同一个自动存档，不会持续增加占用。</p>
                 </div>
                 <div className="quick-save">
                   <div>
@@ -2145,7 +2239,7 @@ export default function App() {
           }}
         >
           <div
-            className={`modal ${modal === 'states' || modal === 'backup' || modal === 'online-library' ? 'wide-modal' : ''}`}
+            className={`modal ${modal === 'states' || modal === 'cheats' || modal === 'backup' || modal === 'online-library' ? 'wide-modal' : ''}`}
             ref={modalRef}
             tabIndex={-1}
             role={deleteTarget || batchDeleteTargets ? 'alertdialog' : 'dialog'}
@@ -2172,7 +2266,9 @@ export default function App() {
                                 ? '在线游戏库'
                                 : modal === 'states'
                                   ? '给冒险留个书签'
-                                  : '准备好，开始冒险'}
+                                  : modal === 'cheats'
+                                    ? '管理金手指'
+                                    : '准备好，开始冒险'}
                 </h2>
               </div>
               <IconButton
@@ -2383,13 +2479,31 @@ export default function App() {
                 <div className="modal-setting">
                   <div>
                     <strong>自动存档与恢复</strong>
-                    <p>每 30 秒、返回游戏库和切到后台时保存</p>
+                    <p>定时覆盖同一个自动槽，返回游戏库和切到后台时也会保存</p>
                   </div>
                   <Toggle
                     label="自动存档与恢复"
                     checked={settings.autoSave}
                     onChange={(value) => setSetting('autoSave', value)}
                   />
+                </div>
+                <div className="modal-setting">
+                  <div>
+                    <strong>自动存档间隔</strong>
+                    <p>固定保留一份最新自动存档</p>
+                  </div>
+                  <select
+                    aria-label="自动存档间隔"
+                    value={settings.autoSaveInterval}
+                    disabled={!settings.autoSave}
+                    onChange={(event) =>
+                      setSetting('autoSaveInterval', Number(event.target.value) as 1 | 5 | 10)
+                    }
+                  >
+                    <option value="1">每 1 分钟</option>
+                    <option value="5">每 5 分钟</option>
+                    <option value="10">每 10 分钟</option>
+                  </select>
                 </div>
                 <div className="modal-setting">
                   <div>
@@ -2408,6 +2522,120 @@ export default function App() {
                     已使用 {formatSize(games.reduce((size, g) => size + g.size, 0))}{' '}
                     游戏存储。清理浏览器数据会移除游戏和存档，建议定期导出备份。
                   </span>
+                </div>
+              </>
+            ) : modal === 'cheats' ? (
+              <>
+                <p className="modal-description">
+                  {activePlatform.label}{' '}
+                  金手指由模拟核心执行。每行输入一段代码；保存后会在当前进度重新载入游戏。
+                </p>
+                <div className="cheat-list">
+                  {cheatDrafts.length ? (
+                    cheatDrafts.map((cheat, index) => (
+                      <div className="cheat-row" key={cheat.id}>
+                        <Toggle
+                          checked={cheat.enabled}
+                          label={`${cheat.name || `金手指 ${index + 1}`}启用状态`}
+                          onChange={(enabled) =>
+                            setCheatDrafts((current) =>
+                              current.map((item) =>
+                                item.id === cheat.id ? { ...item, enabled } : item,
+                              ),
+                            )
+                          }
+                        />
+                        <label>
+                          <span>名称</span>
+                          <input
+                            value={cheat.name}
+                            maxLength={80}
+                            placeholder={`金手指 ${index + 1}`}
+                            onChange={(event) =>
+                              setCheatDrafts((current) =>
+                                current.map((item) =>
+                                  item.id === cheat.id
+                                    ? { ...item, name: event.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="cheat-code-field">
+                          <span>代码</span>
+                          <textarea
+                            value={cheat.code}
+                            maxLength={4096}
+                            rows={2}
+                            spellCheck={false}
+                            placeholder={
+                              activePlatform.id === 'gba' ||
+                              activePlatform.id === 'gb' ||
+                              activePlatform.id === 'gbc'
+                                ? 'XXXXXXXX YYYYYYYY'
+                                : '输入当前核心支持的代码'
+                            }
+                            onChange={(event) =>
+                              setCheatDrafts((current) =>
+                                current.map((item) =>
+                                  item.id === cheat.id
+                                    ? { ...item, code: event.target.value }
+                                    : item,
+                                ),
+                              )
+                            }
+                          />
+                        </label>
+                        <IconButton
+                          label={`删除${cheat.name || `金手指 ${index + 1}`}`}
+                          onClick={() =>
+                            setCheatDrafts((current) =>
+                              current.filter((item) => item.id !== cheat.id),
+                            )
+                          }
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="cheat-empty">
+                      <Braces size={24} />
+                      <span>还没有金手指代码</span>
+                    </div>
+                  )}
+                </div>
+                <div className="modal-actions cheat-actions">
+                  <button
+                    className="button secondary"
+                    disabled={cheatDrafts.length >= 50}
+                    onClick={() =>
+                      setCheatDrafts((current) => [
+                        ...current,
+                        {
+                          id: createCheatId(),
+                          name: `金手指 ${current.length + 1}`,
+                          code: '',
+                          enabled: true,
+                        },
+                      ])
+                    }
+                  >
+                    <Plus size={16} />
+                    添加金手指
+                  </button>
+                  <button className="button secondary" onClick={() => setModal(null)}>
+                    取消
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={busy}
+                    onClick={() => void applyCheats()}
+                  >
+                    <Check size={16} />
+                    保存并重新载入
+                  </button>
                 </div>
               </>
             ) : modal === 'states' ? (
@@ -2519,7 +2747,7 @@ export default function App() {
                     <span>03</span>
                     <strong>每次回来，接着冒险</strong>
                     <p>
-                      开启自动存档后每 30 秒保存进度，也可使用 5 个手动存档位。重要存档记得导出。
+                      自动存档可选 1、5 或 10 分钟，并始终覆盖同一个自动槽；另有 5 个手动存档位。
                     </p>
                   </div>
                 </div>
@@ -2549,7 +2777,7 @@ export default function App() {
                 </div>
                 <p className="small-note">
                   基于 mGBA、FCEUmm 与 Snes9x WebAssembly 内核 · 商业游戏需自行提供合法获得的
-                  ROM。暂不支持联机、作弊码与密码压缩包。
+                  ROM。暂不支持联机与密码压缩包。
                 </p>
               </>
             )}

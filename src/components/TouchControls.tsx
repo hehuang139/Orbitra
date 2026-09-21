@@ -179,6 +179,7 @@ export function TouchControls({
       aria-label="触屏游戏手柄"
       hidden={!shown}
       data-layout={normalized.layout}
+      data-mode={normalized.mode}
       style={
         { '--tc-scale': normalized.scale, '--tc-opacity': normalized.opacity } as CSSProperties
       }

@@ -53,6 +53,7 @@
     "test:keyboard": "node scripts/test-keyboard.mjs",
     "test:gamepad": "node scripts/test-gamepad.mjs",
     "test:touch": "node scripts/test-touch.mjs",
+    "test:player-features": "node scripts/test-player-features.mjs",
     "test:startup": "node scripts/test-startup.mjs",
     "test:backup": "node scripts/test-backup.mjs",
     "test:pwa": "node scripts/test-pwa.mjs",

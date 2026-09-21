@@ -49,6 +49,9 @@ async function fixture(platform: GamePlatform = 'gba'): Promise<BackupData> {
           playTime: 3,
           favorite: true,
           color: '#abc',
+          cheats: [
+            { id: 'infinite-lives', name: 'Infinite lives', code: '1234 5678', enabled: true },
+          ],
         },
         rom,
         battery: new Uint8Array([1, 2, 3]),

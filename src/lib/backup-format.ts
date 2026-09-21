@@ -1,5 +1,6 @@
 import { Inflate, zip } from 'fflate'
 import type { Game, SaveState } from './types.ts'
+import { validateCheats } from './cheats.ts'
 import {
   isGamePlatform,
   PLATFORM_REGISTRY,
@@ -137,7 +138,16 @@ function normalizeGame(value: unknown, allowLegacy = false): Game {
     (raw.color !== undefined && (!text(raw.color, 64) || !/^#[0-9a-f]{3,8}$/i.test(raw.color)))
   )
     throw new Error(FORMAT_ERROR)
-  return { ...(raw as unknown as Game), platform }
+  try {
+    const cheats = validateCheats(raw.cheats)
+    return {
+      ...(raw as unknown as Game),
+      platform,
+      ...(raw.cheats === undefined ? {} : { cheats }),
+    }
+  } catch {
+    throw new Error(FORMAT_ERROR)
+  }
 }
 
 function checkGame(value: unknown): asserts value is Game {
@@ -275,6 +285,7 @@ function gameMetadata(game: Game): Game {
     favorite: game.favorite,
     ...(game.skipAutoState === undefined ? {} : { skipAutoState: game.skipAutoState }),
     ...(game.color === undefined ? {} : { color: game.color }),
+    ...(game.cheats === undefined ? {} : { cheats: game.cheats }),
   }
 }
 

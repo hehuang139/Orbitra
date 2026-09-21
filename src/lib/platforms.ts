@@ -6,6 +6,7 @@ export interface PlatformCapabilities {
   readonly rewind: boolean
   readonly screenshots: boolean
   readonly speedControl: boolean
+  readonly cheats: boolean
 }
 
 export interface PlatformDefinition {
@@ -36,7 +37,13 @@ export const PLATFORM_REGISTRY = {
     minRomSize: 192,
     maxRomSize: 32 * 1024 * 1024,
     buttons: ['A', 'B', 'L', 'R', 'Start', 'Select', 'Up', 'Down', 'Left', 'Right'],
-    capabilities: { batterySaves: true, rewind: true, screenshots: true, speedControl: true },
+    capabilities: {
+      batterySaves: true,
+      rewind: true,
+      screenshots: true,
+      speedControl: true,
+      cheats: true,
+    },
   },
   gb: {
     id: 'gb',
@@ -49,7 +56,13 @@ export const PLATFORM_REGISTRY = {
     minRomSize: 32 * 1024,
     maxRomSize: 8 * 1024 * 1024,
     buttons: ['A', 'B', 'Start', 'Select', 'Up', 'Down', 'Left', 'Right'],
-    capabilities: { batterySaves: true, rewind: true, screenshots: true, speedControl: true },
+    capabilities: {
+      batterySaves: true,
+      rewind: true,
+      screenshots: true,
+      speedControl: true,
+      cheats: true,
+    },
   },
   gbc: {
     id: 'gbc',
@@ -62,7 +75,13 @@ export const PLATFORM_REGISTRY = {
     minRomSize: 32 * 1024,
     maxRomSize: 8 * 1024 * 1024,
     buttons: ['A', 'B', 'Start', 'Select', 'Up', 'Down', 'Left', 'Right'],
-    capabilities: { batterySaves: true, rewind: true, screenshots: true, speedControl: true },
+    capabilities: {
+      batterySaves: true,
+      rewind: true,
+      screenshots: true,
+      speedControl: true,
+      cheats: true,
+    },
   },
   nes: {
     id: 'nes',
@@ -75,7 +94,13 @@ export const PLATFORM_REGISTRY = {
     minRomSize: 16 * 1024 + 16,
     maxRomSize: 8 * 1024 * 1024,
     buttons: ['A', 'B', 'Start', 'Select', 'Up', 'Down', 'Left', 'Right'],
-    capabilities: { batterySaves: true, rewind: true, screenshots: true, speedControl: true },
+    capabilities: {
+      batterySaves: true,
+      rewind: true,
+      screenshots: true,
+      speedControl: true,
+      cheats: true,
+    },
   },
   snes: {
     id: 'snes',
@@ -88,7 +113,13 @@ export const PLATFORM_REGISTRY = {
     minRomSize: 32 * 1024,
     maxRomSize: 16 * 1024 * 1024,
     buttons: ['A', 'B', 'X', 'Y', 'L', 'R', 'Start', 'Select', 'Up', 'Down', 'Left', 'Right'],
-    capabilities: { batterySaves: true, rewind: true, screenshots: true, speedControl: true },
+    capabilities: {
+      batterySaves: true,
+      rewind: true,
+      screenshots: true,
+      speedControl: true,
+      cheats: true,
+    },
   },
   gamecube: {
     id: 'gamecube',
@@ -106,6 +137,7 @@ export const PLATFORM_REGISTRY = {
       rewind: false,
       screenshots: false,
       speedControl: false,
+      cheats: false,
     },
     experimental: true,
   },

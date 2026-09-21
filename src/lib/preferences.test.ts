@@ -7,7 +7,21 @@ test('legacy preferences retain keyboard bindings and receive touch defaults', (
   assert.equal(settings.bindings.A, 'KeyV')
   assert.equal(settings.volume, 0.3)
   assert.equal(settings.touch, true)
-  assert.deepEqual(settings.touchConfig, { layout: 'standard', scale: 1, opacity: 1 })
+  assert.deepEqual(settings.touchConfig, {
+    layout: 'standard',
+    mode: 'panel',
+    scale: 1,
+    opacity: 1,
+  })
+  assert.equal(settings.autoSaveInterval, 1)
+})
+
+test('retains supported automatic save intervals and migrates all other values to one minute', () => {
+  assert.equal(normalizeSettings({ autoSaveInterval: 5 }).autoSaveInterval, 5)
+  assert.equal(normalizeSettings({ autoSaveInterval: 10 }).autoSaveInterval, 10)
+  for (const value of [0, 2, 60, '5', null]) {
+    assert.equal(normalizeSettings({ autoSaveInterval: value }).autoSaveInterval, 1)
+  }
 })
 
 test('invalid, reserved and duplicate mappings cannot break startup or trap navigation', () => {

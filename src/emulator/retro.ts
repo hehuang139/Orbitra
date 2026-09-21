@@ -15,6 +15,8 @@ interface RetroGameManager {
   toggleFastForward(active: number): void
   toggleRewind(active: number): void
   getFrameNum(): number
+  setCheat(index: number, enabled: boolean, code: string): void
+  resetCheat(): void
   FS: {
     analyzePath(path: string): { exists: boolean }
     unlink(path: string): void
@@ -242,7 +244,7 @@ export function createRetroEmulator(
         ? `${CORE_NAMES[platform]} · EmulatorJS`
         : 'FCEUmm / Snes9x · EmulatorJS'
     },
-    async loadRom(data, name, nextPlatform) {
+    async loadRom(data, name, nextPlatform, cheats = []) {
       assertAlive()
       if (nextPlatform !== 'nes' && nextPlatform !== 'snes')
         throw new Error('此核心仅支持 FC / NES 与 SFC / SNES 游戏。')
@@ -338,6 +340,10 @@ export function createRetroEmulator(
         frontend.setVolume(volume)
         frontend.gameManager.setFastForwardRatio(speed)
         frontend.gameManager.toggleFastForward(speed === 1 ? 0 : 1)
+        frontend.gameManager.resetCheat()
+        cheats.forEach((cheat, index) =>
+          frontend?.gameManager?.setCheat(index, cheat.enabled, cheat.code),
+        )
         setStatus('running')
         startTimers()
         options.onProgress?.('')

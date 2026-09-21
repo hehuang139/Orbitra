@@ -33,7 +33,7 @@ The save manager collects automatic and manual states across games, with screens
 
 ![Save manager with automatic and manual states, screenshot previews, resume and export actions](docs/images/save-manager.png)
 
-The in-game save panel provides **one automatic slot and five manual slots**. Save, load, import and export states, or back up and import a game's battery save (`.sav`).
+The in-game save panel provides **one automatic slot and five manual slots**. The automatic slot can update every 1, 5, or 10 minutes and is overwritten in place instead of accumulating copies. Save, load, import and export states, or back up and import a game's battery save (`.sav`).
 
 <p align="center">
   <a href="docs/images/save-states.png"><img src="docs/images/save-states.png" width="760" alt="Save state panel with automatic and manual slots, import and export controls" /></a>
@@ -82,9 +82,10 @@ The mobile layout exposes platform-specific controls, including X / Y / L / R fo
 - **Local library:** file imports, recursive folder scanning and drag-and-drop, platform filters, search, sorting, favorites, play history, grid and list views, current-result selection and batch deletion.
 - **ZIP support:** import supported ROMs from nested folders, with platform-scoped SHA-256 deduplication that preserves progress without sharing saves across platforms.
 - **Save states:** five manual slots and one automatic slot, screenshot previews, quick save/load and import/export.
-- **Progress management:** automatic states every 30 seconds and when returning to the library or hiding the page, when enabled; `.sav` import/export.
+- **Progress management:** automatic states every 1, 5, or 10 minutes and when returning to the library or hiding the page; a single automatic slot is overwritten in place; `.sav` import/export.
 - **Playback:** pause, resume, reset, fullscreen, 1× / 2× / 4× speed, hold-to-fast-forward, hold-to-rewind, volume and mute.
-- **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with adjustable size and opacity.
+- **Controls:** remappable keyboard; device-specific gamepad button / axis mappings and deadzone; standard / compact touch layouts with panel or on-screen overlay modes, adjustable size and opacity.
+- **Cheats:** per-game named cheat lists for mGBA, FCEUmm, and Snes9x, with enable switches and backup/account-sync persistence.
 - **Display:** platform-native aspect ratios, WebGL 2 with an automatic Canvas 2D software fallback, pixel, smooth and CRT scanline filters, and real-core screenshots.
 - **Accounts and distribution:** IndexedDB stores the local personal library. Optional accounts synchronize that personal library and its saves; an independently configured online game library only publishes, lists and distributes ROMs for import.
 - **Homebrew demo:** reproducible ARM code with double-buffered graphics, native input, PSG audio and SRAM saves.
@@ -255,7 +256,7 @@ The [contributing guide](CONTRIBUTING.md) describes the project structure and te
 
 Gamepad and touch customization and keyboard focus improvements are implemented. Remaining work includes physical-device and screen-reader verification, broader browser / low-end-device evidence, UI localization and more redistributable homebrew tests. Backup and restore software is implemented; its remaining device and memory validation is tracked in the [v1.2 roadmap](docs/roadmaps/v1.2.md). See the [full roadmap](ROADMAP.md) for scope and acceptance goals and the [changelog](CHANGELOG.md) for release history. The v1.1 validation work remains open where devices or manual evidence are missing; unchecked items are not release-date commitments.
 
-FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, link play and cheats are not supported. A separately deployed self-hosted online library is available; concurrent conflict resolution and a hosted third-party cloud service are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
+FC / NES and SFC / SNES currently provide single-player baseline support. Two-player input, comprehensive mapper / enhancement-chip coverage, and link play are not supported. Cheat code syntax and behavior depend on the active native core. A separately deployed self-hosted online library is available; concurrent conflict resolution and a hosted third-party cloud service are not. The project has not been tested against a comprehensive commercial ROM library; individual game compatibility still needs verification.
 
 ## Acknowledgments and license
 

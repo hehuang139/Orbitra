@@ -4,6 +4,8 @@ import { batteryFromState } from './battery-snapshot'
 import { installCanvas2DRenderer } from './canvas2d-renderer'
 import { createRetroEmulator } from './retro'
 import { createDolphinEmulator } from './dolphin'
+import { mgbaCheatFile } from '../lib/cheats.ts'
+import type { Cheat } from '../lib/types.ts'
 
 /** Browser adapter for the locally bundled mGBA WebAssembly core. */
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms.ts'
@@ -27,7 +29,12 @@ export interface Emulator {
   readonly romName: string | null
   readonly platform: GamePlatform | null
   readonly version: string
-  loadRom(data: RomSource, name: string, platform: GamePlatform): Promise<void>
+  loadRom(
+    data: RomSource,
+    name: string,
+    platform: GamePlatform,
+    cheats?: readonly Cheat[],
+  ): Promise<void>
   start(): void
   resume(): void
   pause(): void
@@ -94,6 +101,7 @@ type CoreFactory = (options: {
 const SAVE_PATH = '/data/saves/current.sav'
 const STATE_PATH = '/data/states/current.ss1'
 const BATTERY_SNAPSHOT_PATH = '/data/states/current.ss2'
+const CHEAT_PATH = '/data/cheats/current.cheats'
 const BUTTONS: EmulatorButton[] = [
   'A',
   'B',
@@ -388,7 +396,7 @@ export function createMgbaEmulator(
         ? `${core.version.projectName} ${core.version.projectVersion}`
         : 'mGBA · WebAssembly'
     },
-    async loadRom(data, name, nextPlatform) {
+    async loadRom(data, name, nextPlatform, cheats = []) {
       assertAlive()
       const definition = PLATFORM_REGISTRY[nextPlatform]
       if (
@@ -433,6 +441,7 @@ export function createMgbaEmulator(
         canvas.width = definition.nativeWidth
         canvas.height = definition.nativeHeight
         instance.FS.writeFile(romPath, copy(data))
+        if (cheats.length) instance.FS.writeFile(CHEAT_PATH, mgbaCheatFile(cheats))
         if (!instance.loadGame(romPath))
           throw new Error(`无法识别这个 ROM，请导入有效的 ${definition.label} 游戏文件。`)
         // The upstream registration function mutates callback vectors without
@@ -653,12 +662,12 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
     get version() {
       return backend?.version ?? 'Orbitra 多核心运行时'
     },
-    async loadRom(data, name, platform) {
+    async loadRom(data, name, platform, cheats = []) {
       if (disposed) throw new Error('模拟器已关闭，请重新打开游戏。')
       const definition = PLATFORM_REGISTRY[platform]
       const currentDefinition = backend?.platform ? PLATFORM_REGISTRY[backend.platform] : null
       if (backend && currentDefinition?.core === definition.core) {
-        await backend.loadRom(data, name, platform)
+        await backend.loadRom(data, name, platform, cheats)
         return
       }
       const ticket = ++generation
@@ -673,7 +682,7 @@ export function createEmulator(canvas: HTMLCanvasElement, options: EmulatorOptio
             : createRetroEmulator(canvas, scopedOptions(ticket))
       backend.setVolume(volume)
       backend.setSpeed(speed)
-      await backend.loadRom(data, name, platform)
+      await backend.loadRom(data, name, platform, cheats)
     },
     start() {
       backend?.start()

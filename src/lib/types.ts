@@ -2,6 +2,13 @@ import type { GamePlatform } from './platforms.ts'
 
 export type { GamePlatform } from './platforms.ts'
 
+export interface Cheat {
+  id: string
+  name: string
+  code: string
+  enabled: boolean
+}
+
 /** Library metadata. Dates use epoch milliseconds; playTime uses seconds. */
 export interface Game {
   id: string
@@ -14,6 +21,7 @@ export interface Game {
   playTime: number
   favorite: boolean
   color?: string
+  cheats?: Cheat[]
   /** Battery-only restoration takes precedence over an older automatic state. */
   skipAutoState?: boolean
 }

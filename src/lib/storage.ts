@@ -10,6 +10,7 @@ import { BUNDLED_CORE_ID, coreIdForPlatform } from './core-version.ts'
 import { BACKUP_LIMITS, gameIdForRom, sha256, validateBackupData } from './backup-format.ts'
 import type { BackupData, BackupGame } from './backup-format.ts'
 import { sha256 as incrementalSha256 } from '@noble/hashes/sha256'
+import { validateCheats } from './cheats.ts'
 
 export type RomData = Uint8Array | Blob
 
@@ -286,10 +287,11 @@ function gameRecord(value: unknown): Game {
   }
   try {
     assertRomSize(platform, game.size)
+    const cheats = validateCheats(game.cheats)
+    return { ...game, platform, ...(game.cheats === undefined ? {} : { cheats }) }
   } catch {
     throw new Error('游戏信息已损坏，请删除后重新导入 ROM。')
   }
-  return { ...game, platform }
 }
 
 function copyBytes(value: unknown, message: string): Uint8Array {
@@ -404,7 +406,10 @@ export async function importGame(file: File): Promise<Game> {
 }
 
 type GameChanges = Partial<
-  Pick<Game, 'title' | 'lastPlayed' | 'playTime' | 'favorite' | 'color' | 'skipAutoState'>
+  Pick<
+    Game,
+    'title' | 'lastPlayed' | 'playTime' | 'favorite' | 'color' | 'skipAutoState' | 'cheats'
+  >
 >
 
 export async function updateGame(id: string, changes: GameChanges): Promise<Game> {
@@ -745,6 +750,7 @@ function gameMetadata(game?: Game): unknown {
       game.favorite,
       game.color,
       game.skipAutoState === true,
+      game.cheats,
     ]
   )
 }
