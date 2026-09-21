@@ -1,4 +1,4 @@
-import type { SaveState } from './types.ts'
+import type { Game, SaveState } from './types.ts'
 
 export type AutoSaveSlotCount = 1 | 2 | 3
 
@@ -42,4 +42,18 @@ export function latestAutomaticState<T extends Pick<SaveState, 'slot' | 'created
       (latest, state) => (!latest || state.createdAt > latest.createdAt ? state : latest),
       undefined,
     )
+}
+
+export function mostRecentPlayedGame<T extends Pick<Game, 'lastPlayed' | 'addedAt'>>(
+  games: readonly T[],
+): T | undefined {
+  return games.reduce<T | undefined>((recent, game) => {
+    if (game.lastPlayed === null) return recent
+    if (!recent) return game
+    const recentTime = recent.lastPlayed ?? 0
+    return game.lastPlayed > recentTime ||
+      (game.lastPlayed === recentTime && game.addedAt > recent.addedAt)
+      ? game
+      : recent
+  }, undefined)
 }

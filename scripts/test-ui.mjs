@@ -114,7 +114,13 @@ try {
   await page.getByRole('combobox', { name: '画面滤镜', exact: true }).selectOption('crt')
   assert.equal(await page.locator('.filter-crt').count(), 1)
   await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
-  await page.getByRole('button', { name: '开始试玩', exact: true }).waitFor()
+  await page.getByRole('button', { name: '继续游戏', exact: true }).waitFor()
+  const continueShelf = page.locator('.continue-shelf')
+  await continueShelf.getByText('Star Orbit · 星际漫游', { exact: true }).waitFor()
+  await continueShelf.getByText('GBA', { exact: true }).waitFor()
+  await continueShelf.getByText('mGBA', { exact: true }).waitFor()
+  assert.equal(await continueShelf.getByText('正常启动', { exact: true }).count(), 0)
+  await screenshot('desktop-continue-game')
 
   const rom = Buffer.from(await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)))
   rom[0xac] = 0x54

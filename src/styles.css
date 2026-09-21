@@ -778,6 +778,75 @@ main {
   background: #333c37;
   color: #d7e9de;
 }
+.continue-shelf {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.1fr) minmax(420px, 2fr) auto;
+  gap: 22px;
+  align-items: center;
+  min-height: 74px;
+  margin-bottom: 14px;
+  padding: 10px 4px;
+  border-top: 1px solid #334039;
+  border-bottom: 1px solid #334039;
+}
+.continue-identity {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  align-items: center;
+}
+.continue-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 5px;
+  color: #173125;
+  background: var(--mint);
+}
+.continue-identity small,
+.continue-identity strong {
+  display: block;
+}
+.continue-identity small,
+.continue-meta dt {
+  color: #78857f;
+  font-size: 9px;
+}
+.continue-identity strong {
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.continue-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+}
+.continue-meta > div {
+  min-width: 0;
+  padding: 0 12px;
+  border-left: 1px solid #334039;
+}
+.continue-meta dt,
+.continue-meta dd {
+  margin: 0;
+}
+.continue-meta dd {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #c4cec8;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.continue-button {
+  margin-right: 4px;
+}
 .hero {
   height: 301px;
   border: 1px solid #36483e;
@@ -3246,6 +3315,14 @@ kbd {
   }
 }
 @media (max-width: 800px) {
+  .continue-shelf {
+    grid-template-columns: minmax(170px, 1fr) minmax(280px, 1.6fr) auto;
+    gap: 10px;
+  }
+  .continue-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 8px;
+  }
   .compatibility-panel {
     margin: 0 18px;
   }
@@ -3538,6 +3615,19 @@ kbd {
   }
   .main-shell {
     margin-left: 0;
+  }
+  .continue-shelf {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px 14px;
+    padding: 11px 2px;
+  }
+  .continue-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .continue-meta > div:first-child,
+  .continue-meta > div:nth-child(3) {
+    border-left: 0;
   }
   .topbar {
     padding: 0 20px;
