@@ -42,6 +42,11 @@ try {
   await page.getByRole('button', { name: '读取目录' }).click()
   await page.getByRole('tab', { name: '浏览与导入' }).waitFor()
   await page.getByText('star-orbit.gba', { exact: true }).waitFor()
+  await page.getByLabel('游戏类型').selectOption('gamecube')
+  await page.getByText('没有匹配此类型或搜索条件的游戏。').waitFor()
+  assert.equal(await page.getByText('star-orbit.gba', { exact: true }).count(), 0)
+  await page.getByLabel('游戏类型').selectOption('gba')
+  await page.getByText('star-orbit.gba', { exact: true }).waitFor()
   await page.screenshot({ path: new URL('desktop-online-library.png', artifacts).pathname })
 
   const source = Buffer.from(
@@ -54,6 +59,7 @@ try {
 
   await page.getByRole('tab', { name: '管理分发' }).click()
   await page.getByLabel('管理员令牌').fill(adminToken)
+  await page.getByRole('button', { name: '本地文件' }).click()
   await page.getByLabel('发布 ROM').setInputFiles({
     name: 'Library Orbit.gba',
     mimeType: 'application/octet-stream',
@@ -85,6 +91,21 @@ try {
     await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).count(),
     0,
   )
+  await page.getByRole('button', { name: '个人游戏库' }).click()
+  await page.getByLabel('选择个人游戏').selectOption({ label: 'Library Orbit (GBA)' })
+  await page.getByRole('button', { name: '发布到在线库' }).click()
+  await page.getByText('已从个人游戏库发布 Library Orbit.gba。').waitFor()
+  await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).waitFor()
+  assert.equal(await page.getByLabel('选择个人游戏').isDisabled(), true)
+  assert.equal(
+    await page.getByLabel('选择个人游戏').inputValue(),
+    '',
+    'a published personal game must no longer be offered for upload',
+  )
+
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '下架 Library Orbit' }).click()
+  await page.getByText('已下架 Library Orbit.gba；个人游戏库中的副本不受影响。').waitFor()
   await page.getByRole('button', { name: /^游戏库/ }).click()
   await page.locator('.game-title', { hasText: 'Library Orbit' }).waitFor()
 
@@ -125,7 +146,7 @@ try {
   assert.deepEqual(errors, [], 'online library flow should not produce uncaught browser errors')
   await context.close()
   console.log(
-    'Online library page passed: browse, publish, import, deduplicate, remove, responsive layout.',
+    'Online library page passed: platform filter, file and personal-library publishing, import, deduplicate, remove, responsive layout.',
   )
 } finally {
   await browser.close()

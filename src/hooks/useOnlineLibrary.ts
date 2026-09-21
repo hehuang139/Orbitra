@@ -27,6 +27,7 @@ export interface OnlineLibraryController {
   refresh(): Promise<void>
   importGames(ids: string[]): Promise<void>
   publish(file: File, token: string): Promise<void>
+  publishPersonalGame(gameId: string, token: string): Promise<void>
   remove(filename: string, token: string): Promise<void>
 }
 
@@ -147,6 +148,29 @@ export function useOnlineLibrary({
       } catch (cause) {
         setPhase('error')
         setMessage(cause instanceof Error ? cause.message : '在线游戏发布失败。')
+        throw cause
+      }
+    },
+    async publishPersonalGame(gameId: string, token: string) {
+      if (!urlRef.current) throw new Error('请先配置在线游戏库地址。')
+      setPhase('publishing')
+      let filename = '所选游戏'
+      try {
+        const game = (await db.getGames()).find((candidate) => candidate.id === gameId)
+        if (!game) throw new Error('所选游戏已不在个人游戏库中。')
+        filename = game.filename
+        setMessage(`正在从个人游戏库发布 ${filename}…`)
+        const rom = await db.getRom(game.id)
+        if (!rom) throw new Error(`「${game.title}」的 ROM 尚未下载到此设备，无法发布。`)
+        const body = rom instanceof Blob ? rom : new Uint8Array(rom)
+        const file = new File([body], filename, { type: 'application/octet-stream' })
+        const nextManifest = await publishOnlineLibraryGame(urlRef.current, token, file)
+        setManifest(nextManifest)
+        setPhase('ready')
+        setMessage(`已从个人游戏库发布 ${filename}。`)
+      } catch (cause) {
+        setPhase('error')
+        setMessage(cause instanceof Error ? cause.message : '个人游戏发布失败。')
         throw cause
       }
     },
