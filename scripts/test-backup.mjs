@@ -176,8 +176,19 @@ async function confirmRestore(page, keyboard = false) {
   await page.locator('.backup-feedback').first().filter({ hasText: '恢复完成' }).waitFor()
 }
 
-async function verifyScore(page, score) {
-  await launch(page)
+async function verifyScore(page, score, recover = false) {
+  if (recover) {
+    await page.getByRole('heading', { name: '恢复未结束的游戏', exact: true }).waitFor()
+    const recovery = page.getByRole('button', { name: '恢复进度', exact: true })
+    if (await recovery.isEnabled()) await recovery.click()
+    else await page.getByRole('button', { name: '正常启动', exact: true }).click()
+    await page.waitForFunction(() => {
+      const control = document.querySelector('[aria-label="暂停 (Space)"]')
+      return control && !control.disabled
+    })
+  } else {
+    await launch(page)
+  }
   await button(page, '管理即时存档').click()
   const pending = page.waitForEvent('download')
   await button(page, '导出 .sav').click()
@@ -321,7 +332,7 @@ try {
   await verifyScore(source, 7)
   await source.reload()
   await source.waitForFunction(() => !document.querySelector('.hero-actions button')?.disabled)
-  await verifyScore(source, 7)
+  await verifyScore(source, 7, true)
   checks.push(
     'explicit keyboard conflict choices discard the old core and preserve restored SRAM and states through replay and refresh',
   )
