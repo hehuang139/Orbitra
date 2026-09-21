@@ -20,7 +20,7 @@ export const BACKUP_LIMITS = {
   manifestBytes: 2 * MiB,
   screenshotCharacters: 256 * 1024,
   games: 16,
-  files: 129,
+  files: 161,
 } as const
 
 export interface BackupGame {
@@ -140,8 +140,10 @@ function normalizeGame(value: unknown, allowLegacy = false): Game {
     throw new Error(FORMAT_ERROR)
   try {
     const cheats = validateCheats(raw.cheats)
+    const game = { ...raw }
+    delete game.resumeAutoSaveSlot
     return {
-      ...(raw as unknown as Game),
+      ...(game as unknown as Game),
       platform,
       ...(raw.cheats === undefined ? {} : { cheats }),
     }
@@ -168,13 +170,13 @@ function checkState(value: unknown, gameId: string): asserts value is SaveState 
     !object(value) ||
     !Number.isInteger(value.slot) ||
     Number(value.slot) < 0 ||
-    Number(value.slot) > 5 ||
+    Number(value.slot) > 7 ||
     value.gameId !== gameId ||
     value.id !== `${gameId}:${value.slot}` ||
     !finite(value.createdAt) ||
     (value.coreVersion !== undefined && !text(value.coreVersion, 128))
   )
-    throw new Error('备份即时存档信息无效；槽位仅支持 0 至 5。')
+    throw new Error('备份即时存档信息无效；槽位仅支持 0 至 7。')
   if (
     value.screenshot !== undefined &&
     (typeof value.screenshot !== 'string' ||
@@ -208,7 +210,7 @@ export function validateBackupData(data: BackupData): void {
     total += entry.game.size
     if (ids.has(entry.game.id)) throw new Error('备份包含重复的游戏内容标识。')
     ids.add(entry.game.id)
-    if (!Array.isArray(entry.states) || entry.states.length > 6)
+    if (!Array.isArray(entry.states) || entry.states.length > 8)
       throw new Error('备份即时存档槽位无效。')
     if (entry.rom !== undefined) {
       byteLength(entry.rom, BACKUP_LIMITS.romBytes, 'ROM')
@@ -441,7 +443,7 @@ function directory(bytes: Uint8Array): ZipEntry[] {
   )
     throw new Error('备份不支持分卷 ZIP。')
   if (count < 1 || count > BACKUP_LIMITS.files)
-    throw new Error('备份 ZIP 文件数量无效或超出 129 项限制。')
+    throw new Error(`备份 ZIP 文件数量无效或超出 ${BACKUP_LIMITS.files} 项限制。`)
   if (offset + size !== eocd) throw new Error(ZIP_ERROR)
   const entries: ZipEntry[] = []
   const paths = new Set<string>()
@@ -649,7 +651,7 @@ function parseManifest(bytes: Uint8Array, entries: ZipEntry[]): Manifest {
       if (file.size !== game.size) throw new Error('备份 ROM 大小与游戏信息不一致。')
     }
     if (entry.battery !== undefined) reference(entry.battery, `${prefix}battery.sav`)
-    if (!Array.isArray(entry.states) || entry.states.length > 6)
+    if (!Array.isArray(entry.states) || entry.states.length > 8)
       throw new Error('备份即时存档槽位无效。')
     const slots = new Set<number>()
     for (const state of entry.states) {

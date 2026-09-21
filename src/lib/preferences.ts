@@ -1,6 +1,7 @@
 import type { EmulatorButton } from '../emulator'
 import { defaultTouchConfig, normalizeTouchConfig } from './touch.ts'
 import type { TouchConfig } from './touch.ts'
+import type { AutoSaveSlotCount } from './autosave.ts'
 
 export type Settings = {
   volume: number
@@ -8,6 +9,7 @@ export type Settings = {
   filter: 'pixel' | 'smooth' | 'crt'
   autoSave: boolean
   autoSaveInterval: 1 | 5 | 10
+  autoSaveSlotCount: AutoSaveSlotCount
   touch: boolean
   touchConfig: TouchConfig
   bindings: Record<EmulatorButton, string>
@@ -33,6 +35,7 @@ export const defaultSettings: Settings = {
   filter: 'pixel',
   autoSave: true,
   autoSaveInterval: 1,
+  autoSaveSlotCount: 3,
   touch: false,
   touchConfig: defaultTouchConfig,
   bindings: defaultBindings,
@@ -85,6 +88,8 @@ export function normalizeSettings(value: unknown): Settings {
     autoSave: raw.autoSave !== false,
     autoSaveInterval:
       raw.autoSaveInterval === 5 || raw.autoSaveInterval === 10 ? raw.autoSaveInterval : 1,
+    autoSaveSlotCount:
+      raw.autoSaveSlotCount === 1 || raw.autoSaveSlotCount === 2 ? raw.autoSaveSlotCount : 3,
     touch: raw.touch === true,
     touchConfig: normalizeTouchConfig(raw.touchConfig),
     bindings: unique ? bindings : { ...defaultBindings },

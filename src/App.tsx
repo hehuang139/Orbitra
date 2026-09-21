@@ -77,6 +77,14 @@ import { probeCompatibility } from './lib/compatibility'
 import type { CompatibilityReport } from './lib/compatibility'
 import { createCheatId, validateCheats } from './lib/cheats'
 import {
+  AUTO_SAVE_SLOTS,
+  MANUAL_SAVE_SLOTS,
+  automaticSlotLabel,
+  isAutomaticSlot,
+  latestAutomaticState,
+  nextAutomaticSlot,
+} from './lib/autosave'
+import {
   enterFullscreen,
   exitFullscreen,
   fullscreenElement,
@@ -460,10 +468,18 @@ export default function App() {
       }
       await db.saveState(game.id, slot, data, screenshot)
       setStates(await db.getStates(game.id))
-      if (!silent) notify(slot === 0 ? '自动存档已更新' : `已保存到存档位 ${slot}`)
+      if (!silent) notify(isAutomaticSlot(slot) ? '自动存档已更新' : `已保存到存档位 ${slot}`)
     },
     [notify],
   )
+
+  const automaticSnapshot = useCallback(async () => {
+    const game = activeRef.current
+    if (!game) return
+    const saved = await db.getStates(game.id)
+    const slot = nextAutomaticSlot(saved, settingsRef.current.autoSaveSlotCount)
+    await snapshot(slot, true)
+  }, [snapshot])
 
   useEffect(() => {
     if (!active || status !== 'running') return
@@ -495,10 +511,10 @@ export default function App() {
   useEffect(() => {
     if (!active || !settings.autoSave || status !== 'running') return
     const timer = setInterval(() => {
-      if (!operationRef.current) void run(() => snapshot(0, true))
+      if (!operationRef.current) void run(automaticSnapshot)
     }, settings.autoSaveInterval * 60_000)
     return () => clearInterval(timer)
-  }, [active, status, settings.autoSave, settings.autoSaveInterval, run, snapshot])
+  }, [active, status, settings.autoSave, settings.autoSaveInterval, run, automaticSnapshot])
 
   useEffect(() => {
     const release = () => {
@@ -513,8 +529,7 @@ export default function App() {
           } catch (error) {
             notify(error instanceof Error ? error.message : '暂停时保存失败，请导出备份', true)
           }
-          if (settingsRef.current.autoSave && !operationRef.current)
-            void run(() => snapshot(0, true))
+          if (settingsRef.current.autoSave && !operationRef.current) void run(automaticSnapshot)
         }
       }
     }
@@ -524,7 +539,7 @@ export default function App() {
       window.removeEventListener('blur', release)
       document.removeEventListener('visibilitychange', visibility)
     }
-  }, [run, snapshot, releaseInputs, notify])
+  }, [run, automaticSnapshot, releaseInputs, notify])
 
   useEffect(() => {
     if (!inputEnabled) releaseInputs()
@@ -611,7 +626,7 @@ export default function App() {
       releaseInputs()
       if (activeRef.current && ['running', 'paused'].includes(engine.status)) {
         engine.pause()
-        if (settingsRef.current.autoSave) await snapshot(0, true)
+        if (settingsRef.current.autoSave) await automaticSnapshot()
         const battery = await engine.exportSave()
         if (battery) await db.setBatterySave(activeRef.current.id, battery)
       }
@@ -619,10 +634,19 @@ export default function App() {
       if (!bytes) throw new Error('游戏 ROM 尚未下载，请登录对应账号或重新导入')
       const battery = await db.getBatterySave(game.id)
       const currentGame = (await db.getGames()).find((item) => item.id === game.id) ?? game
+      const savedStates =
+        settingsRef.current.autoSave && !currentGame.skipAutoState
+          ? await db.getStates(game.id)
+          : []
+      const preferredAutoState =
+        currentGame.resumeAutoSaveSlot === undefined
+          ? undefined
+          : savedStates.find((state) => state.slot === currentGame.resumeAutoSaveSlot)
       const resume =
         requestedState ||
         (settingsRef.current.autoSave && !currentGame.skipAutoState
-          ? await db.getState(game.id, 0)
+          ? (preferredAutoState ??
+            latestAutomaticState(savedStates, settingsRef.current.autoSaveSlotCount))
           : undefined)
       // loadRom flushes the previous cartridge. Keep its identity until that flush ends.
       setActive(currentGame)
@@ -649,7 +673,7 @@ export default function App() {
       canvasRef.current?.focus({ preventScroll: true })
       stageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     },
-    [snapshot, notify, refresh, releaseInputs, account],
+    [automaticSnapshot, notify, refresh, releaseInputs, account],
   )
 
   const playGame = useCallback(
@@ -686,7 +710,7 @@ export default function App() {
         game = activeRef.current
       if (game && engine && ['running', 'paused'].includes(engine.status)) {
         engine.pause()
-        if (settings.autoSave) await snapshot(0, true)
+        if (settings.autoSave) await automaticSnapshot()
         const battery = await engine.exportSave()
         if (battery) await db.setBatterySave(game.id, battery)
         engine.pause()
@@ -1008,7 +1032,7 @@ export default function App() {
       const bytes = new Uint8Array(await file.arrayBuffer())
       await engineRef.current?.importSave(bytes)
       await db.setBatterySave(game.id, bytes)
-      await snapshot(0, true)
+      await automaticSnapshot()
       notify('存档已导入，游戏已重新启动')
     })
   const importSnapshot = (file?: File) =>
@@ -2093,7 +2117,22 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <p className="setting-help">按所选间隔覆盖同一个自动存档，不会持续增加占用。</p>
+                  <div className="setting-caption autosave-count-caption">
+                    <span>保留份数</span>
+                  </div>
+                  <div className="segmented autosave-interval" aria-label="自动存档保留份数">
+                    {([1, 2, 3] as const).map((count) => (
+                      <button
+                        key={count}
+                        className={settings.autoSaveSlotCount === count ? 'active' : ''}
+                        disabled={!settings.autoSave}
+                        onClick={() => setSetting('autoSaveSlotCount', count)}
+                      >
+                        {count} 份
+                      </button>
+                    ))}
+                  </div>
+                  <p className="setting-help">按所选间隔轮换覆盖，最多保留 3 份自动存档。</p>
                 </div>
                 <div className="quick-save">
                   <div>
@@ -2163,9 +2202,7 @@ export default function App() {
                               </div>
                             )}
                             <div>
-                              <span className="slot-label">
-                                {state.slot === 0 ? '自动存档' : `存档位 ${state.slot}`}
-                              </span>
+                              <span className="slot-label">{automaticSlotLabel(state.slot)}</span>
                               <span className="state-platform" data-platform={game.platform}>
                                 {PLATFORM_REGISTRY[game.platform].label}
                               </span>
@@ -2479,7 +2516,7 @@ export default function App() {
                 <div className="modal-setting">
                   <div>
                     <strong>自动存档与恢复</strong>
-                    <p>定时覆盖同一个自动槽，返回游戏库和切到后台时也会保存</p>
+                    <p>定时轮换自动槽，返回游戏库和切到后台时也会保存</p>
                   </div>
                   <Toggle
                     label="自动存档与恢复"
@@ -2490,7 +2527,7 @@ export default function App() {
                 <div className="modal-setting">
                   <div>
                     <strong>自动存档间隔</strong>
-                    <p>固定保留一份最新自动存档</p>
+                    <p>可选 1、5 或 10 分钟</p>
                   </div>
                   <select
                     aria-label="自动存档间隔"
@@ -2503,6 +2540,24 @@ export default function App() {
                     <option value="1">每 1 分钟</option>
                     <option value="5">每 5 分钟</option>
                     <option value="10">每 10 分钟</option>
+                  </select>
+                </div>
+                <div className="modal-setting">
+                  <div>
+                    <strong>自动存档保留份数</strong>
+                    <p>轮换覆盖固定槽位，最多 3 份</p>
+                  </div>
+                  <select
+                    aria-label="自动存档保留份数"
+                    value={settings.autoSaveSlotCount}
+                    disabled={!settings.autoSave}
+                    onChange={(event) =>
+                      setSetting('autoSaveSlotCount', Number(event.target.value) as 1 | 2 | 3)
+                    }
+                  >
+                    <option value="1">保留 1 份</option>
+                    <option value="2">保留 2 份</option>
+                    <option value="3">保留 3 份</option>
                   </select>
                 </div>
                 <div className="modal-setting">
@@ -2645,7 +2700,7 @@ export default function App() {
                   <span> · 即时存档记录游戏此刻的完整状态</span>
                 </p>
                 <div className="slot-grid">
-                  {[0, 1, 2, 3, 4, 5].map((slot) => {
+                  {[...AUTO_SAVE_SLOTS, ...MANUAL_SAVE_SLOTS].map((slot) => {
                     const state = states.find((s) => s.slot === slot)
                     return (
                       <div className={`save-slot ${state ? 'filled' : ''}`} key={slot}>
@@ -2655,7 +2710,7 @@ export default function App() {
                           ) : (
                             <Save size={28} />
                           )}
-                          <span>{slot === 0 ? '自动存档' : `存档位 ${slot}`}</span>
+                          <span>{automaticSlotLabel(slot)}</span>
                         </div>
                         <p>{state ? formatDate(state.createdAt) : '等待一段冒险'}</p>
                         <div>
@@ -2747,7 +2802,7 @@ export default function App() {
                     <span>03</span>
                     <strong>每次回来，接着冒险</strong>
                     <p>
-                      自动存档可选 1、5 或 10 分钟，并始终覆盖同一个自动槽；另有 5 个手动存档位。
+                      自动存档可选 1、5 或 10 分钟，可配置轮换保留 1 至 3 份；另有 5 个手动存档位。
                     </p>
                   </div>
                 </div>

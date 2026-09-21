@@ -70,12 +70,39 @@ try {
 
   await page.getByRole('button', { name: '模拟器设置', exact: true }).click()
   await page.locator('.modal select[aria-label="自动存档间隔"]').selectOption('5')
+  await page.locator('.modal select[aria-label="自动存档保留份数"]').selectOption('2')
   await page.getByRole('button', { name: '关闭对话框', exact: true }).click()
   const settings = await page.evaluate(() =>
     JSON.parse(localStorage.getItem('advance.settings') || '{}'),
   )
   assert.equal(settings.autoSaveInterval, 5)
+  assert.equal(settings.autoSaveSlotCount, 2)
   assert.equal(settings.touchConfig.mode, 'overlay')
+
+  for (let index = 0; index < 3; index++) {
+    await page.getByRole('button', { name: '返回游戏库', exact: true }).click()
+    await page.getByRole('button', { name: '开始试玩', exact: true }).waitFor()
+    await page.getByRole('button', { name: '开始试玩', exact: true }).click()
+    await page.waitForFunction(() => {
+      const pause = document.querySelector('[aria-label="暂停 (Space)"]')
+      return pause && !pause.disabled
+    })
+  }
+  await page.getByRole('button', { name: '管理即时存档', exact: true }).click()
+  assert.equal(
+    await page
+      .locator('.save-slot.filled')
+      .filter({ hasText: /^自动存档 [12]/ })
+      .count(),
+    2,
+  )
+  assert.equal(
+    await page
+      .locator('.save-slot.filled')
+      .filter({ hasText: /^自动存档 3/ })
+      .count(),
+    0,
+  )
   assert.deepEqual(errors, [])
 
   const report = {
@@ -84,7 +111,8 @@ try {
       'touch overlay placement and pointer pass-through',
       'Fullscreen API enter, state sync and exit',
       'per-game cheat persistence and core reload',
-      'automatic save interval persistence',
+      'automatic save interval and slot count persistence',
+      'configured automatic slots rotate without writing beyond the selected count',
     ],
   }
   await writeFile(

@@ -86,7 +86,7 @@ try {
   await page.getByText('游戏已暂停', { exact: true }).waitFor()
   await screenshot('desktop-player')
   await page.getByRole('button', { name: '管理即时存档' }).click()
-  assert.equal(await page.locator('.save-slot').count(), 6)
+  assert.equal(await page.locator('.save-slot').count(), 8)
   assert.equal(await page.locator('.save-slot.filled').count(), 1)
   await page.locator('.save-slot.filled img').waitFor()
   const stateDownload = page.waitForEvent('download')

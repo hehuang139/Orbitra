@@ -859,19 +859,27 @@ test('battery-only restoration persistently suppresses an older auto state witho
   // getGames opens a fresh connection, as it does after a page reload.
   const game = (await getGames()).find((game) => game.id === first.game.id)!
   assert.equal(game.skipAutoState, true)
+  assert.equal(game.resumeAutoSaveSlot, undefined)
   assert.equal(game.title, 'Local title')
   assert.deepEqual(await getBatterySave(first.game.id), first.battery)
   assert.deepEqual(await getState(first.game.id, 0), oldState)
   assert.equal((await getLibrarySnapshot([first.game.id])).games[0].game.skipAutoState, true)
+  await updateGame(first.game.id, { resumeAutoSaveSlot: 0 })
   await saveState(first.game.id, 1, new Uint8Array([112]))
   assert.equal((await getGames()).find((game) => game.id === first.game.id)?.skipAutoState, true)
-  await saveState(first.game.id, 0, new Uint8Array([113]))
+  assert.equal((await getGames()).find((game) => game.id === first.game.id)?.resumeAutoSaveSlot, 0)
+  await saveState(first.game.id, 6, new Uint8Array([113]))
   assert.equal((await getGames()).find((game) => game.id === first.game.id)?.skipAutoState, false)
+  assert.equal(
+    (await getGames()).find((game) => game.id === first.game.id)?.resumeAutoSaveSlot,
+    undefined,
+  )
 })
 
 test('restoring automatic state uses the selected backup metadata flag and otherwise clears suppression', async () => {
   const fixture = await backupFixture()
   const first = fixture.games[0]
+  await saveState(first.game.id, 6, new Uint8Array([121]))
   first.game.skipAutoState = true
   let preview = await previewRestore(fixture)
   await restoreLibrary(fixture, {
@@ -879,12 +887,14 @@ test('restoring automatic state uses the selected backup metadata flag and other
     games: { [first.game.id]: { metadata: true, battery: true, slots: [0] } },
   })
   assert.equal((await getGames()).find((game) => game.id === first.game.id)?.skipAutoState, true)
+  assert.equal((await getGames()).find((game) => game.id === first.game.id)?.resumeAutoSaveSlot, 0)
   preview = await previewRestore(fixture)
   await restoreLibrary(fixture, {
     fingerprint: preview.fingerprint,
     games: { [first.game.id]: { metadata: false, battery: false, slots: [0] } },
   })
   assert.equal((await getGames()).find((game) => game.id === first.game.id)?.skipAutoState, false)
+  assert.equal((await getGames()).find((game) => game.id === first.game.id)?.resumeAutoSaveSlot, 0)
   first.game.skipAutoState = false
   preview = await previewRestore(fixture)
   await restoreLibrary(fixture, {

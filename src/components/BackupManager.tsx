@@ -7,6 +7,7 @@ import * as db from '../lib/storage'
 import type { RestoreChoices, RestorePreview } from '../lib/storage'
 import type { Game } from '../lib/types'
 import { PLATFORM_REGISTRY, platformFromFilename } from '../lib/platforms'
+import { automaticSlotLabel, isAutomaticSlot } from '../lib/autosave'
 import './backup-manager.css'
 
 interface BackupManagerProps {
@@ -456,7 +457,7 @@ export function BackupManager({
                               : '本地没有电池存档。'}
                           </small>
                           <small>
-                            未恢复自动槽 0 时，下次从电池进度启动，保留的自动档仍可手动读取。
+                            未恢复任何自动存档时，下次从电池进度启动，保留的自动档仍可手动读取。
                           </small>
                         </span>
                       </label>
@@ -478,7 +479,12 @@ export function BackupManager({
                           }
                         />
                         <span>
-                          <strong>恢复即时存档 · 槽位 {state.slot}</strong>
+                          <strong>
+                            恢复即时存档 ·{' '}
+                            {isAutomaticSlot(state.slot)
+                              ? automaticSlotLabel(state.slot)
+                              : `槽位 ${state.slot}`}
+                          </strong>
                           <small>
                             {formatDate(state.createdAt)} ·{' '}
                             <span title={state.coreVersion}>{coreLabel(state.coreVersion)}</span>

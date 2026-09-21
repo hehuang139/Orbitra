@@ -14,6 +14,16 @@ test('legacy preferences retain keyboard bindings and receive touch defaults', (
     opacity: 1,
   })
   assert.equal(settings.autoSaveInterval, 1)
+  assert.equal(settings.autoSaveSlotCount, 3)
+})
+
+test('retains one to three automatic slots and defaults legacy settings to three', () => {
+  assert.equal(normalizeSettings({ autoSaveSlotCount: 1 }).autoSaveSlotCount, 1)
+  assert.equal(normalizeSettings({ autoSaveSlotCount: 2 }).autoSaveSlotCount, 2)
+  assert.equal(normalizeSettings({ autoSaveSlotCount: 3 }).autoSaveSlotCount, 3)
+  for (const value of [0, 4, '2', null]) {
+    assert.equal(normalizeSettings({ autoSaveSlotCount: value }).autoSaveSlotCount, 3)
+  }
 })
 
 test('retains supported automatic save intervals and migrates all other values to one minute', () => {
