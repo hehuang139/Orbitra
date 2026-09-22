@@ -33,7 +33,7 @@ The save manager collects automatic and manual states across games, with screens
 
 ![Save manager with automatic and manual states, screenshot previews, resume and export actions](docs/images/save-manager.png)
 
-The in-game save panel provides **one automatic slot and five manual slots**. The automatic slot can update every 1, 5, or 10 minutes and is overwritten in place instead of accumulating copies. Save, load, import and export states, or back up and import a game's battery save (`.sav`).
+The in-game save panel provides **one automatic slot and five manual slots**. The automatic slot updates every 10 minutes by default, can be changed to every 1 or 5 minutes, and is overwritten in place instead of accumulating copies. Save, load, import and export states, or back up and import a game's battery save (`.sav`).
 
 <p align="center">
   <a href="docs/images/save-states.png"><img src="docs/images/save-states.png" width="760" alt="Save state panel with automatic and manual slots, import and export controls" /></a>
