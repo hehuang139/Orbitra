@@ -16,12 +16,8 @@ import {
 } from 'lucide-react'
 import type { OnlineLibraryController } from '../hooks/useOnlineLibrary.ts'
 import { gameIdForOnlineLibraryEntry } from '../lib/online-library.ts'
-import {
-  PLATFORM_LIST,
-  PLATFORM_REGISTRY,
-  ROM_FILE_EXTENSIONS,
-  type GamePlatform,
-} from '../lib/platforms.ts'
+import { PLATFORM_LIST, PLATFORM_REGISTRY, type GamePlatform } from '../lib/platforms.ts'
+import { getRomGameIds } from '../lib/storage.ts'
 import type { Game } from '../lib/types.ts'
 import './online-library-panel.css'
 
@@ -36,6 +32,17 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
+type PersonalGamePublishStatus =
+  'ready' | 'published' | 'missing-rom' | 'filename-conflict' | 'checking'
+
+const publishStatusLabel: Record<PersonalGamePublishStatus, string> = {
+  ready: '可发布',
+  published: '已发布',
+  'missing-rom': 'ROM 不在此设备',
+  'filename-conflict': '文件名冲突',
+  checking: '正在检查 ROM',
+}
+
 export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageProps) {
   const [url, setUrl] = useState(library.url ?? '')
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -43,12 +50,11 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
   const [query, setQuery] = useState('')
   const [platform, setPlatform] = useState<'all' | GamePlatform>('all')
   const [adminToken, setAdminToken] = useState('')
-  const [uploadSource, setUploadSource] = useState<'library' | 'file'>('library')
-  const [personalGameId, setPersonalGameId] = useState('')
-  const [upload, setUpload] = useState<File | null>(null)
-  const [uploadInputKey, setUploadInputKey] = useState(0)
+  const [selectedPersonalGames, setSelectedPersonalGames] = useState<Set<string>>(() => new Set())
+  const [localRomGameIds, setLocalRomGameIds] = useState<ReadonlySet<string> | null>(null)
   const busy = ['loading', 'importing', 'publishing'].includes(library.phase)
   const games = useMemo(() => library.manifest?.games ?? [], [library.manifest])
+  const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN')
   const available = useMemo(
     () => games.filter((game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game))),
     [games, library.installedGameIds],
@@ -57,39 +63,89 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
     () => new Set(games.map((game) => gameIdForOnlineLibraryEntry(game))),
     [games],
   )
-  const personalUploadOptions = useMemo(
-    () => personalGames.filter((game) => !publishedGameIds.has(game.id)),
-    [personalGames, publishedGameIds],
+  const publishedFilenames = useMemo(
+    () =>
+      new Map(
+        games.map((game) => [
+          game.filename.toLocaleLowerCase('en-US'),
+          gameIdForOnlineLibraryEntry(game),
+        ]),
+      ),
+    [games],
+  )
+  const personalPublishRows = useMemo(
+    () =>
+      personalGames.map((game) => {
+        let status: PersonalGamePublishStatus = 'ready'
+        if (publishedGameIds.has(game.id)) status = 'published'
+        else if (
+          publishedFilenames.has(game.filename.toLocaleLowerCase('en-US')) &&
+          publishedFilenames.get(game.filename.toLocaleLowerCase('en-US')) !== game.id
+        ) {
+          status = 'filename-conflict'
+        } else if (!localRomGameIds) status = 'checking'
+        else if (!localRomGameIds.has(game.id)) status = 'missing-rom'
+        return { game, status }
+      }),
+    [localRomGameIds, personalGames, publishedFilenames, publishedGameIds],
+  )
+  const publishablePersonalGames = useMemo(
+    () => personalPublishRows.filter(({ status }) => status === 'ready').map(({ game }) => game),
+    [personalPublishRows],
+  )
+  const visiblePersonalRows = useMemo(
+    () =>
+      personalPublishRows.filter(
+        ({ game }) =>
+          !normalizedQuery ||
+          `${game.title}\n${game.filename}\n${PLATFORM_REGISTRY[game.platform].label}`
+            .toLocaleLowerCase('zh-CN')
+            .includes(normalizedQuery),
+      ),
+    [normalizedQuery, personalPublishRows],
   )
   const visibleGames = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase('zh-CN')
     return games.filter(
       (game) =>
         (view !== 'browse' || platform === 'all' || game.platform === platform) &&
-        (!normalized ||
+        (!normalizedQuery ||
           `${game.title}\n${game.filename}\n${PLATFORM_REGISTRY[game.platform].label}`
             .toLocaleLowerCase('zh-CN')
-            .includes(normalized)),
+            .includes(normalizedQuery)),
     )
-  }, [games, platform, query, view])
+  }, [games, normalizedQuery, platform, view])
   const selectableVisible = visibleGames.filter(
     (game) => !library.installedGameIds.has(gameIdForOnlineLibraryEntry(game)),
   )
 
   useEffect(() => setUrl(library.url ?? ''), [library.url])
   useEffect(() => {
-    setPersonalGameId((current) =>
-      personalUploadOptions.some((game) => game.id === current)
-        ? current
-        : (personalUploadOptions[0]?.id ?? ''),
-    )
-  }, [personalUploadOptions])
+    let active = true
+    setLocalRomGameIds(null)
+    void getRomGameIds()
+      .then((ids) => {
+        if (active) setLocalRomGameIds(ids)
+      })
+      .catch(() => {
+        if (active) setLocalRomGameIds(new Set())
+      })
+    return () => {
+      active = false
+    }
+  }, [personalGames])
   useEffect(() => {
     setSelected((current) => {
       const availableIds = new Set(available.map((game) => game.id))
       return new Set(Array.from(current).filter((id) => availableIds.has(id)))
     })
   }, [available])
+  useEffect(() => {
+    setSelectedPersonalGames((current) => {
+      const publishableIds = new Set(publishablePersonalGames.map((game) => game.id))
+      const next = new Set(Array.from(current).filter((id) => publishableIds.has(id)))
+      return next.size === current.size ? current : next
+    })
+  }, [publishablePersonalGames])
 
   const connect = async (event: FormEvent) => {
     event.preventDefault()
@@ -149,6 +205,14 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
       }
       return next
     })
+  }
+  const allPublishableSelected =
+    publishablePersonalGames.length > 0 &&
+    publishablePersonalGames.every((game) => selectedPersonalGames.has(game.id))
+  const toggleAllPublishable = () => {
+    setSelectedPersonalGames(
+      allPublishableSelected ? new Set() : new Set(publishablePersonalGames.map((game) => game.id)),
+    )
   }
 
   return (
@@ -261,7 +325,9 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
             <span>选择当前结果</span>
           </label>
         ) : (
-          <span className="online-library-result-count">{visibleGames.length} 个文件</span>
+          <span className="online-library-result-count">
+            {visiblePersonalRows.length} 个本地游戏 · {visibleGames.length} 个已发布
+          </span>
         )}
       </div>
 
@@ -358,25 +424,7 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
         </>
       ) : (
         <>
-          <form
-            className="online-library-form online-library-admin"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (uploadSource === 'library') {
-                if (!personalGameId) return
-                void library.publishPersonalGame(personalGameId, adminToken).catch(() => {})
-              } else {
-                if (!upload) return
-                void library
-                  .publish(upload, adminToken)
-                  .then(() => {
-                    setUpload(null)
-                    setUploadInputKey((value) => value + 1)
-                  })
-                  .catch(() => {})
-              }
-            }}
-          >
+          <div className="online-library-form online-library-admin">
             <label>
               <span>管理员令牌</span>
               <input
@@ -388,122 +436,174 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
                 onChange={(event) => setAdminToken(event.target.value)}
               />
             </label>
-            <div className="online-library-publish-control">
-              <span>发布 ROM</span>
-              <div className="online-library-upload-source" role="group" aria-label="上传来源">
+            <span className="online-library-token-note">令牌仅在当前页面停留期间保留。</span>
+          </div>
+
+          <section
+            className="online-library-manage-section"
+            aria-labelledby="personal-games-heading"
+          >
+            <header className="online-library-section-heading">
+              <div>
+                <h3 id="personal-games-heading">本地游戏待发布</h3>
+                <span>{publishablePersonalGames.length} 个可发布</span>
+              </div>
+              <div className="online-library-bulk-actions">
+                <label className="online-library-select-all">
+                  <input
+                    type="checkbox"
+                    aria-label="选择全部可发布游戏"
+                    checked={allPublishableSelected}
+                    disabled={!publishablePersonalGames.length || busy}
+                    onChange={toggleAllPublishable}
+                  />
+                  <span>全选可发布游戏</span>
+                </label>
                 <button
+                  className="button primary online-library-publish"
                   type="button"
-                  aria-pressed={uploadSource === 'library'}
-                  onClick={() => setUploadSource('library')}
+                  disabled={busy || !adminToken.trim() || selectedPersonalGames.size === 0}
+                  onClick={() =>
+                    void library
+                      .publishPersonalGames(Array.from(selectedPersonalGames), adminToken)
+                      .then(() => setSelectedPersonalGames(new Set()))
+                      .catch(() => {})
+                  }
                 >
-                  <Files size={14} />
-                  个人游戏库
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={uploadSource === 'file'}
-                  onClick={() => setUploadSource('file')}
-                >
-                  <Upload size={14} />
-                  本地文件
+                  {library.phase === 'publishing' ? (
+                    <LoaderCircle size={16} className="account-spinner" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  发布所选{selectedPersonalGames.size ? `（${selectedPersonalGames.size}）` : ''}
                 </button>
               </div>
-              {uploadSource === 'library' ? (
-                <select
-                  aria-label="选择个人游戏"
-                  required
-                  value={personalGameId}
-                  disabled={!personalUploadOptions.length}
-                  onChange={(event) => setPersonalGameId(event.target.value)}
-                >
-                  {personalUploadOptions.length ? (
-                    personalUploadOptions.map((game) => (
-                      <option value={game.id} key={game.id}>
-                        {game.title} ({PLATFORM_REGISTRY[game.platform].label})
-                      </option>
-                    ))
-                  ) : (
-                    <option value="">没有可发布的个人游戏</option>
-                  )}
-                </select>
-              ) : (
-                <input
-                  key={uploadInputKey}
-                  name="gameFile"
-                  type="file"
-                  aria-label="发布 ROM"
-                  accept={ROM_FILE_EXTENSIONS.join(',')}
-                  required
-                  onChange={(event) => setUpload(event.target.files?.[0] ?? null)}
-                />
-              )}
-            </div>
-            <button
-              className="button primary"
-              type="submit"
-              disabled={busy || (uploadSource === 'library' ? !personalGameId : !upload)}
-            >
-              {library.phase === 'publishing' ? (
-                <LoaderCircle size={16} className="account-spinner" />
-              ) : (
-                <Upload size={16} />
-              )}
-              发布到在线库
-            </button>
-          </form>
-          <div className="online-library-table online-library-manage-table">
-            <div className="online-library-table-heading" aria-hidden="true">
-              <span aria-hidden="true" />
-              <span>游戏</span>
-              <span>文件名</span>
-              <span>平台</span>
-              <span>大小</span>
-              <span>SHA-256</span>
-              <span aria-hidden="true" />
-            </div>
-            <div className="online-library-list" aria-label="已发布游戏">
-              {visibleGames.length ? (
-                visibleGames.map((game) => (
-                  <div className="online-library-game online-library-managed-game" key={game.id}>
-                    <CloudDownload size={16} aria-hidden="true" />
-                    <span className="online-library-game-title">
-                      <strong>{game.title}</strong>
-                      <small className="online-library-mobile-meta">
-                        {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
-                      </small>
+            </header>
+            <div className="online-library-table online-library-personal-table">
+              <div className="online-library-table-heading">
+                <span aria-hidden="true" />
+                <span>游戏</span>
+                <span>文件名</span>
+                <span>平台</span>
+                <span>大小</span>
+                <span>状态</span>
+              </div>
+              <div className="online-library-list" aria-label="个人游戏库发布列表">
+                {visiblePersonalRows.length ? (
+                  visiblePersonalRows.map(({ game, status }) => {
+                    const selectable = status === 'ready'
+                    return (
+                      <label
+                        className={`online-library-game ${selectable ? '' : 'is-unavailable'}`}
+                        key={game.id}
+                      >
+                        <input
+                          type="checkbox"
+                          aria-label={`选择发布 ${game.title}`}
+                          checked={status === 'published' || selectedPersonalGames.has(game.id)}
+                          disabled={!selectable || busy}
+                          onChange={() =>
+                            setSelectedPersonalGames((current) => {
+                              const next = new Set(current)
+                              if (next.has(game.id)) next.delete(game.id)
+                              else next.add(game.id)
+                              return next
+                            })
+                          }
+                        />
+                        <span className="online-library-game-title">
+                          <strong>{game.title}</strong>
+                          <small className="online-library-mobile-meta">
+                            {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
+                          </small>
+                        </span>
+                        <span className="online-library-filename" title={game.filename}>
+                          {game.filename}
+                        </span>
+                        <span className="online-library-platform">
+                          {PLATFORM_REGISTRY[game.platform].label}
+                        </span>
+                        <span className="online-library-size">{formatSize(game.size)}</span>
+                        <em className={`is-${status}`}>{publishStatusLabel[status]}</em>
+                      </label>
+                    )
+                  })
+                ) : (
+                  <div className="online-library-empty">
+                    <Files size={24} aria-hidden="true" />
+                    <span>
+                      {personalGames.length ? '没有匹配的本地游戏。' : '个人游戏库中还没有游戏。'}
                     </span>
-                    <span className="online-library-filename" title={game.filename}>
-                      {game.filename}
-                    </span>
-                    <span className="online-library-platform">
-                      {PLATFORM_REGISTRY[game.platform].label}
-                    </span>
-                    <span className="online-library-size">{formatSize(game.size)}</span>
-                    <code title={game.sha256}>{game.sha256.slice(0, 12)}</code>
-                    <button
-                      className="icon-button"
-                      type="button"
-                      aria-label={`下架 ${game.title}`}
-                      title={`下架 ${game.title}`}
-                      disabled={busy || !adminToken}
-                      onClick={() => {
-                        if (window.confirm(`从在线游戏库下架「${game.title}」？`)) {
-                          void library.remove(game.filename, adminToken).catch(() => {})
-                        }
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
                   </div>
-                ))
-              ) : (
-                <div className="online-library-empty">
-                  <Files size={24} aria-hidden="true" />
-                  <span>{games.length ? '没有匹配的文件。' : '尚未发布游戏。'}</span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          </section>
+
+          <section
+            className="online-library-manage-section"
+            aria-labelledby="published-games-heading"
+          >
+            <header className="online-library-section-heading">
+              <div>
+                <h3 id="published-games-heading">在线库已发布</h3>
+                <span>{visibleGames.length} 个文件</span>
+              </div>
+            </header>
+            <div className="online-library-table online-library-manage-table">
+              <div className="online-library-table-heading" aria-hidden="true">
+                <span aria-hidden="true" />
+                <span>游戏</span>
+                <span>文件名</span>
+                <span>平台</span>
+                <span>大小</span>
+                <span>SHA-256</span>
+                <span aria-hidden="true" />
+              </div>
+              <div className="online-library-list" aria-label="已发布游戏">
+                {visibleGames.length ? (
+                  visibleGames.map((game) => (
+                    <div className="online-library-game online-library-managed-game" key={game.id}>
+                      <CloudDownload size={16} aria-hidden="true" />
+                      <span className="online-library-game-title">
+                        <strong>{game.title}</strong>
+                        <small className="online-library-mobile-meta">
+                          {PLATFORM_REGISTRY[game.platform].label} · {formatSize(game.size)}
+                        </small>
+                      </span>
+                      <span className="online-library-filename" title={game.filename}>
+                        {game.filename}
+                      </span>
+                      <span className="online-library-platform">
+                        {PLATFORM_REGISTRY[game.platform].label}
+                      </span>
+                      <span className="online-library-size">{formatSize(game.size)}</span>
+                      <code title={game.sha256}>{game.sha256.slice(0, 12)}</code>
+                      <button
+                        className="icon-button"
+                        type="button"
+                        aria-label={`下架 ${game.title}`}
+                        title={`下架 ${game.title}`}
+                        disabled={busy || !adminToken}
+                        onClick={() => {
+                          if (window.confirm(`从在线游戏库下架「${game.title}」？`)) {
+                            void library.remove(game.filename, adminToken).catch(() => {})
+                          }
+                        }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="online-library-empty">
+                    <Files size={24} aria-hidden="true" />
+                    <span>{games.length ? '没有匹配的文件。' : '尚未发布游戏。'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
           <footer className="online-library-actionbar">
             <div
               className={`online-library-feedback ${library.phase === 'error' ? 'is-error' : ''}`}
@@ -512,7 +612,6 @@ export function OnlineLibraryPage({ library, personalGames }: OnlineLibraryPageP
             >
               {library.message}
             </div>
-            <span className="online-library-token-note">令牌仅在当前页面停留期间保留。</span>
           </footer>
         </>
       )}

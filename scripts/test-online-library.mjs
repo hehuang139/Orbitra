@@ -34,6 +34,26 @@ try {
   await page.goto(appUrl)
   await page.waitForFunction(() => !document.querySelector('.hero-actions button')?.disabled)
   await page.getByRole('button', { name: '登录与同步' }).waitFor()
+
+  const original = Buffer.from(
+    await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)),
+  )
+  const localGames = ['ONE', 'TWO'].map((suffix, index) => {
+    const source = Buffer.from(original)
+    Buffer.from(`LIBRARY${suffix}`).copy(source, 0xac)
+    source[0x90 + index] ^= 0x5a + index
+    let checksum = 0x19
+    for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += source[offset]
+    source[0xbd] = -checksum & 255
+    return {
+      name: `Library Orbit ${index + 1}.gba`,
+      mimeType: 'application/octet-stream',
+      buffer: source,
+    }
+  })
+  await page.getByLabel('选择游戏文件', { exact: true }).setInputFiles(localGames)
+  await page.getByText('已导入 2 个游戏，准备开始吧', { exact: true }).waitFor()
+
   await page.getByRole('button', { name: '在线游戏库' }).click()
   await page.getByRole('heading', { name: '在线游戏库' }).waitFor()
   assert.equal(await page.getByRole('dialog').count(), 0, 'online library must be a page')
@@ -49,65 +69,44 @@ try {
   await page.getByText('star-orbit.gba', { exact: true }).waitFor()
   await page.screenshot({ path: new URL('desktop-online-library.png', artifacts).pathname })
 
-  const source = Buffer.from(
-    await readFile(new URL('../public/demo/star-orbit.gba', import.meta.url)),
-  )
-  Buffer.from('LIBRARYTEST1').copy(source, 0xac)
-  let checksum = 0x19
-  for (let offset = 0xa0; offset <= 0xbc; offset++) checksum += source[offset]
-  source[0xbd] = -checksum & 255
-
-  await page.getByRole('tab', { name: '管理分发' }).click()
-  await page.getByLabel('管理员令牌').fill(adminToken)
-  await page.getByRole('button', { name: '本地文件' }).click()
-  await page.getByLabel('发布 ROM').setInputFiles({
-    name: 'Library Orbit.gba',
-    mimeType: 'application/octet-stream',
-    buffer: source,
-  })
-  await page.getByRole('button', { name: '发布到在线库' }).click()
-  await page.getByText('已发布 Library Orbit.gba。').waitFor()
-  await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).waitFor()
-  await page.getByText('Library Orbit.gba', { exact: true }).waitFor()
-  await page.screenshot({ path: new URL('desktop-online-library-manage.png', artifacts).pathname })
-
-  await page.getByRole('tab', { name: '浏览与导入' }).click()
-  const row = page.locator('.online-library-game', { hasText: 'Library Orbit' })
-  await row.locator('input[type="checkbox"]').check()
-  await page.getByRole('button', { name: '导入所选（1）' }).click()
-  await page.getByText('已导入 1 个游戏').waitFor()
-  assert.equal(await row.locator('input[type="checkbox"]').isDisabled(), true)
-  await row.getByText('已在个人库').waitFor()
+  const onlineRow = page.locator('.online-library-game', { hasText: 'star-orbit.gba' })
+  assert.equal(await onlineRow.locator('input[type="checkbox"]').isDisabled(), true)
+  await onlineRow.getByText('已在个人库').waitFor()
 
   const storedConnection = await page.evaluate(() => localStorage.getItem('advance.online-library'))
   assert.ok(storedConnection?.includes(libraryUrl))
   assert.equal(storedConnection?.includes(adminToken), false, 'admin token must not be persisted')
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('tab', { name: '管理分发' }).click()
-  await page.getByRole('button', { name: '下架 Library Orbit' }).click()
-  await page.getByText('已下架 Library Orbit.gba；个人游戏库中的副本不受影响。').waitFor()
-  assert.equal(
-    await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).count(),
-    0,
-  )
-  await page.getByRole('button', { name: '个人游戏库' }).click()
-  await page.getByLabel('选择个人游戏').selectOption({ label: 'Library Orbit (GBA)' })
-  await page.getByRole('button', { name: '发布到在线库' }).click()
-  await page.getByText('已从个人游戏库发布 Library Orbit.gba。').waitFor()
-  await page.locator('.online-library-managed-game', { hasText: 'Library Orbit' }).waitFor()
-  assert.equal(await page.getByLabel('选择个人游戏').isDisabled(), true)
-  assert.equal(
-    await page.getByLabel('选择个人游戏').inputValue(),
-    '',
-    'a published personal game must no longer be offered for upload',
-  )
+  await page.getByLabel('管理员令牌').fill(adminToken)
+  const personalList = page.getByLabel('个人游戏库发布列表')
+  await personalList.getByText('Library Orbit 1.gba', { exact: true }).waitFor()
+  await personalList.getByText('Library Orbit 2.gba', { exact: true }).waitFor()
+  await page.getByLabel('选择全部可发布游戏').check()
+  assert.equal(await page.getByRole('button', { name: '发布所选（2）' }).isEnabled(), true)
+  await page.getByRole('button', { name: '发布所选（2）' }).click()
+  await page.getByText('已从个人游戏库发布 2 个游戏。').waitFor()
+  const publishedList = page.getByLabel('已发布游戏')
+  await publishedList.getByText('Library Orbit 1.gba', { exact: true }).waitFor()
+  await publishedList.getByText('Library Orbit 2.gba', { exact: true }).waitFor()
+  for (const title of ['Library Orbit 1', 'Library Orbit 2']) {
+    const row = personalList.locator('.online-library-game', { hasText: title })
+    assert.equal(await row.locator('input[type="checkbox"]').isDisabled(), true)
+    await row.getByText('已发布', { exact: true }).waitFor()
+  }
+  assert.equal(await page.getByLabel('选择全部可发布游戏').isDisabled(), true)
+  await page.screenshot({ path: new URL('desktop-online-library-manage.png', artifacts).pathname })
 
-  page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: '下架 Library Orbit' }).click()
-  await page.getByText('已下架 Library Orbit.gba；个人游戏库中的副本不受影响。').waitFor()
+  for (const title of ['Library Orbit 1', 'Library Orbit 2']) {
+    page.once('dialog', (dialog) => dialog.accept())
+    await page.getByRole('button', { name: `下架 ${title}` }).click()
+    await page.getByText(`已下架 ${title}.gba；个人游戏库中的副本不受影响。`).waitFor()
+  }
+  assert.equal(await publishedList.getByText(/Library Orbit [12]\.gba/).count(), 0)
+  assert.equal(await page.getByLabel('选择全部可发布游戏').isEnabled(), true)
   await page.getByRole('button', { name: /^游戏库/ }).click()
-  await page.locator('.game-title', { hasText: 'Library Orbit' }).waitFor()
+  await page.locator('.game-title', { hasText: 'Library Orbit 1' }).waitFor()
+  await page.locator('.game-title', { hasText: 'Library Orbit 2' }).waitFor()
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: '打开导航' }).click()
@@ -146,7 +145,7 @@ try {
   assert.deepEqual(errors, [], 'online library flow should not produce uncaught browser errors')
   await context.close()
   console.log(
-    'Online library page passed: platform filter, file and personal-library publishing, import, deduplicate, remove, responsive layout.',
+    'Online library page passed: platform filter, personal-library table, bulk publishing, remove, responsive layout.',
   )
 } finally {
   await browser.close()

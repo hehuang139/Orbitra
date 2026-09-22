@@ -26,8 +26,7 @@ export interface OnlineLibraryController {
   disconnect(): void
   refresh(): Promise<void>
   importGames(ids: string[]): Promise<void>
-  publish(file: File, token: string): Promise<void>
-  publishPersonalGame(gameId: string, token: string): Promise<void>
+  publishPersonalGames(gameIds: string[], token: string): Promise<void>
   remove(filename: string, token: string): Promise<void>
 }
 
@@ -136,41 +135,62 @@ export function useOnlineLibrary({
         throw cause
       }
     },
-    async publish(file: File, token: string) {
+    async publishPersonalGames(gameIds: string[], token: string) {
       if (!urlRef.current) throw new Error('请先配置在线游戏库地址。')
+      if (!gameIds.length) return
       setPhase('publishing')
-      setMessage(`正在发布 ${file.name}…`)
+      let published = 0
       try {
-        const nextManifest = await publishOnlineLibraryGame(urlRef.current, token, file)
-        setManifest(nextManifest)
+        if (!token.trim()) throw new Error('请输入在线游戏库管理员令牌。')
+        const requested = new Set(gameIds)
+        const personalGames = (await db.getGames()).filter((game) => requested.has(game.id))
+        if (personalGames.length !== requested.size) {
+          throw new Error('部分所选游戏已不在个人游戏库中，请刷新后重试。')
+        }
+        const filenames = new Set<string>()
+        for (const game of personalGames) {
+          const normalizedFilename = game.filename.toLocaleLowerCase('en-US')
+          if (filenames.has(normalizedFilename)) {
+            throw new Error(`所选游戏中存在重复文件名：${game.filename}`)
+          }
+          filenames.add(normalizedFilename)
+        }
+        const localRomGameIds = await db.getRomGameIds()
+        const missing = personalGames.find((game) => !localRomGameIds.has(game.id))
+        if (missing) throw new Error(`「${missing.title}」的 ROM 尚未下载到此设备，无法发布。`)
+        const publishedIds = new Set(
+          (manifest?.games ?? []).map((game) => gameIdForOnlineLibraryEntry(game)),
+        )
+        const publishedFilenames = new Map(
+          (manifest?.games ?? []).map((game) => [
+            game.filename.toLocaleLowerCase('en-US'),
+            gameIdForOnlineLibraryEntry(game),
+          ]),
+        )
+        for (const game of personalGames) {
+          if (publishedIds.has(game.id)) throw new Error(`「${game.title}」已经发布。`)
+          const publishedId = publishedFilenames.get(game.filename.toLocaleLowerCase('en-US'))
+          if (publishedId && publishedId !== game.id) {
+            throw new Error(`在线游戏库中已有同名文件：${game.filename}`)
+          }
+        }
+
+        for (const [index, game] of personalGames.entries()) {
+          setMessage(`正在发布 ${index + 1}/${personalGames.length}：${game.filename}`)
+          const rom = await db.getRom(game.id)
+          if (!rom) throw new Error(`「${game.title}」的 ROM 尚未下载到此设备，无法发布。`)
+          const body = rom instanceof Blob ? rom : new Uint8Array(rom)
+          const file = new File([body], game.filename, { type: 'application/octet-stream' })
+          const nextManifest = await publishOnlineLibraryGame(urlRef.current, token, file)
+          setManifest(nextManifest)
+          published += 1
+        }
         setPhase('ready')
-        setMessage(`已发布 ${file.name}。`)
+        setMessage(`已从个人游戏库发布 ${published} 个游戏。`)
       } catch (cause) {
         setPhase('error')
-        setMessage(cause instanceof Error ? cause.message : '在线游戏发布失败。')
-        throw cause
-      }
-    },
-    async publishPersonalGame(gameId: string, token: string) {
-      if (!urlRef.current) throw new Error('请先配置在线游戏库地址。')
-      setPhase('publishing')
-      let filename = '所选游戏'
-      try {
-        const game = (await db.getGames()).find((candidate) => candidate.id === gameId)
-        if (!game) throw new Error('所选游戏已不在个人游戏库中。')
-        filename = game.filename
-        setMessage(`正在从个人游戏库发布 ${filename}…`)
-        const rom = await db.getRom(game.id)
-        if (!rom) throw new Error(`「${game.title}」的 ROM 尚未下载到此设备，无法发布。`)
-        const body = rom instanceof Blob ? rom : new Uint8Array(rom)
-        const file = new File([body], filename, { type: 'application/octet-stream' })
-        const nextManifest = await publishOnlineLibraryGame(urlRef.current, token, file)
-        setManifest(nextManifest)
-        setPhase('ready')
-        setMessage(`已从个人游戏库发布 ${filename}。`)
-      } catch (cause) {
-        setPhase('error')
-        setMessage(cause instanceof Error ? cause.message : '个人游戏发布失败。')
+        const detail = cause instanceof Error ? cause.message : '个人游戏发布失败。'
+        setMessage(published ? `已发布 ${published} 个；${detail}` : detail)
         throw cause
       }
     },

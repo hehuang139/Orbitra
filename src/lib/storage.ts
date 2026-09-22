@@ -470,6 +470,13 @@ export async function getRom(id: string): Promise<RomData | undefined> {
   })
 }
 
+export async function getRomGameIds(): Promise<ReadonlySet<string>> {
+  return transaction([STORES.roms], 'readonly', async (tx) => {
+    const keys = await requestResult(tx.objectStore(STORES.roms).getAllKeys())
+    return new Set(keys.filter((key): key is string => typeof key === 'string'))
+  })
+}
+
 /** Cache a remotely restored ROM without marking saves or metadata as locally modified. */
 export async function cacheRom(id: string, data: Uint8Array): Promise<Uint8Array> {
   const bytes = copyBytes(data, '下载的游戏 ROM 数据无效，请重试。')

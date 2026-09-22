@@ -8,6 +8,7 @@ import {
   getBatterySave,
   getGames,
   getRom,
+  getRomGameIds,
   getState,
   getStates,
   importGame,
@@ -86,10 +87,12 @@ async function corrupt(store: string, record: object): Promise<void> {
 
 test('imports content once even when concurrent imports use different filenames', async () => {
   assert.deepEqual(await getGames(), [])
+  assert.deepEqual(await getRomGameIds(), new Set())
   const [a, b] = await Promise.all([importGame(rom()), importGame(rom('Renamed.GBA'))])
   assert.equal(a.id, b.id)
   assert.match(a.id, /^[0-9a-f]{64}$/)
   assert.equal((await getGames()).length, 1)
+  assert.deepEqual(await getRomGameIds(), new Set([a.id]))
   assert.deepEqual(await getRom(a.id), new Uint8Array(1024).fill(1))
   await updateGame(a.id, { favorite: true, playTime: 34, title: 'My game' })
   const again = await importGame(rom('Third.gba'))
