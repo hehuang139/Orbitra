@@ -4,6 +4,7 @@ import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
+  Boxes,
   Braces,
   Check,
   ChevronDown,
@@ -70,6 +71,7 @@ import { BackupManager } from './components/BackupManager'
 import { OfflineStatus } from './components/OfflineStatus'
 import { AccountPanel } from './components/AccountPanel'
 import { OnlineLibraryPage } from './components/OnlineLibraryPanel'
+import { MinecraftPage } from './components/MinecraftPage'
 import { useAccountSync } from './hooks/useAccountSync'
 import { useOnlineLibrary } from './hooks/useOnlineLibrary'
 import { createBackup } from './lib/backup-format'
@@ -105,7 +107,7 @@ import {
 } from './lib/session-recovery'
 import type { SessionRecoveryRecord } from './lib/session-recovery'
 
-type Page = 'library' | 'recent' | 'favorites' | 'states' | 'online-library'
+type Page = 'library' | 'recent' | 'favorites' | 'states' | 'online-library' | 'minecraft'
 type Modal =
   | 'launch'
   | 'recovery'
@@ -125,6 +127,7 @@ const pages: Record<Page, string> = {
   favorites: '我的收藏',
   states: '存档管理',
   'online-library': '在线游戏库',
+  minecraft: 'Minecraft 版本',
 }
 const buttonNames: Record<EmulatorButton, string> = {
   Up: '上',
@@ -1471,6 +1474,7 @@ export default function App() {
               ['favorites', Heart],
               ['states', Save],
               ['online-library', CloudDownload],
+              ['minecraft', Boxes],
             ] as const
           ).map(([key, Icon]) => (
             <button
@@ -1759,10 +1763,12 @@ export default function App() {
                       ? '把心头好，放在最顺手的地方。'
                       : page === 'states'
                         ? '每一段冒险，都值得好好保存。'
-                        : '浏览分发目录，把想玩的游戏带回个人游戏库。'}
+                        : page === 'minecraft'
+                          ? '从官方源下载并在浏览器中运行经过验证的版本。'
+                          : '浏览分发目录，把想玩的游戏带回个人游戏库。'}
               </p>
             </div>
-            {page !== 'online-library' && (
+            {!['online-library', 'minecraft'].includes(page) && (
               <div className="import-actions">
                 <button
                   className="button secondary import-top"
@@ -2028,7 +2034,9 @@ export default function App() {
             </>
           )}
 
-          {page === 'online-library' ? (
+          {page === 'minecraft' ? (
+            <MinecraftPage />
+          ) : page === 'online-library' ? (
             <OnlineLibraryPage library={onlineLibrary} personalGames={games} />
           ) : page !== 'states' ? (
             <div className="content-grid">

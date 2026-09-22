@@ -4,13 +4,14 @@ Orbitra 自有应用代码、文档与界面采用 [MIT License](LICENSE)。此�
 
 ## 随仓库分发的资源
 
-| 组件                       | 所在位置                                  | 许可与来源                                                                                                                   |
-| -------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| mGBA WebAssembly           | `public/emulator/mgba.js`、`mgba.wasm`    | [MPL-2.0 全文](public/emulator/LICENSE-MPL-2.0.txt)；[来源、精确提交、WASM 校验值与本地修改](public/emulator/NOTICE.md)      |
-| EmulatorJS、FCEUmm、Snes9x | `public/emulatorjs/`                      | EmulatorJS GPL-3.0、FCEUmm GPL-2.0、Snes9x 自有许可证；[版本、来源、校验值与本地修改](public/emulatorjs/NOTICE.md)           |
-| wasm-dolphin、Dolphin      | `public/dolphin/`                         | GPL-2.0-or-later；[固定提交、核心校验值与许可](public/dolphin/NOTICE.md)                                                     |
-| DM Sans 可变字体           | `public/fonts/dm-sans.ttf`                | [SIL Open Font License 1.1](public/fonts/OFL.txt)；[Google Fonts 源码](https://github.com/google/fonts/tree/main/ofl/dmsans) |
-| Star Orbit 原创示例        | `public/demo/`、`scripts/create-demo.mjs` | [MIT License](public/demo/LICENSE.txt)；可复现的原创 GBA 程序、位图、字体及音效                                              |
+| 组件                         | 所在位置                                  | 许可与来源                                                                                                                                                                            |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| mGBA WebAssembly             | `public/emulator/mgba.js`、`mgba.wasm`    | [MPL-2.0 全文](public/emulator/LICENSE-MPL-2.0.txt)；[来源、精确提交、WASM 校验值与本地修改](public/emulator/NOTICE.md)                                                               |
+| EmulatorJS、FCEUmm、Snes9x   | `public/emulatorjs/`                      | EmulatorJS GPL-3.0、FCEUmm GPL-2.0、Snes9x 自有许可证；[版本、来源、校验值与本地修改](public/emulatorjs/NOTICE.md)                                                                    |
+| wasm-dolphin、Dolphin        | `public/dolphin/`                         | GPL-2.0-or-later；[固定提交、核心校验值与许可](public/dolphin/NOTICE.md)                                                                                                              |
+| DM Sans 可变字体             | `public/fonts/dm-sans.ttf`                | [SIL Open Font License 1.1](public/fonts/OFL.txt)；[Google Fonts 源码](https://github.com/google/fonts/tree/main/ofl/dmsans)                                                          |
+| Star Orbit 原创示例          | `public/demo/`、`scripts/create-demo.mjs` | [MIT License](public/demo/LICENSE.txt)；可复现的原创 GBA 程序、位图、字体及音效                                                                                                       |
+| Browsercraft / LWJGL / GL4ES | `public/lwjgl/`                           | Apache-2.0、BSD 3-Clause-style、MIT；来自 [Leaning Technologies Browsercraft](https://github.com/leaningtech/browsercraft) 的固定提交；[来源、许可与校验说明](public/lwjgl/NOTICE.md) |
 
 ### mGBA 的修改与源码
 
@@ -29,6 +30,10 @@ EmulatorJS 4.2.3 前端与固定版本的 FCEUmm / Snes9x WebAssembly 核心随�
 ### ROM 与商标
 
 仓库只包含原创 Star Orbit 试玩和测试时动态生成的原创最小 GB / GBC / NES / SNES ROM，不包含商业 ROM 或 Nintendo BIOS。标准启动识别数据仅用于格式与硬件兼容。Nintendo 主机与平台名称属于各自权利人，仅用于说明兼容格式；本项目与 Nintendo 无隶属、授权或背书关系。
+
+### Minecraft 浏览器运行时
+
+Minecraft 版本清单、客户端、资源和依赖不随仓库分发。Minecraft Java Edition 1.2.5 的可选浏览器演示使用 CheerpJ 4.3（由 Leaning Technologies 提供的外部浏览器运行时）以及上述 Browsercraft、LWJGL 2.9.3 和 GL4ES 文件；CheerpJ 的许可、服务条款和自托管条件以其[官方许可说明](https://cheerpj.com/licensing/)为准。项目不收集 Microsoft 密码、不绕过所有权校验，也不声称获得 Mojang 或 Microsoft 的授权。
 
 ## 前端运行依赖
 

@@ -1,0 +1,462 @@
+.minecraft-page {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.minecraft-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid #303735;
+  background: #181e1b;
+}
+.minecraft-source,
+.minecraft-source > span,
+.minecraft-stats,
+.minecraft-version-name,
+.minecraft-version-actions,
+.minecraft-progress > div,
+.minecraft-boundary > div {
+  display: flex;
+  align-items: center;
+}
+.minecraft-source {
+  gap: 12px;
+  min-width: 0;
+}
+.minecraft-source > span,
+.minecraft-cube {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid #55705d;
+  border-radius: 5px;
+  color: #b1efcf;
+  background: #203128;
+}
+.minecraft-source div {
+  min-width: 0;
+}
+.minecraft-source strong {
+  font-size: 14px;
+}
+.minecraft-source p,
+.minecraft-download-plan p {
+  margin-top: 4px;
+  color: #8c9690;
+  font-size: 11px;
+}
+.minecraft-stats {
+  gap: 4px;
+}
+.minecraft-stats > span {
+  display: grid;
+  min-width: 86px;
+  padding: 2px 14px;
+  border-left: 1px solid #34403a;
+  color: #7f8983;
+  font-size: 9px;
+}
+.minecraft-stats strong {
+  color: #e5eee8;
+  font-size: 13px;
+}
+.minecraft-notice,
+.minecraft-resume-note {
+  padding: 11px 14px;
+  border: 1px solid #405147;
+  color: #cbd9d0;
+  background: #1b2821;
+  font-size: 11px;
+}
+.minecraft-resume-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.minecraft-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.minecraft-filters {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid #303638;
+  border-radius: 6px;
+  background: #191d1f;
+}
+.minecraft-filters button {
+  min-height: 36px;
+  padding: 0 13px;
+  color: #88908f;
+  white-space: nowrap;
+  border-right: 1px solid #303638;
+}
+.minecraft-filters button:last-child {
+  border-right: 0;
+}
+.minecraft-filters button.active {
+  color: #dff8e9;
+  background: #26352e;
+}
+.minecraft-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(250px, 38vw);
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid #303638;
+  border-radius: 6px;
+  background: #191d1f;
+  color: #747e7c;
+}
+.minecraft-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+.minecraft-download-plan {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 46px 16px 16px;
+  border: 1px solid #52735f;
+  background: #1b2921;
+}
+.minecraft-download-plan > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.minecraft-download-plan > .icon-button {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+}
+.minecraft-progress {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 1px solid #35433b;
+  background: #19211d;
+}
+.minecraft-progress > div {
+  gap: 8px;
+}
+.minecraft-progress progress {
+  width: 100%;
+  accent-color: #8dd8ae;
+}
+.minecraft-progress > span {
+  color: #919b95;
+  font-size: 10px;
+}
+.minecraft-list {
+  min-width: 0;
+  border: 1px solid #2d3333;
+  background: #171b1d;
+}
+.minecraft-list-heading,
+.minecraft-version {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) 110px 130px minmax(240px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.minecraft-list-heading {
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid #303638;
+  color: #707978;
+  background: #1b2022;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.minecraft-version {
+  min-height: 58px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #272d2e;
+}
+.minecraft-version:last-of-type {
+  border-bottom: 0;
+}
+.minecraft-version:hover {
+  background: #1b2021;
+}
+.minecraft-version-name {
+  gap: 10px;
+  min-width: 0;
+}
+.minecraft-version-name > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.minecraft-version-name strong {
+  overflow: hidden;
+  color: #e9eeeb;
+  text-overflow: ellipsis;
+}
+.minecraft-version-name small {
+  color: #737d7a;
+  font-size: 9px;
+}
+.minecraft-version-mark {
+  width: 8px;
+  height: 28px;
+  flex: none;
+  border-radius: 2px;
+  background: #7e8783;
+}
+.minecraft-version-mark.release {
+  background: #66bd86;
+}
+.minecraft-version-mark.snapshot {
+  background: #d4a753;
+}
+.minecraft-version-mark.old_beta {
+  background: #5fa4c8;
+}
+.minecraft-version-mark.old_alpha {
+  background: #b67763;
+}
+.minecraft-type {
+  width: fit-content;
+  padding: 4px 7px;
+  border: 1px solid #3a4340;
+  border-radius: 4px;
+  color: #aab3af;
+  font-size: 9px;
+}
+.minecraft-version > time {
+  color: #89918e;
+  font-size: 10px;
+}
+.minecraft-version-actions {
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+}
+.minecraft-installed {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 4px;
+  color: #8dd8ae;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.button.compact {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+.icon-button.danger {
+  color: #d89191;
+}
+.minecraft-empty {
+  display: grid;
+  place-items: center;
+  gap: 9px;
+  min-height: 180px;
+  color: #818a87;
+}
+.minecraft-more {
+  width: 100%;
+  min-height: 42px;
+  color: #9caaa3;
+  border-top: 1px solid #303638;
+}
+.minecraft-more:hover {
+  color: #dff8e9;
+  background: #202725;
+}
+.minecraft-boundary {
+  padding: 15px 17px;
+  border-left: 3px solid #6e957c;
+  background: #19201d;
+  color: #929d97;
+}
+.minecraft-boundary > div {
+  gap: 8px;
+  color: #d8e4dd;
+}
+.minecraft-boundary p {
+  margin-top: 6px;
+  max-width: 900px;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.minecraft-boundary > a {
+  width: fit-content;
+  margin-top: 10px;
+}
+.minecraft-player-overlay {
+  position: fixed;
+  z-index: 150;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(7 10 9 / 92%);
+}
+.minecraft-player {
+  width: min(1000px, 100%);
+  border: 1px solid #3a4540;
+  background: #111513;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 55%);
+}
+.minecraft-player > header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 54px;
+  padding: 8px 12px 8px 16px;
+  border-bottom: 1px solid #303936;
+}
+.minecraft-player > header > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+.minecraft-player > header span {
+  color: #84908a;
+  font-size: 9px;
+}
+.minecraft-player > header time {
+  color: #b1efcf;
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+}
+.minecraft-display {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  background: #050706;
+}
+.minecraft-display iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.minecraft-runtime-status {
+  position: absolute;
+  inset: auto 20px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px;
+  color: #b7c2bc;
+  background: rgb(14 19 16 / 88%);
+}
+.minecraft-player-prompt {
+  display: grid;
+  place-items: center;
+  gap: 15px;
+  max-width: 560px;
+  padding: 24px;
+  text-align: center;
+}
+.minecraft-player-prompt h2 {
+  font-size: 18px;
+}
+.minecraft-player-prompt p {
+  color: #98a29d;
+  line-height: 1.6;
+}
+.minecraft-player-prompt label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  color: #cbd4cf;
+}
+.minecraft-player-prompt input {
+  accent-color: #82cf9f;
+}
+.minecraft-player-prompt a {
+  color: #aee9c5;
+}
+.minecraft-player-prompt a svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.minecraft-player-prompt.error {
+  color: #dfa0a0;
+}
+@media (max-width: 850px) {
+  .minecraft-overview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .minecraft-stats {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .minecraft-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .minecraft-search {
+    width: 100%;
+  }
+  .minecraft-list-heading {
+    display: none;
+  }
+  .minecraft-version {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 10px;
+    padding: 11px;
+  }
+  .minecraft-version > time {
+    grid-column: 1;
+  }
+  .minecraft-version-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .minecraft-progress {
+    grid-template-columns: 1fr auto;
+  }
+  .minecraft-progress progress,
+  .minecraft-progress > span {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 520px) {
+  .minecraft-player-overlay {
+    padding: 0;
+  }
+  .minecraft-player {
+    height: 100%;
+    border: 0;
+  }
+  .minecraft-display {
+    aspect-ratio: auto;
+    height: calc(100% - 54px);
+  }
+  .minecraft-download-plan {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
