@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { createAccountApi } from './server/account-api.mjs'
+import { createMinecraftProxy } from './server/minecraft-proxy.mjs'
 
 const headers = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -14,17 +15,23 @@ export default defineConfig({
       name: 'advance-account-api',
       configureServer(server) {
         const api = createAccountApi()
+        const minecraft = createMinecraftProxy()
         server.httpServer?.once('close', api.close)
         server.middlewares.use((request, response, next) => {
-          if (request.url?.startsWith('/api/')) void api(request, response, next)
+          if (request.url?.startsWith('/minecraft-official/'))
+            void minecraft(request, response, next)
+          else if (request.url?.startsWith('/api/')) void api(request, response, next)
           else next()
         })
       },
       configurePreviewServer(server) {
         const api = createAccountApi()
+        const minecraft = createMinecraftProxy()
         server.httpServer?.once('close', api.close)
         server.middlewares.use((request, response, next) => {
-          if (request.url?.startsWith('/api/')) void api(request, response, next)
+          if (request.url?.startsWith('/minecraft-official/'))
+            void minecraft(request, response, next)
+          else if (request.url?.startsWith('/api/')) void api(request, response, next)
           else next()
         })
       },

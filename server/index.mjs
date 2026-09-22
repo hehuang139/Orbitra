@@ -4,6 +4,7 @@ import { createServer as createSecureServer } from 'node:https'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createAccountApi } from './account-api.mjs'
+import { createMinecraftProxy } from './minecraft-proxy.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const dist = path.join(root, 'dist')
@@ -12,6 +13,7 @@ const host = process.env.HOST || '0.0.0.0'
 const tlsCertificatePath = process.env.TLS_CERT_PATH
 const tlsKeyPath = process.env.TLS_KEY_PATH
 const api = createAccountApi()
+const minecraftProxy = createMinecraftProxy()
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -80,7 +82,8 @@ const tls =
     ? { cert: readFileSync(tlsCertificatePath), key: readFileSync(tlsKeyPath) }
     : null
 const handler = (request, response) => {
-  if (request.url?.startsWith('/api/')) void api(request, response)
+  if (request.url?.startsWith('/minecraft-official/')) void minecraftProxy(request, response)
+  else if (request.url?.startsWith('/api/')) void api(request, response)
   else staticFile(request, response)
 }
 const server = tls ? createSecureServer(tls, handler) : createServer(handler)

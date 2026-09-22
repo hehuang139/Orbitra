@@ -2,7 +2,7 @@
  * Orbitra offline shell. Keep this file dependency-free: it is served from
  * public/ and must be installable before the Vite bundle is available.
  */
-const CACHE_VERSION = 'advance-shell-v6'
+const CACHE_VERSION = 'advance-shell-v7'
 // Keep the legacy prefix so upgrades remove older Advance caches instead of orphaning them.
 const CACHE_PREFIX = 'advance-'
 const CORE_ASSETS = [
@@ -26,6 +26,13 @@ const CORE_ASSETS = [
   '/emulatorjs/cores/fceumm-legacy-wasm.data',
   '/emulatorjs/cores/snes9x-legacy-wasm.data',
   '/fonts/dm-sans.ttf',
+  '/minecraft-player.html',
+  '/minecraft-player.js',
+  '/lwjgl/lwjgl-2.9.3.jar',
+  '/lwjgl/lwjgl_util-2.9.3.jar',
+  '/lwjgl/libraries/gl4es.wasm',
+  '/lwjgl/libraries/liblwjgl.so',
+  '/lwjgl/libraries/lwjgl.js',
 ]
 
 const isSameOrigin = (request) => new URL(request.url).origin === self.location.origin
@@ -34,7 +41,10 @@ const isAppAsset = (url) =>
   url.pathname.startsWith('/emulator/') ||
   url.pathname.startsWith('/emulatorjs/') ||
   url.pathname.startsWith('/dolphin/') ||
-  url.pathname.startsWith('/fonts/')
+  url.pathname.startsWith('/fonts/') ||
+  url.pathname.startsWith('/lwjgl/') ||
+  url.pathname === '/minecraft-player.html' ||
+  url.pathname === '/minecraft-player.js'
 
 async function appShellUrls() {
   const urls = ['/']
