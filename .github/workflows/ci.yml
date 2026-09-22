@@ -84,11 +84,15 @@ jobs:
       - name: Run unit tests
         run: |
           pnpm test
+          pnpm test:companion
           pnpm test:account-server
           pnpm test:online-library-server
 
       - name: Build production bundle
-        run: pnpm build
+        run: |
+          pnpm build
+          pnpm --dir companion typecheck
+          pnpm build:companion
 
       - name: Upload production bundle
         uses: actions/upload-artifact@v4

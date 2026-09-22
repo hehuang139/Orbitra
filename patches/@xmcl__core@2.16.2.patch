@@ -1,0 +1,45 @@
+diff --git a/dist/utils.js b/dist/utils.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..a74edb1eeee4011c2f82848107478084c665662b
+--- /dev/null
++++ b/dist/utils.js
+@@ -0,0 +1,39 @@
++'use strict'
++
++const { createHash } = require('node:crypto')
++const { createReadStream } = require('node:fs')
++const { access } = require('node:fs/promises')
++const { pipeline } = require('node:stream/promises')
++
++async function exists(file) {
++  return access(file).then(
++    () => true,
++    () => false,
++  )
++}
++
++async function checksum(target, algorithm) {
++  const hash = createHash(algorithm).setEncoding('hex')
++  try {
++    await pipeline(createReadStream(target), hash)
++  } catch (error) {
++    if (error && error.code === 'ENOENT') return undefined
++    throw error
++  }
++  return hash.read()
++}
++
++async function validateSha1(target, hash, strict = false) {
++  if (!(await exists(target))) return false
++  if (!hash) return !strict
++  return (await checksum(target, 'sha1')) === hash
++}
++
++function isNotNull(value) {
++  return value !== undefined
++}
++
++exports.exists = exists
++exports.validateSha1 = validateSha1
++exports.checksum = checksum
++exports.isNotNull = isNotNull

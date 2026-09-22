@@ -1,0 +1,93 @@
+name: Release Minecraft companion
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} companion
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            os: windows-latest
+            command: pnpm --dir companion dist:win
+            files: companion/dist/*.exe
+          - platform: mac-universal
+            os: macos-14
+            command: pnpm --dir companion dist:mac
+            files: companion/dist/*.dmg
+          - platform: linux-x64
+            os: ubuntu-latest
+            command: pnpm --dir companion dist:linux
+            files: |
+              companion/dist/*.deb
+              companion/dist/*.AppImage
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '11.19.0'
+          run_install: false
+
+      - name: Require Orbitra Microsoft OAuth configuration
+        shell: bash
+        env:
+          ORBITRA_MICROSOFT_CLIENT_ID: ${{ secrets.ORBITRA_MICROSOFT_CLIENT_ID }}
+        run: test -n "$ORBITRA_MICROSOFT_CLIENT_ID"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test companion
+        run: pnpm test:companion
+
+      - name: Build installer
+        shell: bash
+        env:
+          ORBITRA_MICROSOFT_CLIENT_ID: ${{ secrets.ORBITRA_MICROSOFT_CLIENT_ID }}
+        run: ${{ matrix.command }}
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-${{ matrix.platform }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Attach companion installers
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          pattern: companion-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create release and upload installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --generate-notes
+          gh release upload "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber

@@ -73,6 +73,98 @@
   background: #1b2821;
   font-size: 11px;
 }
+.minecraft-companion {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 0.8fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 17px;
+  border: 1px solid #3a4340;
+  background: #181e1b;
+}
+.minecraft-companion.connected {
+  border-color: #52735f;
+}
+.minecraft-companion-heading,
+.minecraft-companion-action,
+.minecraft-companion-connected {
+  display: flex;
+  align-items: center;
+}
+.minecraft-companion-unsupported {
+  color: #a9b2ad;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.minecraft-companion-heading {
+  gap: 11px;
+  min-width: 0;
+}
+.minecraft-companion-heading > div {
+  min-width: 0;
+}
+.minecraft-companion-heading p {
+  margin-top: 3px;
+  color: #929d97;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.minecraft-companion-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  flex: none;
+  border: 1px solid #4d6557;
+  border-radius: 5px;
+  color: #a8e7c0;
+  background: #203027;
+}
+.minecraft-companion-progress {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.minecraft-companion-progress progress {
+  width: 100%;
+  accent-color: #8dd8ae;
+}
+.minecraft-companion-progress span,
+.minecraft-companion-action small {
+  color: #7f8b84;
+  font-size: 9px;
+}
+.minecraft-companion-action {
+  justify-content: flex-end;
+  gap: 9px;
+}
+.minecraft-companion-action:not(:has(.minecraft-companion-connected)) {
+  flex-direction: column;
+  align-items: flex-end;
+}
+.minecraft-companion-eula {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #aab6af;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.minecraft-companion-eula input {
+  accent-color: #8dd8ae;
+}
+.minecraft-companion-eula a {
+  color: #aee9c5;
+}
+.minecraft-companion-eula svg {
+  display: inline;
+  vertical-align: -2px;
+}
+.minecraft-companion-connected {
+  gap: 6px;
+  color: #98ddb3;
+  white-space: nowrap;
+}
 .minecraft-resume-note {
   display: flex;
   align-items: center;
@@ -416,6 +508,13 @@
     align-items: stretch;
     flex-direction: column;
   }
+  .minecraft-companion {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .minecraft-companion-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
   .minecraft-search {
     width: 100%;
   }
@@ -444,6 +543,16 @@
   }
 }
 @media (max-width: 520px) {
+  .minecraft-companion {
+    grid-template-columns: 1fr;
+  }
+  .minecraft-companion-action {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+  .minecraft-companion-action .button {
+    width: 100%;
+  }
   .minecraft-player-overlay {
     padding: 0;
   }

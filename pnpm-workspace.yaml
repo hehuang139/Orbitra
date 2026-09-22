@@ -1,2 +1,15 @@
+packages:
+  - companion
+
+overrides:
+  app-builder-lib>@electron/get: 3.1.0
+
 allowBuilds:
+  electron: true
+  electron-winstaller: true
   esbuild: true
+
+patchedDependencies:
+  '@xmcl/core@2.16.2': patches/@xmcl__core@2.16.2.patch
+  '@xmcl/installer@6.3.4': patches/@xmcl__installer@6.3.4.patch
+  '@xmcl/unzip@2.2.0': patches/@xmcl__unzip@2.2.0.patch

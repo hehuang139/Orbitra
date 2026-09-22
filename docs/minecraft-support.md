@@ -33,4 +33,23 @@ The only browser-playable target currently exposed is unmodified **Minecraft Jav
 
 The user must accept the Minecraft EULA before the client JAR is passed to the runtime. Orbitra does not bundle the client, collect Microsoft credentials, create offline accounts, or claim ownership authorization. CheerpJ Community Edition is limited to personal and non-business use and needs its network runtime; self-hosting requires a separate CheerpJ license.
 
-Modern Minecraft versions use Java and LWJGL generations that do not have a verified Orbitra browser bridge. They can be downloaded, verified, repaired, and retained offline, but are not shown as playable. Bedrock Edition remains limited to its official store link because there is no equivalent public historical-version catalog.
+Modern Minecraft versions use Java and LWJGL generations that do not have a verified Orbitra browser bridge. They can be downloaded, verified, repaired, and retained offline in the browser, but are not shown as browser-playable. Once paired, the local companion exposes its separate launch action. Bedrock Edition remains limited to its official store link because there is no equivalent public historical-version catalog.
+
+## Local companion runtime
+
+Modern Java Edition versions are launched by the separately installed **Orbitra Companion**, while the browser remains the control panel. The first-use flow downloads the platform installer, lets the operating system confirm installation, automatically starts the companion, and asks the user to approve one browser pairing. Later launches start from the version row with one click.
+
+The companion:
+
+- listens only on `127.0.0.1:43125` and rejects unexpected `Host` headers;
+- pairs through the `orbitra://` protocol with an exact web origin and a browser-generated 256-bit token;
+- requires that origin, a bearer token, and `application/json` on every launch request;
+- downloads version files and the Mojang Java runtime from metadata current at launch time, verifies declared hashes, and keeps game data under the companion's application data directory;
+- uses an Orbitra-owned Microsoft Entra public-client ID with device-code login, then checks Xbox authorization, Java Edition ownership, and the Minecraft profile;
+- encrypts the MSAL token cache with Electron `safeStorage` and refuses to persist it when the operating-system secure store is unavailable.
+
+Release builds require `ORBITRA_MICROSOFT_CLIENT_ID`. This must identify an Entra application configured for public-client device-code authentication; Orbitra does not reuse tokens or client IDs from Minecraft Launcher or another launcher. Development builds without a client ID can exercise pairing and local API behavior but cannot complete login.
+
+The release workflow creates a one-click Windows NSIS installer, a macOS DMG, and Linux AppImage / Debian packages. Unless maintainers configure platform signing identities, Windows SmartScreen or macOS Gatekeeper can still require an explicit user confirmation. Browsers and web pages cannot silently install native applications.
+
+Compatibility is metadata-driven rather than permanent: the companion automatically attempts versions that remain in Mojang's official Java Edition catalog and selects the Java component declared by each version. A future Mojang metadata, authentication, native-library, or runtime change can require a companion update; such failures are surfaced rather than bypassed. Real-account and real-device validation remains required before claiming compatibility for a specific version and platform.

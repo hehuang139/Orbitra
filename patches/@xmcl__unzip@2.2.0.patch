@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index 985eaa00aac0622725facf12b691b9f792b79a99..5b4d5ba7c6f0c6cf1eadd9d7d8cfd90d4f038139 100644
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,8 @@
+ {
+   "name": "@xmcl/unzip",
+   "version": "2.2.0",
+-  "main": "./index.ts",
++  "main": "./dist/index.js",
++  "module": "./dist/index.mjs",
+   "description": "A easy unzip interface based on yauzl",
+   "engines": {
+     "node": ">=20"
