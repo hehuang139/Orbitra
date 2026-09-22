@@ -33,6 +33,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
+    "build:companion": "pnpm --dir companion build",
+    "dist:companion": "pnpm --dir companion dist",
     "preview": "vite preview --host 0.0.0.0",
     "start": "node server/index.mjs",
     "start:library": "node server/library-server.mjs",
@@ -40,6 +42,7 @@
     "test:account-server": "node --test server/account-api.test.mjs",
     "test:online-library-server": "node --test server/library-server.test.mjs",
     "test:minecraft-proxy": "node --test server/minecraft-proxy.test.mjs",
+    "test:companion": "pnpm --dir companion test",
     "test:account": "node scripts/test-account-sync.mjs",
     "test:online-library": "node scripts/test-online-library.mjs",
     "test:engine": "node scripts/test-engine.mjs",

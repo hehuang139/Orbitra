@@ -1,0 +1,20 @@
+diff --git a/dist/index.js b/dist/index.js
+index 2c56597f1f02fd9855d0f93bf36d3ac43b4287bb..d9d187f493a61136b6fe2e7b6f9d40470f8a123f 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -3026 +3026 @@ var import_core2 = require("@xmcl/core");
+-var import_utils2 = require("@xmcl/core/utils");
++var import_utils2 = require("@xmcl/core/dist/utils.js");
+@@ -3533 +3533 @@ async function getForgeVersionList(options = {}) {
+-var import_utils7 = require("@xmcl/core/utils");
++var import_utils7 = require("@xmcl/core/dist/utils.js");
+diff --git a/dist/index.mjs b/dist/index.mjs
+index c8c4dbfb7f10fc46ec5ae67db5b9bbe989e6e751..2fbc1af73386a12d44f83df27834e42d11baf5d3 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2915 +2915 @@ import { MinecraftFolder } from "@xmcl/core";
+-import { isNotNull } from "@xmcl/core/utils";
++import { isNotNull } from "@xmcl/core/dist/utils.js";
+@@ -3422 +3422 @@ async function getForgeVersionList(options = {}) {
+-import { isNotNull as isNotNull2 } from "@xmcl/core/utils";
++import { isNotNull as isNotNull2 } from "@xmcl/core/dist/utils.js";

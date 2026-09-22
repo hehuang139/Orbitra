@@ -3,9 +3,12 @@ import {
   CheckCircle2,
   CloudDownload,
   Database,
+  Download,
   ExternalLink,
   HardDrive,
   LoaderCircle,
+  Link2,
+  MonitorCheck,
   Play,
   RefreshCw,
   Search,
@@ -35,6 +38,13 @@ import {
   type MinecraftManifest,
   type MinecraftVersionEntry,
 } from '../lib/minecraft.ts'
+import {
+  createMinecraftCompanionPairingUrl,
+  inspectMinecraftCompanion,
+  launchMinecraftWithCompanion,
+  minecraftCompanionInstallerUrl,
+  type CompanionConnection,
+} from '../lib/minecraft-companion.ts'
 import { MinecraftPlayer } from './MinecraftPlayer.tsx'
 import './minecraft.css'
 
@@ -70,6 +80,12 @@ export function MinecraftPage() {
   const [prepared, setPrepared] = useState<MinecraftPreparedDownload>()
   const [progress, setProgress] = useState<MinecraftDownloadProgress>()
   const [player, setPlayer] = useState<MinecraftInstalledVersion>()
+  const [companionEulaAccepted, setCompanionEulaAccepted] = useState(false)
+  const [companion, setCompanion] = useState<CompanionConnection>({
+    available: false,
+    compatible: true,
+    paired: false,
+  })
   const abortRef = useRef<AbortController | undefined>(undefined)
 
   const reloadLocal = async () => {
@@ -100,6 +116,20 @@ export function MinecraftPage() {
   useEffect(() => {
     void load()
     return () => abortRef.current?.abort()
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const inspect = async () => {
+      const connection = await inspectMinecraftCompanion()
+      if (active) setCompanion(connection)
+    }
+    void inspect()
+    const timer = window.setInterval(() => void inspect(), 2000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
   }, [])
 
   const installedByKey = useMemo(
@@ -208,6 +238,21 @@ export function MinecraftPage() {
     await reloadLocal()
   }
 
+  const launchLocal = async (version: MinecraftVersionEntry) => {
+    try {
+      await launchMinecraftWithCompanion(version.id)
+      setMessage(`${version.id} 已交给 Orbitra Companion；首次启动会先登录并下载所需文件。`)
+      setCompanion(await inspectMinecraftCompanion())
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '无法启动 Minecraft。')
+    }
+  }
+
+  const companionBusy = ['installing', 'authenticating', 'launching', 'running'].includes(
+    companion.status?.phase ?? '',
+  )
+  const companionInstallerUrl = useMemo(() => minecraftCompanionInstallerUrl(), [])
+
   return (
     <div className="minecraft-page">
       <section className="minecraft-overview">
@@ -253,6 +298,79 @@ export function MinecraftPage() {
           {tasks.length} 个下载任务可继续；再次选择对应版本即可复用已校验文件。
         </div>
       )}
+
+      <section className={`minecraft-companion ${companion.paired ? 'connected' : ''}`}>
+        <div className="minecraft-companion-heading">
+          <span className="minecraft-companion-icon">
+            {companion.paired ? <MonitorCheck size={20} /> : <Download size={20} />}
+          </span>
+          <div>
+            <strong>Orbitra Companion</strong>
+            <p>
+              {companion.paired
+                ? (companion.status?.message ?? '已连接本机启动服务。')
+                : companion.available && !companion.compatible
+                  ? '本机伴侣版本与当前网页不兼容，请更新后重试。'
+                  : companion.available
+                    ? '已发现本机伴侣，完成一次配对即可启动。'
+                    : '安装本机伴侣，由它自动准备 Java、登录并启动游戏。'}
+            </p>
+          </div>
+        </div>
+        {companion.status?.progress && companion.status.progress.total > 0 && (
+          <div className="minecraft-companion-progress">
+            <progress
+              value={companion.status.progress.completed}
+              max={companion.status.progress.total}
+            />
+            <span>{companion.status.progress.label}</span>
+          </div>
+        )}
+        <div className="minecraft-companion-action">
+          {companion.paired ? (
+            <span className="minecraft-companion-connected">
+              <CheckCircle2 size={15} />
+              {companion.status?.profileName ?? '已连接'}
+            </span>
+          ) : companion.available && companion.compatible ? (
+            <>
+              <label className="minecraft-companion-eula">
+                <input
+                  type="checkbox"
+                  checked={companionEulaAccepted}
+                  onChange={(event) => setCompanionEulaAccepted(event.target.checked)}
+                />
+                <span>
+                  我已接受{' '}
+                  <a href="https://www.minecraft.net/eula" target="_blank" rel="noreferrer">
+                    Minecraft EULA <ExternalLink size={11} />
+                  </a>
+                </span>
+              </label>
+              <button
+                className="button primary"
+                disabled={!companionEulaAccepted}
+                onClick={() => {
+                  window.location.href = createMinecraftCompanionPairingUrl(companionEulaAccepted)
+                }}
+              >
+                <Link2 size={15} />
+                连接伴侣
+              </button>
+            </>
+          ) : companionInstallerUrl ? (
+            <a className="button primary" href={companionInstallerUrl}>
+              <Download size={15} />
+              {companion.available ? '更新伴侣' : '一键安装'}
+            </a>
+          ) : (
+            <span className="minecraft-companion-unsupported">请在桌面设备使用</span>
+          )}
+          {!companion.available && companionInstallerUrl && (
+            <small>安装完成后保持本页打开，将自动检测。</small>
+          )}
+        </div>
+      </section>
 
       <section className="minecraft-controls">
         <div className="minecraft-filters" role="group" aria-label="Minecraft 版本类型">
@@ -399,6 +517,23 @@ export function MinecraftPage() {
                       浏览器试玩
                     </button>
                   )}
+                  {companion.paired && (
+                    <button
+                      className="button primary compact"
+                      disabled={companionBusy}
+                      onClick={() => void launchLocal(version)}
+                    >
+                      {companionBusy && companion.status?.versionId === version.id ? (
+                        <LoaderCircle className="spin" size={14} />
+                      ) : (
+                        <Play size={14} fill="currentColor" />
+                      )}
+                      {companion.status?.phase === 'running' &&
+                      companion.status.versionId === version.id
+                        ? '运行中'
+                        : '启动'}
+                    </button>
+                  )}
                   {local ? (
                     <>
                       <button
@@ -445,11 +580,12 @@ export function MinecraftPage() {
       <section className="minecraft-boundary">
         <div>
           <ShieldCheck size={18} />
-          <strong>浏览器运行范围</strong>
+          <strong>运行方式与兼容范围</strong>
         </div>
         <p>
-          所有公开 Java 版均可从官方源下载、校验和离线保存；当前仅 1.2.5 通过 CheerpJ + LWJGL
-          浏览器运行验证，试玩限制 3 分钟。其他版本不会显示虚假的“可运行”状态。
+          1.2.5 可通过 CheerpJ + LWJGL 在浏览器试玩 3 分钟。安装 Orbitra Companion 后，可按当前
+          Mojang 元数据自动准备 Java、验证 Microsoft 所有权并尝试启动官方 Java
+          版；未来若官方更改元数据、认证或运行时协议，伴侣会明确报错，可能需要更新。
         </p>
         <a
           className="button secondary compact"

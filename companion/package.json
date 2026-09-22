@@ -1,0 +1,91 @@
+{
+  "name": "@orbitra/minecraft-companion",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Orbitra local companion for authenticated Minecraft: Java Edition launches.",
+  "license": "MIT",
+  "author": "hehuang139 <hehuang139@users.noreply.github.com>",
+  "homepage": "https://github.com/hehuang139/Orbitra",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hehuang139/Orbitra.git"
+  },
+  "desktopName": "orbitra-companion.desktop",
+  "type": "module",
+  "main": "dist/main.js",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "dist": "pnpm build && electron-builder --publish never",
+    "dist:linux": "pnpm build && electron-builder --publish never --linux deb AppImage --x64",
+    "dist:mac": "pnpm build && electron-builder --publish never --mac dmg --universal",
+    "dist:win": "pnpm build && electron-builder --publish never --win nsis --x64"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^6.0.1",
+    "@xmcl/core": "^2.16.2",
+    "@xmcl/installer": "^6.3.4",
+    "@xmcl/user": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3",
+    "tsx": "^4.20.6",
+    "tsup": "^8.5.1",
+    "typescript": "~5.7.2"
+  },
+  "build": {
+    "appId": "com.orbitra.companion",
+    "productName": "Orbitra Companion",
+    "asar": true,
+    "files": [
+      "dist/**",
+      "package.json"
+    ],
+    "protocols": [
+      {
+        "name": "Orbitra pairing",
+        "schemes": [
+          "orbitra"
+        ]
+      }
+    ],
+    "win": {
+      "artifactName": "Orbitra-Companion-win-x64.${ext}",
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "artifactName": "Orbitra-Companion-mac-universal.${ext}",
+      "icon": "build/icon.icns",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.games"
+    },
+    "linux": {
+      "artifactName": "Orbitra-Companion-linux-x64.${ext}",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "executableName": "orbitra-companion",
+      "icon": "build/icon.png",
+      "syncDesktopName": true
+    }
+  }
+}

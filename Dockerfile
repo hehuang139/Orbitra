@@ -4,6 +4,7 @@ WORKDIR /app
 RUN npm install --global pnpm@11.19.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile
 
 COPY index.html tsconfig.json vite.config.ts ./

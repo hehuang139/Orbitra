@@ -35,6 +35,12 @@ EmulatorJS 4.2.3 前端与固定版本的 FCEUmm / Snes9x WebAssembly 核心随�
 
 Minecraft 版本清单、客户端、资源和依赖不随仓库分发。Minecraft Java Edition 1.2.5 的可选浏览器演示使用 CheerpJ 4.3（由 Leaning Technologies 提供的外部浏览器运行时）以及上述 Browsercraft、LWJGL 2.9.3 和 GL4ES 文件；CheerpJ 的许可、服务条款和自托管条件以其[官方许可说明](https://cheerpj.com/licensing/)为准。项目不收集 Microsoft 密码、不绕过所有权校验，也不声称获得 Mojang 或 Microsoft 的授权。
 
+### Minecraft 本地伴侣
+
+Orbitra Companion 的发布包包含 Electron（MIT）、`@xmcl/core` / `@xmcl/installer` / `@xmcl/user`（MIT）和 Microsoft Authentication Library for Node（MIT）。这些组件只负责本机界面、官方文件安装、启动参数解析及 Microsoft OAuth 协议接入；Minecraft 客户端、资源与 Mojang Java 运行时由用户启动时从元数据声明的上游获取，不随 Orbitra 安装包分发。完整依赖版本锁定在 `pnpm-lock.yaml`，各包许可证保留在安装包的依赖元数据中。
+
+当前锁定的 XMCL 包包含上游发布元数据遗漏：`@xmcl/unzip` 的入口指向未发布源码，`@xmcl/core` 缺少已声明的 `utils.js`，且 `@xmcl/installer` 引用了该缺失子路径。仓库通过 `patches/` 只修正入口、补回与上游实现一致的文件校验工具并调整编译产物引用；不改变 Minecraft 协议、认证或下载行为。
+
 ## 前端运行依赖
 
 版本锁定在 [`pnpm-lock.yaml`](pnpm-lock.yaml)。以下许可文本随生产构建复制到 `licenses/` 目录，以便静态站点分发时一起保留。
